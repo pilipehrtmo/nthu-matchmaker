@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% block body %}<h1>Post a project</h1><p class="muted">A competition team, a startup, a research project or something you are building for fun. Describe it, then list the seats you need to fill.</p>
+<form method="post" id="f" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="t">Title</label><input id="t" name="title" required maxlength="120" placeholder="e.g. Hackathon team: AI for health">
+<label>What kind of project?</label>
+<div class="kinds" role="radiogroup" aria-label="Project kind">{% for k in kinds %}<label class="kind"><input type="radio" name="kind" value="{{ k }}" {{ "checked" if k == kind }} required><span>{{ k }}</span></label>{% endfor %}</div>
+<p class="muted kindhint">Not entering a competition? Pick Startup, Research or Side project.</p>
+<label for="d">What are you building?</label><textarea id="d" name="description" rows="4" placeholder="The idea, the goal, what you've done so far"></textarea>
+<div class="two"><div id="compbox"><label for="c">Which competition? (optional)</label><select id="c" name="competition_id"><option value="">None</option>
+{% for c in comps %}<option value="{{ c.id }}" {{ "selected" if c.id|string == sel }}>{{ c.title }}</option>{% endfor %}</select></div>
+<div><label for="dl">Team must be formed by (optional)</label><input id="dl" name="deadline" type="date"></div></div>
+<label for="h">Hours per week</label><input id="h" name="hours" type="number" value="4" min="1" max="60" style="max-width:8rem">
+<label>Open seats</label><div id="rows"></div><p><button type="button" class="ghost sm" id="add">+ Add a seat</button></p>
+<input type="hidden" name="roles" id="roles"><p><button>Publish project</button></p></form>
+<script>
+const rows=document.getElementById("rows");
+function addRow(n="",s=""){const d=document.createElement("div");d.className="row";
+d.innerHTML='<input placeholder="Role, e.g. UI designer" aria-label="Role"><input placeholder="Skills, comma-separated" aria-label="Skills"><button type="button" class="ghost sm" aria-label="Remove seat">✕</button>';
+d.children[0].value=n;d.children[1].value=s;d.children[2].onclick=()=>d.remove();rows.appendChild(d)}
+document.getElementById("add").onclick=()=>addRow();addRow();
+const box=document.getElementById("compbox"),sel=document.getElementById("c");
+function syncKind(){const k=(document.querySelector("input[name=kind]:checked")||{}).value;const on=k==="Competition";box.style.display=on?"":"none";if(!on)sel.value=""}
+document.querySelectorAll("input[name=kind]").forEach(r=>r.addEventListener("change",syncKind));syncKind();
+document.getElementById("f").onsubmit=()=>{document.getElementById("roles").value=[...rows.children].filter(r=>r.children[0].value.trim()).map(r=>r.children[0].value.trim()+": "+r.children[1].value.trim()).join("\n")};
+</script>{% endblock %}

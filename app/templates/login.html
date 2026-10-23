@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block body %}<h1>Log in or sign up</h1>
+<p class="muted">Name and student ID are only needed the first time. Only admins can see them. Other students see just your handle.</p>
+{% if sent %}<p class="box">Check your inbox for a login link. It expires in 15 minutes.</p>{% endif %}
+{% if demo_link %}<p class="box"><b>Demo mode:</b> <a href="{{ demo_link }}">click here to log in</a>. Only for classroom demos on a private network.</p>{% endif %}
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form method="post" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="e">Email</label><input id="e" name="email" type="email" required>
+<div class="two"><div><label for="n">Full name (first time only)</label><input id="n" name="name" autocomplete="name"></div>
+<div><label for="s">Student ID (first time only)</label><input id="s" name="student_id" maxlength="12"></div></div>
+<label style="font-weight:400"><input type="checkbox" name="agree" value="1" style="width:auto"> I agree to the <a href="/privacy" target="_blank">privacy notice</a> (first time only)</label>
+<p><button>Send login link</button></p></form>{% endblock %}

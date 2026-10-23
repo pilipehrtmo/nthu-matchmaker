@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% block body %}
+<section class="hero"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i>
+<span class="float f1" aria-hidden="true">UI designer</span><span class="float f2" aria-hidden="true">Pitcher</span><span class="float f3" aria-hidden="true">Data analyst</span><span class="float f4" aria-hidden="true">Frontend dev</span><span class="float f5" aria-hidden="true">Copywriter</span><span class="float f6" aria-hidden="true">Video editor</span><span class="float f7" aria-hidden="true">Finance</span><span class="float f8" aria-hidden="true">Illustrator</span><span class="float f9" aria-hidden="true">Researcher</span><span class="float f10" aria-hidden="true">Marketing</span>
+<h1>Find the teammate you're missing.</h1>
+<p><b data-count="{{ rows|length }}">{{ rows|length }}</b> project{{ "" if rows|length == 1 else "s" }} with open seats at NTHU, across every faculty.</p>
+<form method="get"><input name="q" value="{{ q }}" placeholder="Try: figma, pitch, python, hackathon" aria-label="Search"><button>Search</button></form></section>
+<ol class="steps"><li><b>1</b><span>Browse open seats, or post your own project</span></li>
+<li><b>2</b><span>Apply to a seat with a short note</span></li>
+<li><b>3</b><span>Get accepted and see their contact</span></li></ol>
+{% if q %}<p class="muted">Results for "{{ q }}" · <a href="/">clear</a></p>{% endif %}
+<div class="chips"><a class="chip {{ 'on' if not kind }}" href="/{{ '?q=' ~ q if q }}">All projects</a>
+{% for k in kinds %}<a class="chip {{ 'on' if kind == k }}" href="/?kind={{ k|urlencode }}{{ '&q=' ~ q if q }}">{{ k }}</a>{% endfor %}</div>
+<div class="projects">{% for r in rows %}<article class="card link"><h2><a href="/projects/{{ r.p.id }}">{{ r.p.title }}</a></h2>
+<div class="meta"><span class="pill kindpill">{{ kind_of(r.p) }}</span><span>by {{ r.owner.handle }}</span><span>{{ r.p.hours_per_week }} h/week</span>
+{% if r.days is not none %}<span class="pill {{ 'warn' if r.days <= 7 }}">{{ "closed" if r.days < 0 else (r.days ~ " days left") }}</span>{% endif %}
+{% if user and r.score is not none %}<span class="pill match">★ {{ r.score }}% match</span>{% endif %}</div>
+{% if r.p.description %}<p style="margin:.2rem 0">{{ r.p.description[:140] }}{{ "…" if r.p.description|length > 140 }}</p>{% endif %}
+<div class="seats">{% for s in r.roles %}<span class="seat">{{ s.name }}</span>{% endfor %}</div>
+{% set filled = r.total - r.roles|length %}<div class="bar" aria-hidden="true"><i style="width:{{ (filled / r.total * 100)|int }}%"></i></div>
+<span class="muted">{{ filled }} of {{ r.total }} seats filled</span></article>
+{% else %}<div class="box">No open seats{% if q or kind %} matching your filter{% endif %}. <a href="/projects/new{{ '?kind=' ~ (kind|urlencode) if kind }}">Post the first project.</a></div>{% endfor %}</div>
+<h2 style="margin-top:2.2rem">Competitions &amp; grants</h2>
+<p class="muted">Contests for every faculty, not just engineering. Pick one and start a team for it.</p>
+<div class="chips"><a class="chip {{ 'on' if not cat }}" href="/{{ '?q=' ~ q if q }}">All</a>
+{% for c in cats %}<a class="chip {{ 'on' if cat == c }}" href="/?cat={{ c|urlencode }}{{ '&q=' ~ q if q }}">{{ c }}</a>{% endfor %}</div>
+<div class="grid">{% for c in comps %}<article class="card comp"><span class="pill cat">{{ c.category }}</span>
+<h3><a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.title }}</a></h3>
+{% if c.description %}<p>{{ c.description }}</p>{% endif %}
+<div class="meta"><span>{{ c.deadline or "Deadline unknown" }}</span>{% if c.needs_review %}<span class="pill">unreviewed</span>{% endif %}</div>
+<a class="btn sm" href="/projects/new?comp={{ c.id }}">Start a team</a></article>
+{% else %}<p class="muted">No competitions in this category yet.</p>{% endfor %}</div>
+{% endblock %}

@@ -1,0 +1,4 @@
+{% macro vote(kind, oid, score, mine, csrf, next) %}<div class="votes">
+<form method="post" action="/vote/{{ kind }}/{{ oid }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ next }}"><button name="v" value="1" class="vbtn {{ 'on' if mine == 1 }}" aria-label="Upvote">▲</button></form>
+<b>{{ score }}</b>
+<form method="post" action="/vote/{{ kind }}/{{ oid }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ next }}"><button name="v" value="-1" class="vbtn {{ 'on' if mine == -1 }}" aria-label="Downvote">▼</button></form></div>{% endmacro %}

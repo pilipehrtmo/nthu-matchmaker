@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% block body %}
+<div class="dhead"><h1>Admin</h1><form method="post" action="/admin/scrape/0"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Run scrapers now</button></form></div>
+<div class="stats">
+<div class="stat"><b>{{ stats.users }}</b><span>Accounts</span></div>
+<div class="stat"><b>{{ stats.unverified }}</b><span>To verify</span></div>
+<div class="stat"><b>{{ stats.reports }}</b><span>Open reports</span></div>
+<div class="stat"><b>{{ stats.review }}</b><span>Competitions to review</span></div></div>
+<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
+
+<section class="sec" id="reports"><h2>Reports <span class="count">{{ stats.reports }}</span></h2>
+{% for r in reports %}<div class="card" style="margin:.6rem 0"><div class="meta"><span class="pill">{{ r.kind }}</span><span>Reason: {{ r.reason }}</span></div>
+{% if r.kind != "user" %}<p style="margin:.2rem 0 .7rem">"{{ info[r.id] }}"</p>{% endif %}
+<div class="acts">{% if r.kind != "user" %}<form method="post" action="/admin/restore/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Keep (unhide)</button></form><form method="post" action="/admin/remove/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Remove content</button></form>{% endif %}
+{% if r.target_user_id not in admin_ids %}<form method="post" action="/admin/ban/{{ r.target_user_id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban author</button></form>{% endif %}<form method="post" action="/admin/resolve/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Dismiss</button></form></div></div>
+{% else %}<p class="muted">No open reports.</p>{% endfor %}</section>
+
+<section class="sec" id="competitions"><h2>Competitions <span class="count">{{ stats.review }} to review</span></h2>
+{% if review %}<div class="acts" style="margin-bottom:.8rem"><form method="post" action="/admin/approve_all/0"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Approve all ({{ review|length }})</button></form></div>
+<div class="tblwrap"><table class="tbl"><tr><th>Title</th><th>Deadline</th><th></th></tr>
+{% for c in review %}<tr><td><a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.title }}</a></td><td>{{ c.deadline }}</td>
+<td><div class="acts"><form method="post" action="/admin/approve/{{ c.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Approve</button></form><form method="post" action="/admin/reject/{{ c.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Remove</button></form></div></td></tr>{% endfor %}</table></div>
+{% else %}<p class="muted">Nothing to review.</p>{% endif %}
+<details class="card" style="margin-top:1rem"><summary>Add a competition</summary>
+<form method="post" action="/admin/competition"><input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="two"><div><label for="ct">Title</label><input id="ct" name="title" required></div><div><label for="cu">Link (https://...)</label><input id="cu" name="url" type="url" required></div></div>
+<div class="two"><div><label for="cc">Category</label><select id="cc" name="category"><option>Business</option><option>Design &amp; Arts</option><option>Law &amp; Policy</option><option>Science &amp; Health</option><option>Social Impact</option><option>Tech &amp; Data</option><option>Other</option></select></div>
+<div><label for="cd">Deadline (text)</label><input id="cd" name="deadline" placeholder="e.g. 30 Nov 2026"></div></div>
+<label for="cx">Short description</label><input id="cx" name="description"><p><button>Add competition</button></p></form></details></section>
+
+<section class="sec" id="users"><h2>Users <span class="count">{{ stats.users }}</span></h2>
+{% if stats.unverified %}<div class="acts" style="margin-bottom:.8rem"><form method="post" action="/admin/verify_all/0"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify all ({{ stats.unverified }})</button></form></div>{% endif %}
+<div class="tblwrap"><table class="tbl"><tr><th>Handle</th><th>Name</th><th>Student ID</th><th>Email</th><th>Status</th><th></th></tr>
+{% for u in users %}<tr><td>{{ u.handle }}</td><td>{{ u.name }}</td><td>{{ u.student_id }}</td><td>{{ u.email }}</td>
+<td>{% if u.is_admin %}<span class="pill match">Admin</span>{% elif u.banned %}<span class="pill bad">Banned</span>{% elif u.verified %}<span class="pill ok">✔ Verified</span>{% else %}<span class="pill">Unverified</span>{% endif %}</td>
+<td>{% if not u.is_admin %}<div class="acts">{% if u.banned %}<form method="post" action="/admin/unban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Unban</button></form>{% else %}{% if not u.verified %}<form method="post" action="/admin/verify/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify</button></form>{% endif %}<form method="post" action="/admin/ban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban</button></form>{% endif %}</div>{% endif %}</td></tr>{% endfor %}</table></div></section>
+
+<section class="sec" id="scraper"><h2>Scraper</h2>
+<div class="tblwrap"><table class="tbl"><tr><th>When</th><th>Source</th><th>New items</th><th>Problem</th></tr>
+{% for l in slogs %}<tr><td>{{ l.at.strftime("%m-%d %H:%M") }}</td><td>{{ l.source }}</td><td>{{ l.count }}</td><td>{{ l.error }}</td></tr>{% else %}<tr><td colspan="4" class="muted">Not run yet.</td></tr>{% endfor %}</table></div>
+<h3 style="margin-top:1.2rem">NTHU announcement pages to scan</h3>
+{% for p in pages %}<div class="acts" style="margin:.4rem 0"><span>{{ p.url }}</span><form method="post" action="/admin/rmsource/{{ p.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Remove</button></form></div>{% else %}<p class="muted">None yet. Paste a page that lists announcements.</p>{% endfor %}
+<form method="post" action="/admin/source" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="su">Page URL (https://...)</label><input id="su" name="url" type="url" required><p><button>Add page</button></p></form></section>
+
+<section class="sec" id="log"><h2>Signup log</h2><details class="card"><summary>Show recent sign-in attempts</summary>
+<div class="tblwrap"><table class="tbl"><tr><th>When</th><th>Email</th></tr>{% for l in logs %}<tr><td>{{ l.at.strftime("%m-%d %H:%M") }}</td><td>{{ l.email }}</td></tr>{% endfor %}</table></div></details></section>
+{% endblock %}

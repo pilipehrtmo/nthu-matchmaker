@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% from "_links.html" import icon %}{% block body %}<h1>Your profile</h1>{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<p class="muted">Other students see your handle, bio, skills, faculty and professional links. Your contacts stay private until you are accepted into a team.</p>
+<section class="cvbox"><div><h3>Fill in from your CV</h3>
+<p class="muted">Upload a PDF or Word CV and we fill in your skills, faculty, bio, contacts and links. Check them, then press Save. The file is read once on this server and not stored.</p></div>
+<form id="cvform" class="cvpick"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label class="btn ghost" for="cvfile">Choose CV file</label><input id="cvfile" name="file" type="file" accept=".pdf,.docx,.txt" hidden>
+<span id="cvmsg" class="muted" role="status"></span></form></section>
+<form method="post" id="pform"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="h">Handle</label><input id="h" name="handle" value="{{ user.handle }}" required>
+<label for="b">Bio (major, interests)</label><textarea id="b" name="bio" rows="3">{{ user.bio }}</textarea>
+<label for="s">Skills, comma-separated</label><input id="s" name="skills" value="{{ user.skills }}" placeholder="figma, python, financial modeling">
+<div class="two"><div><label for="f">Faculty / major</label><input id="f" name="faculty" value="{{ user.faculty }}" placeholder="e.g. Computer Science"></div>
+<div><label for="hr">Hours per week you can give</label><input id="hr" name="hours" type="number" min="1" max="60" value="{{ user.hours }}"></div></div>
+<div class="psec"><div class="psec-h"><h2>Contact</h2><span class="pill">🔒 Private</span></div>
+<p class="muted">Shown only to your teammates after an application is accepted.</p>
+<div class="two">{% for f, label, ph in CONTACTS %}<div><label for="ct-{{ f }}" class="lk-label">{{ icon(f) }} {{ label }}</label><input id="ct-{{ f }}" name="{{ f }}" value="{{ user[f] }}" placeholder="{{ ph }}" maxlength="{{ 100 if f == 'contact' else 40 }}"></div>{% endfor %}</div></div>
+<div class="psec"><div class="psec-h"><h2>Professional links</h2><span class="pill ok">Public</span></div>
+<p class="muted">Shown on your profile and next to your applications, so team leads can see your work. Paste a link or just your username.</p>
+<div class="two">{% for p in PRO_LINKS %}<div><label for="pl-{{ p[0] }}" class="lk-label">{{ icon(p[0]) }} {{ p[1] }}</label><input id="pl-{{ p[0] }}" name="{{ p[0] }}" value="{{ user[p[0]] }}" placeholder="{{ p[2] }}" maxlength="200" inputmode="url" autocomplete="off"></div>{% endfor %}</div></div>
+<p><button>Save profile</button></p></form><h2 style="margin-top:2rem">Delete my account</h2><p class="muted">Removes your profile, name, student ID, projects and applications. This cannot be undone.</p>
+<form method="post" action="/profile/delete" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="dl">Type DELETE to confirm</label><input id="dl" name="confirm" autocomplete="off"><p><button class="no">Delete my account</button></p></form><script>
+(() => {
+  const inp = document.getElementById("cvfile"), msg = document.getElementById("cvmsg"), form = document.getElementById("cvform");
+  const set = (id, val) => { const el = document.getElementById(id); if (!val || el.value.trim() === val) return 0;
+    el.value = val; el.classList.remove("filled"); void el.offsetWidth; el.classList.add("filled"); return 1; };
+  inp.addEventListener("change", async () => {
+    if (!inp.files.length) return;
+    msg.className = "muted"; msg.textContent = "Reading " + inp.files[0].name + "…";
+    try {
+      const r = await fetch("/profile/cv", { method: "POST", body: new FormData(form) });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || d.detail || "Could not read the file.");
+      const sk = document.getElementById("s"), have = sk.value.split(",").map(x => x.trim()).filter(Boolean);
+      const low = have.map(x => x.toLowerCase()), add = d.skills.filter(x => !low.includes(x));
+      let n = set("s", [...have, ...add].join(", ")) + set("f", d.faculty) + set("b", d.bio) + set("ct-contact", d.contact);
+      for (const [k, v] of Object.entries(d.contacts || {})) if (document.getElementById("ct-" + k)) n += set("ct-" + k, v);
+      for (const [k, v] of Object.entries(d.links || {})) if (document.getElementById("pl-" + k)) n += set("pl-" + k, v);
+      msg.className = n ? "ok" : "muted";
+      msg.textContent = n ? `Filled ${n} field${n > 1 ? "s" : ""} (${add.length} new skill${add.length == 1 ? "" : "s"}). Check them, then press Save profile.`
+                          : "Nothing new found in this CV. You can fill the fields by hand.";
+      if (n) document.getElementById("pform").scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) { msg.className = "err"; msg.textContent = e.message; }
+    inp.value = "";
+  });
+})();
+</script>{% endblock %}

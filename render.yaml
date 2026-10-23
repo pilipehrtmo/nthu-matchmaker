@@ -1,0 +1,33 @@
+# Render Blueprint: New -> Blueprint -> pick this repo -> fill the 4 secret values -> Apply
+services:
+  - type: web
+    name: nthu-matchmaker
+    runtime: python
+    plan: free
+    region: virginia            # close to the Supabase database (us-east-1)
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
+    healthCheckPath: /privacy
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true     # Render makes a random one
+      - key: BASE_URL
+        value: https://nthu-matchmaker.onrender.com
+      - key: ADMIN_EMAILS
+        value: yeepilipe@gmail.com
+      - key: MATCH_MODE
+        value: hybrid           # no embedding model on the free plan, so this falls back to skill-tag overlap
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: DB_URL             # Supabase session pooler connection string
+        sync: false
+      - key: SMTP_USER          # the Gmail address that sends login links
+        sync: false
+      - key: SMTP_FROM          # same Gmail address
+        sync: false
+      - key: SMTP_PASS          # Gmail app password (16 letters)
+        sync: false
