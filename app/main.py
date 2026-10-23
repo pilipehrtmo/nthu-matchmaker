@@ -34,7 +34,14 @@ def purge_logs():
 
 @asynccontextmanager
 async def lifespan(app):
-    init_db(); seed(); seed_starter()
+    from urllib.parse import urlparse
+    print(">>> startup: connecting to database at", urlparse(DB_URL.replace("+psycopg2", "")).hostname or "sqlite", flush=True)
+    try:
+        init_db()
+    except Exception as e:
+        print(">>> DATABASE CONNECTION FAILED:", type(e).__name__, str(e).splitlines()[0][:300], flush=True); raise
+    print(">>> startup: database ready, seeding", flush=True)
+    seed(); seed_starter()
     if not DEMO_DATA: seed_examples()
     if DEMO_DATA:
         from .demo_data import seed_demo; seed_demo(); print(">>> DEMO MODE: sample teams loaded into a separate database. Do not share this server with real users.")

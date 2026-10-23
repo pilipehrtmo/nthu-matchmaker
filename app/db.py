@@ -7,7 +7,8 @@ if DB_URL.startswith("postgresql://"):
 if DB_URL.startswith("sqlite"):
     engine = create_engine(DB_URL, connect_args={"check_same_thread": False})
 else:   # Postgres (e.g. Supabase): small pool, drop dead connections after the free tier pauses
-    engine = create_engine(DB_URL, pool_pre_ping=True, pool_size=3, max_overflow=2, pool_recycle=300)
+    engine = create_engine(DB_URL, pool_pre_ping=True, pool_size=3, max_overflow=2, pool_recycle=300,
+                           connect_args={"connect_timeout": 10})   # fail fast with a clear error instead of hanging
 NEW_COLS = {"project": [("kind", "VARCHAR DEFAULT ''")], "post": [("hidden", "BOOLEAN DEFAULT 0")], "comment": [("hidden", "BOOLEAN DEFAULT 0")],
             "report": [("kind", "VARCHAR DEFAULT 'user'"), ("target_id", "INTEGER DEFAULT 0")],
             "competition": [("category", "VARCHAR DEFAULT 'Other'"), ("description", "VARCHAR DEFAULT ''")],
