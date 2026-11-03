@@ -3,7 +3,8 @@ from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, UploadFile, File
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, Response
+from markupsafe import Markup, escape
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
@@ -20,6 +21,7 @@ from .matching import match_pct, why, warm
 from .cv import parse_cv, CVError, MAX_BYTES
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
 from . import guide
+from .photo import make_avatar, PhotoError, MAX_UPLOAD
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -97,7 +99,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 ERR_TITLES = {403: "Security check failed", 404: "Page not found", 429: "Slow down a little"}
 @app.exception_handler(StarletteHTTPException)
 async def http_error(req: Request, exc):
-    if req.url.path.startswith(("/profile/cv", "/static")): return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+    if req.url.path.startswith(("/profile/cv", "/profile/photo", "/avatar/", "/static")) and not req.url.path.endswith("/delete"): return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
     msg = exc.detail if exc.status_code != 404 else "That page does not exist, or it was deleted."
     return templates.TemplateResponse(req, "error.html", {"user": None, "csrf": req.session.get("csrf", "") if "session" in req.scope else "",
         "theme": req.cookies.get("theme", "light"), "inbox": 0, "title": ERR_TITLES.get(exc.status_code, "Something went wrong"), "msg": msg}, status_code=exc.status_code)
@@ -142,7 +144,11 @@ def slugify(s, name, uid=None):
     h, n = base if len(base) >= 3 else base + "-nthu", 1
     while s.exec(select(User).where(User.handle == h, User.id != uid)).first(): n += 1; h = f"{base}-{n}"
     return h
-templates.env.filters["dn"] = dn; templates.env.globals["initials"] = initials
+def pic(u, cls="av"):   # profile photo if there is one, otherwise initials
+    if u and u.avatar_v:
+        return Markup(f'<img class="{cls} pic" src="/avatar/{u.id}?v={u.avatar_v}" alt="" loading="lazy" decoding="async">')
+    return Markup(f'<span class="{cls}" aria-hidden="true">{escape(initials(u))}</span>')
+templates.env.filters["dn"] = dn; templates.env.globals.update(initials=initials, pic=pic)
 
 def name_handles():   # one-time: users who still have a random "student-xxxxxx" address get one made from their name
     with Session(engine) as s:
@@ -229,6 +235,30 @@ def profile_cv(file: UploadFile = File(...), user=Depends(me), s: Session = Depe
     except CVError as e: return JSONResponse({"error": str(e)}, status_code=400)
     finally: del data
 
+@app.post("/profile/photo", dependencies=[limited("photo", 20, 3600)])
+def profile_photo(file: UploadFile = File(...), user=Depends(me), s: Session = Depends(get_session)):
+    if not user: return JSONResponse({"error": "Please log in again."}, status_code=401)
+    try: data = make_avatar(file.file.read(MAX_UPLOAD + 1))
+    except PhotoError as e: return JSONResponse({"error": str(e)}, status_code=400)
+    a = s.get(Avatar, user.id)
+    if a: a.data = data
+    else: s.add(Avatar(user_id=user.id, data=data))
+    user.avatar_v = (user.avatar_v or 0) + 1; s.add(user); s.commit()
+    return {"url": f"/avatar/{user.id}?v={user.avatar_v}"}
+
+@app.post("/profile/photo/delete")
+def profile_photo_delete(user=Depends(me), s: Session = Depends(get_session)):
+    if user:
+        s.exec(delete(Avatar).where(Avatar.user_id == user.id)); user.avatar_v = 0; s.add(user); s.commit()
+    return go("/profile")
+
+@app.get("/avatar/{uid}")
+def avatar(uid: int, s: Session = Depends(get_session)):
+    u = s.get(User, uid); a = s.get(Avatar, uid) if u and u.avatar_v and not u.banned else None
+    if not a: raise HTTPException(404)
+    # the address changes on every upload (?v=), so browsers can keep it for a long time
+    return Response(a.data, media_type="image/webp", headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"})
+
 @app.post("/profile/delete")
 def delete_account(req: Request, confirm: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if user and confirm.strip() == "DELETE":
@@ -243,6 +273,7 @@ def delete_account(req: Request, confirm: str = Form(""), user=Depends(me), s: S
             s.exec(delete(Remark).where(Remark.project_id == pid)); s.delete(s.get(Project, pid))
         for a in s.exec(select(Application).where(Application.user_id == user.id)): s.delete(a)
         s.exec(delete(Remark).where(Remark.author_id == user.id))
+        s.exec(delete(Avatar).where(Avatar.user_id == user.id))
         s.exec(delete(SignupLog).where(SignupLog.email == email)); s.delete(user); s.commit(); req.session.clear()
     return go("/")
 
@@ -679,6 +710,9 @@ def admin_act(action: str, oid: int, user=Depends(me), s: Session = Depends(get_
                 obj = s.get(Post if r.kind == "post" else Comment, r.target_id)
                 if obj: obj.hidden = False
             for x in s.exec(select(Report).where(Report.kind == r.kind, Report.target_id == r.target_id)).all(): x.resolved = True
+    elif action == "rmphoto":   # remove an inappropriate profile photo
+        u = s.get(User, oid)
+        if u: s.exec(delete(Avatar).where(Avatar.user_id == oid)); u.avatar_v = 0
     elif action in ("faculty", "unfaculty"):
         u = s.get(User, oid)
         if u: u.is_faculty = action == "faculty"

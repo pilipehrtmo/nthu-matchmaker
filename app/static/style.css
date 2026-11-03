@@ -403,3 +403,17 @@ html,body{overflow-x:clip}
 .namenote{margin:0 0 1rem;padding:.6rem 1rem;display:flex;gap:1rem;align-items:center;justify-content:space-between;background:var(--pri-soft);color:var(--pri-ink);border-radius:12px;font-size:.9rem;}
 @media(max-width:899px){.na .nlinks a{padding:.5rem .55rem}.top nav.topnav.na{gap:1rem}.nme .nname{display:none}.nme summary{padding:.22rem .5rem .22rem .22rem}}
 @media(max-width:699px){.na .nlinks,.na .npost{display:none}.nmenu{width:min(250px,calc(100vw - 2rem))}}
+
+/* ---------- profile photos ---------- */
+img.pic{object-fit:cover;padding:0;background:var(--soft)}
+.av.sm{width:28px;height:28px;font-size:.68rem}
+.av.xs{width:22px;height:22px;font-size:.6rem;display:inline-grid;vertical-align:-6px;margin-right:.35rem}
+.av.xl{width:96px;height:96px;font-size:1.8rem;box-shadow:0 0 0 4px var(--card),0 0 0 6px var(--line)}
+img.av{display:block}img.av.xs{display:inline-block}
+.byline{display:inline}
+.app-who .av.sm{display:inline-grid;vertical-align:-8px;margin-right:.45rem}.app-who img.av.sm{display:inline-block}
+.nme img.nav-i{width:32px;height:32px;border-radius:50%;object-fit:cover;flex:none}
+.photobox{display:flex;gap:1.2rem;align-items:center;margin:1rem 0 .5rem;padding:1rem 1.2rem;border:1px solid var(--line);border-radius:var(--r);background:var(--card)}
+.photobox h3{margin:0 0 .2rem}.photobox p{margin:0 0 .6rem;max-width:60ch}.photobox .acts{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}.photobox form{margin:0}.photobox label.btn{margin:0;cursor:pointer}
+.phead{display:flex;gap:1.2rem;align-items:center;margin-bottom:.6rem}.phead h1{margin:0}
+@media(max-width:699px){.photobox{flex-direction:column;align-items:flex-start}.av.xl{width:80px;height:80px}}

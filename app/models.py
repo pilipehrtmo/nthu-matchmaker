@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import NaiveDatetime
+from sqlalchemy import Column, LargeBinary
 from sqlmodel import SQLModel, Field
 
 class User(SQLModel, table=True):
@@ -24,7 +25,8 @@ class User(SQLModel, table=True):
     behance: str = ""
     scholar: str = ""
     is_admin: bool = False
-    is_faculty: bool = False   # set by an admin after checking the person is NTHU teaching staff
+    is_faculty: bool = False
+    avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one   # set by an admin after checking the person is NTHU teaching staff
     banned: bool = False
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
@@ -150,3 +152,7 @@ class Program(SQLModel, table=True):    # funding and incubation programs on /fu
     self_checks: str = ""       # "|"-separated things the team must check themselves
     sort: int = 0
     active: bool = True
+
+class Avatar(SQLModel, table=True):     # profile photo: a small square WebP, kept in the database so it survives redeploys
+    user_id: int = Field(foreign_key="user.id", primary_key=True)
+    data: bytes = Field(sa_column=Column(LargeBinary, nullable=False))

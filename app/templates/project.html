@@ -4,7 +4,7 @@
 {% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>{% endif %}
 <section class="card head"><h1>{{ pr.title }}</h1>
 <div class="meta"><span class="pill kindpill">{{ k }}</span>{% if pr.category %}<span class="pill">{{ pr.category }}</span>{% endif %}{% if pr.stage %}<span class="pill">Stage: {{ pr.stage }}</span>{% endif %}
-<span>by <a href="/u/{{ owner.handle }}">{{ owner|dn }}</a>{% if owner.verified %} <span class="pill ok">✔ verified</span>{% endif %}</span><span>{{ pr.hours_per_week }} h/week</span>
+<span class="byline">{{ pic(owner, "av xs") }}by <a href="/u/{{ owner.handle }}">{{ owner|dn }}</a>{% if owner.verified %} <span class="pill ok">✔ verified</span>{% endif %}</span><span>{{ pr.hours_per_week }} h/week</span>
 {% if pr.status == "closed" %}<span class="pill warn">Not recruiting</span>
 {% elif days is not none %}<span class="pill {{ 'warn' if days <= 7 }}">{{ "Join-by date passed" if days < 0 else ("Last day to join" if days == 0 else (days ~ " days left to join")) }}</span>{% endif %}
 {% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% endif %}</div>
@@ -48,7 +48,7 @@
 {% if x.apps %}<div class="apps">{% if is_owner or user.is_admin %}<p class="apps-h">Applicants <span class="count">{{ x.apps|length }}</span>{% if user.is_admin and not is_owner %}<span class="apps-note">admin view</span>{% endif %}</p>
 {% else %}<p class="apps-h">Your application</p><p class="apps-note">Only you, the project lead and admins can see this.</p>{% endif %}
 {% for a, u in x.apps %}
-<div class="app"><div class="av" aria-hidden="true">{{ initials(u) }}</div><div class="app-main">
+<div class="app">{{ pic(u, "av") }}<div class="app-main">
 <div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{% if u.is_faculty %}<span class="pill fac">Faculty</span>{% endif %}</span>
 <span class="badge b-{{ a.status }}">{{ {"closed": "Seat filled", "withdrawn": "Withdrawn"}.get(a.status, a.status|capitalize) }}</span></div>
 {{ pro_links(u, compact=True) }}
@@ -62,7 +62,7 @@
 {% if can_remark %}<form method="post" action="/projects/{{ pr.id }}/remarks"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="rb">Your remark or opinion</label>
 <textarea id="rb" name="body" rows="4" maxlength="3000" required placeholder="Feedback on the idea, method, next steps or papers to read"></textarea>
 <label class="chk"><input type="checkbox" name="public"> Show on the public project page (otherwise only the team sees it)</label><p><button>Post remark</button></p></form>{% endif %}
-{% for r in remarks %}{% set au = rauthors.get(r.author_id) %}<article class="remark"><div class="app-top"><span class="app-who">{% if au %}<a class="app-name" href="/u/{{ au.handle }}">{{ au|dn }}</a>{% if au.is_faculty %}<span class="pill fac">Faculty</span>{% endif %}{% else %}[deleted]{% endif %} <small class="muted">{{ r.created|ago }}</small></span>
+{% for r in remarks %}{% set au = rauthors.get(r.author_id) %}<article class="remark"><div class="app-top"><span class="app-who">{% if au %}{{ pic(au, "av sm") }}<a class="app-name" href="/u/{{ au.handle }}">{{ au|dn }}</a>{% if au.is_faculty %}<span class="pill fac">Faculty</span>{% endif %}{% else %}[deleted]{% endif %} <small class="muted">{{ r.created|ago }}</small></span>
 <span class="badge {{ 'b-accepted' if r.public else 'b-pending' }}">{{ "Public" if r.public else "Team only" }}</span></div><p class="app-msg">{{ r.body }}</p>
 {% if user and (user.id == r.author_id or user.is_admin) %}<form method="post" action="/remarks/{{ r.id }}/delete" onsubmit="return confirm('Delete this remark?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Delete</button></form>{% endif %}</article>
 {% else %}<p class="muted">No remarks yet.</p>{% endfor %}</section>{% endif %}{% endblock %}
