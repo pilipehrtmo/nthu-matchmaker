@@ -8,10 +8,10 @@
 <div class="projects">{% for r in rows %}{% set filled = r.total - r.roles|length %}<article class="card link pcard {{ 'k-comp' if kind_of(r.p) == 'Competition' }}">
 <div class="ctop"><span class="kindb">{{ kind_of(r.p) }}{% if r.p.category %} · {{ r.p.category }}{% endif %}</span>{% set sn = soon.get(kind_of(r.p)) %}{% if sn %}<span class="soonpill" title="Funding deadline">{{ sn[0] }}: {{ sn[1] }}d left</span>{% endif %}{% if user and r.score is not none %}<span class="match"><b>{{ r.score }}%</b> match</span>{% endif %}</div>
 <h2><a href="/projects/{{ r.p.id }}">{{ r.p.title }}</a></h2>
-<p class="pmeta">{{ pic(r.owner, "av xs") }}by <u>{{ r.owner|dn }}</u> · {{ r.p.hours_per_week }} h/week{% if r.days is not none %} · <span class="{{ 'soon' if r.days <= 7 }}">{{ "closed" if r.days < 0 else (r.days ~ " days left") }}</span>{% endif %}</p>
+<div class="pmeta"><span class="powner">{{ pic(r.owner, "av xs") }}<span>{{ r.owner|dn }}</span></span><span class="pdot" aria-hidden="true"></span><span>{{ r.p.hours_per_week }} h/week</span>{% if r.days is not none %}<span class="pleft {{ 'soon' if r.days <= 7 }}">{{ "closed" if r.days < 0 else ("last day" if r.days == 0 else (r.days ~ " day" ~ ("s" if r.days != 1 else "") ~ " left")) }}</span>{% endif %}</div>
 {% if r.p.description %}<p class="desc">{{ r.p.description }}</p>{% endif %}
 <div class="seats">{% for s in r.roles %}<span class="seat">{{ s.name }}</span>{% endfor %}</div>
-<div class="fillrow"><div class="bar" aria-hidden="true"><i style="width:{{ (filled / r.total * 100)|int }}%"></i></div><span>{{ filled }} of {{ r.total }} seats filled</span></div></article>
+<div class="fillrow"><div class="bar" aria-hidden="true"><i style="width:{{ (filled / r.total * 100)|int }}%"></i></div><span>{{ filled }} of {{ r.total }} seat{{ "s" if r.total != 1 }} filled</span></div></article>
 {% else %}<div class="box">No open seats{% if q or kind %} matching your filter{% endif %}. <a href="/projects/new{{ '?kind=' ~ (kind|urlencode) if kind }}">Post the first project.</a></div>{% endfor %}</div>
 <h2 style="margin-top:2.2rem">Competitions &amp; grants</h2>
 <p class="muted">Contests for every faculty, not just engineering. Pick one and start a team for it.</p>

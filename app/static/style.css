@@ -418,3 +418,13 @@ img.av{display:block}img.av.xs{display:inline-block}
 .phead{display:flex;gap:1.2rem;align-items:center;margin-bottom:.6rem}.phead h1{margin:0}
 @media(max-width:699px){.photobox{flex-direction:column;align-items:flex-start}.av.xl{width:80px;height:80px}}
 .facbox{margin:1rem 0 .5rem}.facbox h3{margin:0 0 .4rem}.facbox p{margin:.3rem 0}
+
+/* ---------- card meta row: owner, hours, deadline on one even line ---------- */
+.pcard .pmeta{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem .55rem;font-size:.84rem;line-height:1.2;color:var(--mut);margin:.1rem 0 0}
+.pmeta .powner{display:inline-flex;align-items:center;gap:.45rem;color:var(--ink);font-weight:600;min-width:0}
+.pmeta .powner>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:14rem}
+.pmeta .av.xs{width:24px;height:24px;margin:0;vertical-align:0;font-size:.62rem;flex:none}
+.pmeta .pdot{width:3px;height:3px;border-radius:50%;background:currentColor;opacity:.6}
+.pmeta .pleft{margin-left:auto;padding:.18rem .55rem;border-radius:99px;background:var(--soft);color:var(--ink);font-weight:600;font-size:.76rem;white-space:nowrap}
+.pmeta .pleft.soon{background:var(--warn-bg);color:var(--warn-ink)}
+:root[data-mode=dark] .pmeta{color:#b9acd0}
