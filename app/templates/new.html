@@ -1,23 +1,43 @@
-{% extends "base.html" %}{% block body %}<h1>Post a project</h1><p class="muted">A competition team, a startup, a research project or something you are building for fun. Describe it, then list the seats you need to fill.</p>
-<form method="post" id="f" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="t">Title</label><input id="t" name="title" required maxlength="120" placeholder="e.g. Hackathon team: AI for health">
+{% extends "base.html" %}{% block body %}{% set editing = pr and pr.id %}
+<h1>{{ "Edit project" if editing else "Post a project" }}</h1>
+{% if not editing %}<p class="muted">A competition team, a startup, a research project or something you are building for fun. Describe it, then list the seats you need to fill.</p>{% endif %}
+{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+<form method="post" id="f" class="card" action="{{ '/projects/%d/edit'|format(pr.id) if editing else '/projects/new' }}"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label for="t">Title</label><input id="t" name="title" required minlength="3" maxlength="120" value="{{ pr.title if pr else '' }}" placeholder="e.g. Hackathon team: AI for health">
 <label>What kind of project?</label>
 <div class="kinds" role="radiogroup" aria-label="Project kind">{% for k in kinds %}<label class="kind"><input type="radio" name="kind" value="{{ k }}" {{ "checked" if k == kind }} required><span>{{ k }}</span></label>{% endfor %}</div>
 <p class="muted kindhint">Not entering a competition? Pick Startup, Research or Side project.</p>
-<label for="d">What are you building?</label><textarea id="d" name="description" rows="4" placeholder="The idea, the goal, what you've done so far"></textarea>
+
+<div class="xbox" id="box-Startup" hidden><p class="xh">About your startup</p>
+<label>Category</label><div class="kinds" role="radiogroup" aria-label="Startup category">{% for c in G.STARTUP_CATEGORIES %}<label class="kind"><input type="radio" name="category" value="{{ c }}" data-for="Startup" {{ "checked" if pr and pr.kind == "Startup" and pr.category == c }}><span>{{ c }}</span></label>{% endfor %}</div>
+<label>How far along is it?</label><div class="stages">{% for n, d in G.STARTUP_STAGES %}<label class="stage"><input type="radio" name="stage" value="{{ n }}" {{ "checked" if pr and pr.stage == n }}><span><b>{{ n }}</b><small>{{ d }}</small></span></label>{% endfor %}</div>
+<p class="muted">In the description, explain in a few lines: the problem, who has it, your solution, and what you have done so far. Your project page will then suggest next steps, such as NTHU's incubation office, U-start and FITI.</p></div>
+
+<div class="xbox" id="box-Research" hidden><p class="xh">About your research</p>
+<label for="rf">Field</label><select id="rf" name="category" data-for="Research"><option value="">Pick a field</option>{% for c in G.RESEARCH_FIELDS %}<option {{ "selected" if pr and pr.kind == "Research" and pr.category == c }}>{{ c }}</option>{% endfor %}</select>
+<p class="muted">Your project page will suggest well-known places to publish or share work in this field, and the NSTC undergraduate research grant.</p></div>
+
+<label for="d">What are you building?</label><textarea id="d" name="description" rows="5" maxlength="2000" placeholder="The idea, the goal, what you've done so far">{{ pr.description if pr else '' }}</textarea>
 <div class="two"><div id="compbox"><label for="c">Which competition? (optional)</label><select id="c" name="competition_id"><option value="">None</option>
 {% for c in comps %}<option value="{{ c.id }}" {{ "selected" if c.id|string == sel }}>{{ c.title }}</option>{% endfor %}</select></div>
-<div><label for="dl">Team must be formed by (optional)</label><input id="dl" name="deadline" type="date"></div></div>
-<label for="h">Hours per week</label><input id="h" name="hours" type="number" value="4" min="1" max="60" style="max-width:8rem">
-<label>Open seats</label><div id="rows"></div><p><button type="button" class="ghost sm" id="add">+ Add a seat</button></p>
-<input type="hidden" name="roles" id="roles"><p><button>Publish project</button></p></form>
+<div><label for="dl">Team must be formed by (optional)</label><input id="dl" name="deadline" type="date" min="{{ today }}" value="{{ pr.deadline if pr else '' }}"></div></div>
+<label for="h">Hours per week</label><input id="h" name="hours" type="number" value="{{ pr.hours_per_week if pr else 4 }}" min="1" max="60" style="max-width:8rem" required>
+<label>{{ "Open seats" }}</label>
+{% if filled %}<p class="muted">Filled seats ({{ filled|map(attribute="name")|join(", ") }}) stay as they are. Removing an open seat also removes its applications.</p>{% endif %}
+<div id="rows"></div><p class="err" id="seaterr" hidden>Add at least one open seat.</p><p><button type="button" class="ghost sm" id="add">+ Add a seat</button></p>
+<input type="hidden" name="roles" id="roles"><p class="formacts"><button>{{ "Save changes" if editing else "Publish project" }}</button>{% if editing %} <a class="ghost btn" href="/projects/{{ pr.id }}">Cancel</a>{% endif %}</p></form>
 <script>
 const rows=document.getElementById("rows");
-function addRow(n="",s=""){const d=document.createElement("div");d.className="row";
-d.innerHTML='<input placeholder="Role, e.g. UI designer" aria-label="Role"><input placeholder="Skills, comma-separated" aria-label="Skills"><button type="button" class="ghost sm" aria-label="Remove seat">✕</button>';
+function addRow(n="",s="",id=""){const d=document.createElement("div");d.className="row";d.dataset.id=id;
+d.innerHTML='<input placeholder="Role, e.g. UI designer" aria-label="Role" maxlength="60"><input placeholder="Skills, comma-separated" aria-label="Skills"><button type="button" class="ghost sm" aria-label="Remove seat">✕</button>';
 d.children[0].value=n;d.children[1].value=s;d.children[2].onclick=()=>d.remove();rows.appendChild(d)}
-document.getElementById("add").onclick=()=>addRow();addRow();
+document.getElementById("add").onclick=()=>addRow();
+const seats={{ seats|tojson }};if(seats.length)seats.forEach(x=>addRow(x[0],x[1],x[2]||""));else addRow();
 const box=document.getElementById("compbox"),sel=document.getElementById("c");
-function syncKind(){const k=(document.querySelector("input[name=kind]:checked")||{}).value;const on=k==="Competition";box.style.display=on?"":"none";if(!on)sel.value=""}
+function syncKind(){const k=(document.querySelector("input[name=kind]:checked")||{}).value;box.style.display=k==="Competition"?"":"none";if(k!=="Competition")sel.value="";
+ for(const x of ["Startup","Research"]){const b=document.getElementById("box-"+x),on=k===x;b.hidden=!on;b.querySelectorAll("input,select").forEach(e=>e.disabled=!on)}}
 document.querySelectorAll("input[name=kind]").forEach(r=>r.addEventListener("change",syncKind));syncKind();
-document.getElementById("f").onsubmit=()=>{document.getElementById("roles").value=[...rows.children].filter(r=>r.children[0].value.trim()).map(r=>r.children[0].value.trim()+": "+r.children[1].value.trim()).join("\n")};
+document.getElementById("f").onsubmit=e=>{const v=[...rows.children].filter(r=>r.children[0].value.trim());
+ if(!v.length&&!{{ 'true' if filled else 'false' }}){e.preventDefault();const m=document.getElementById("seaterr");m.hidden=false;m.scrollIntoView({block:"center"});return}
+ document.getElementById("roles").value=v.map(r=>(r.dataset.id?"#"+r.dataset.id+" ":"")+r.children[0].value.trim()+": "+r.children[1].value.trim()).join("\n")};
 </script>{% endblock %}

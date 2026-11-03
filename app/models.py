@@ -54,6 +54,8 @@ class Project(SQLModel, table=True):
     description: str = ""
     competition_id: Optional[int] = Field(default=None, foreign_key="competition.id")
     kind: str = ""        # one of PROJECT_KINDS; "" on old rows (shown as Competition or Side project)
+    category: str = ""    # Startup: one of guide.STARTUP_CATEGORIES; Research: one of guide.RESEARCH_FIELDS
+    stage: str = ""       # Startup only: Idea / Prototype / Early users / Revenue
     hours_per_week: int = 4
     deadline: str = ""
     status: str = "open"
@@ -71,7 +73,7 @@ class Application(SQLModel, table=True):
     role_id: int = Field(foreign_key="role.id")
     user_id: int = Field(foreign_key="user.id")
     message: str = ""
-    status: str = "pending"   # pending / accepted / rejected
+    status: str = "pending"   # pending / accepted / rejected / closed (seat filled by someone else) / withdrawn
     at: NaiveDatetime = Field(default_factory=datetime.utcnow)
 
 class Report(SQLModel, table=True):

@@ -19,6 +19,9 @@ from .seed import seed, seed_starter, seed_examples
 from .matching import match_pct, why, warm
 from .cv import parse_cv, CVError, MAX_BYTES
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
+from . import guide
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 signer = URLSafeTimedSerializer(SECRET, salt="magic")
 def ago(d):
@@ -84,6 +87,18 @@ if PUBLIC and SECRET == "dev-secret-change-me": raise SystemExit("Set SECRET_KEY
 if PUBLIC and not SMTP_HOST: print("WARNING: no SMTP settings, so login emails cannot be sent. Set SMTP_HOST/SMTP_USER/SMTP_PASS/SMTP_FROM.")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
+ERR_TITLES = {403: "Security check failed", 404: "Page not found", 429: "Slow down a little"}
+@app.exception_handler(StarletteHTTPException)
+async def http_error(req: Request, exc):
+    if req.url.path.startswith(("/profile/cv", "/static")): return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+    msg = exc.detail if exc.status_code != 404 else "That page does not exist, or it was deleted."
+    return templates.TemplateResponse(req, "error.html", {"user": None, "csrf": req.session.get("csrf", "") if "session" in req.scope else "",
+        "theme": req.cookies.get("theme", "light"), "inbox": 0, "title": ERR_TITLES.get(exc.status_code, "Something went wrong"), "msg": msg}, status_code=exc.status_code)
+@app.exception_handler(RequestValidationError)
+async def form_error(req: Request, exc):
+    return templates.TemplateResponse(req, "error.html", {"user": None, "csrf": req.session.get("csrf", ""), "theme": req.cookies.get("theme", "light"), "inbox": 0,
+        "title": "Please check the form", "msg": "A field was missing or had the wrong format (for example letters in a number box). Go back and try again."}, status_code=422)
+
 
 def me(req: Request, s: Session = Depends(get_session)):
     uid = req.session.get("uid"); u = s.get(User, uid) if uid else None
@@ -97,16 +112,22 @@ def render(req, name, user=None, **ctx):
     if "csrf" not in req.session: req.session["csrf"] = secrets.token_hex(16)
     theme = req.cookies.get("theme", "light")
     if theme not in ("light", "dark", "system"): theme = "light"
-    return templates.TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, **ctx})
+    inbox = 0
+    if user:   # applications waiting for this user's decision, shown as a badge on Activity
+        with Session(engine) as s:
+            inbox = len(s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
+                               .where(Project.owner_id == user.id, Application.status == "pending")).all())
+    return templates.TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, **ctx})
 def go(url): return RedirectResponse(url, status_code=303)
 def kind_of(pr):   # older projects have no kind saved: infer it from the competition link
     return pr.kind or ("Competition" if pr.competition_id else "Side project")
 templates.env.globals["kind_of"] = kind_of
-templates.env.globals.update(CONTACTS=CONTACTS, PRO_LINKS=PRO_LINKS)
+templates.env.globals.update(CONTACTS=CONTACTS, PRO_LINKS=PRO_LINKS, G=guide)
 templates.env.filters["shortlink"] = short
 
 # ---------- auth ----------
 SID = re.compile(r"^[A-Za-z0-9]{6,12}$")
+HANDLE_RE = re.compile(r"^[a-z0-9._-]{3,30}$")
 
 @app.get("/login")
 def login_page(req: Request, user=Depends(me)): return render(req, "login.html", user)
@@ -161,13 +182,16 @@ async def profile_save(req: Request, handle: str = Form(...), bio: str = Form(""
                  contact: str = Form(""), faculty: str = Form(""), hours: int = Form(4), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     form = await req.form()
+    handle = handle.strip().lower()
+    if not HANDLE_RE.match(handle):
+        return render(req, "profile.html", user, error="Handles are 3 to 30 characters: lowercase letters, numbers, dots, dashes or underscores. No spaces.")
     taken = s.exec(select(User).where(User.handle == handle, User.id != user.id)).first()
     if taken: return render(req, "profile.html", user, error="That handle is taken.")
     try: links = {f: clean_link(f, str(form.get(f, ""))) for f, *_ in PRO_LINKS}
     except LinkError as e: return render(req, "profile.html", user, error=str(e))
     for f in ("line", "instagram", "discord"): setattr(user, f, clean_handle(str(form.get(f, ""))))
     for f, v in links.items(): setattr(user, f, v)
-    user.handle, user.bio, user.contact = handle.strip()[:30], bio[:500], clean_contact(contact, 100)
+    user.handle, user.bio, user.contact = handle, bio[:500], clean_contact(contact, 100)
     user.faculty, user.hours = faculty.strip()[:40], max(1, min(hours, 60))
     user.skills = ",".join(sorted(tags(skills))); s.add(user); s.commit()
     return go("/")
@@ -200,9 +224,11 @@ def delete_account(req: Request, confirm: str = Form(""), user=Depends(me), s: S
     return go("/")
 
 @app.get("/u/{handle}")
-def public_profile(req: Request, handle: str, user=Depends(me), s: Session = Depends(get_session)):
+def public_profile(req: Request, handle: str, reported: str = "", user=Depends(me), s: Session = Depends(get_session)):
     p = s.exec(select(User).where(User.handle == handle)).first()
-    return render(req, "public.html", user, p=p, skills=sorted(tags(p.skills)) if p else [])
+    if not p or p.banned: raise HTTPException(404)
+    mine = s.exec(select(Project).where(Project.owner_id == p.id, Project.status == "open").order_by(Project.created.desc())).all()
+    return render(req, "public.html", user, p=p, skills=sorted(tags(p.skills)), reported=bool(reported), projects=mine)
 
 # ---------- board ----------
 @app.get("/")
@@ -216,45 +242,111 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
     for pr in projs:
         allr = roles_of[pr.id]
         roles = [r for r in allr if not r.filled]
-        if not roles: continue
-        text = (pr.title + pr.description + " ".join(r.name + r.skills for r in roles)).lower()
+        days = days_left(pr.deadline)
+        if not roles or (days is not None and days < 0): continue   # full or past its join-by date
+        text = (pr.title + pr.description + pr.category + " ".join(r.name + r.skills for r in roles)).lower()
         if q and q.lower() not in text: continue
         if kind and kind_of(pr) != kind: continue
         owner = owners.get(pr.owner_id)
         # no match score on your own project
         best = max((match_pct(user, r, pr, owner) for r in roles), default=0) if user and user.id != pr.owner_id else None
-        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, total=len(allr), days=days_left(pr.deadline)))
+        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, total=len(allr), days=days))
     rows.sort(key=lambda r: -(r["score"] or 0))
     allc = s.exec(select(Competition).order_by(Competition.needs_review, Competition.id.desc())).all()
     cats = sorted({c.category for c in allc})
     comps = [c for c in allc if (not cat or c.category == cat) and (not q or q.lower() in (c.title + c.description).lower())][:60]
     return render(req, "board.html", user, rows=rows, comps=comps, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS)
 
+def project_form(req, user, s, pr=None, seats=None, error="", **kw):
+    kind = kw.get("kind", pr.kind if pr else "")
+    return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), kind=kind, kinds=PROJECT_KINDS, sel=kw.get("sel", str(pr.competition_id or "") if pr else ""),
+                  today=datetime.utcnow().date().isoformat(), comps=s.exec(select(Competition).order_by(Competition.title)).all())
+
+def read_project_form(form, pr=None):
+    """Check the project form. Returns (fields, seat lines, error)."""
+    f = {k: str(form.get(k, "")).strip() for k in ("title", "description", "competition_id", "hours", "deadline", "roles", "kind", "category", "stage")}
+    kind = f["kind"] if f["kind"] in PROJECT_KINDS else "Other"
+    seats = []
+    for line in f["roles"].splitlines():          # one seat per line: "UI designer: figma, ux", existing seats start with "#<id> "
+        m = re.match(r"#(\d+) (.*)", line); rid = int(m.group(1)) if m else None; line = m.group(2) if m else line
+        name, _, sk = line.partition(":")
+        if name.strip(): seats.append((name.strip()[:60], ",".join(t.strip() for t in sk.split(",") if t.strip())[:200], rid))
+    try: hours = int(f["hours"] or 4)
+    except ValueError: hours = 0
+    err = ""
+    if len(f["title"]) < 3: err = "Give the project a title (at least 3 characters)."
+    elif not 1 <= hours <= 60: err = "Hours per week must be a number from 1 to 60."
+    elif f["deadline"] and days_left(f["deadline"]) is None: err = "The join-by date is not a valid date."
+    elif f["deadline"] and days_left(f["deadline"]) < 0 and not (pr and pr.deadline == f["deadline"]): err = "The join-by date is in the past. Pick a future date or leave it empty."
+    elif len(seats) > 12: err = "A project can have at most 12 seats."
+    cats = guide.STARTUP_CATEGORIES if kind == "Startup" else guide.RESEARCH_FIELDS if kind == "Research" else []
+    out = dict(title=f["title"][:120], description=f["description"][:2000], kind=kind, hours_per_week=hours if 1 <= hours <= 60 else 4,
+               deadline=f["deadline"][:10], category=f["category"] if f["category"] in cats else "",
+               stage=f["stage"] if kind == "Startup" and f["stage"] in [n for n, _ in guide.STARTUP_STAGES] else "",
+               competition_id=int(f["competition_id"]) if f["competition_id"].isdigit() and kind == "Competition" else None)
+    return out, seats, err
+
 @app.get("/projects/new")
 def new_project(req: Request, comp: str = "", kind: str = "", user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     kind = kind if kind in PROJECT_KINDS else ("Competition" if comp else "")
-    return render(req, "new.html", user, sel=comp, kind=kind, kinds=PROJECT_KINDS, comps=s.exec(select(Competition).order_by(Competition.title)).all())
+    return project_form(req, user, s, kind=kind, sel=comp)
 
 @app.post("/projects/new", dependencies=[limited("newproj", 10, 3600)])
-def create_project(title: str = Form(...), description: str = Form(""), competition_id: str = Form(""),
-                   hours: int = Form(4), deadline: str = Form(""), roles: str = Form(""), kind: str = Form("Other"),
-                   user=Depends(me), s: Session = Depends(get_session)):
+async def create_project(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
-    kind = kind if kind in PROJECT_KINDS else "Other"
-    comp_id = int(competition_id) if competition_id and kind == "Competition" else None   # only competition projects link a contest
-    pr = Project(owner_id=user.id, title=title[:120], description=description[:2000], hours_per_week=hours,
-                 deadline=deadline, competition_id=comp_id, kind=kind)
-    s.add(pr); s.commit(); s.refresh(pr)
-    for line in roles.splitlines():          # one role per line: "UI designer: figma, ux"
-        if line.strip():
-            name, _, sk = line.partition(":"); s.add(Role(project_id=pr.id, name=name.strip(), skills=sk.strip()))
+    f, seats, err = read_project_form(await req.form())
+    if not seats and not err: err = "Add at least one open seat, so people know who you need."
+    if err:
+        draft = Project(owner_id=user.id, **f)
+        return project_form(req, user, s, pr=draft, seats=seats, error=err, kind=f["kind"], sel=str(f["competition_id"] or ""))
+    pr = Project(owner_id=user.id, **f); s.add(pr); s.commit(); s.refresh(pr)
+    for n, sk, _ in seats: s.add(Role(project_id=pr.id, name=n, skills=sk))
     s.commit(); return go(f"/projects/{pr.id}")
+
+@app.get("/projects/{pid}/edit")
+def edit_project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_session)):
+    pr = s.get(Project, pid)
+    if not pr: raise HTTPException(404)
+    if not user or user.id != pr.owner_id: return go(f"/projects/{pid}")
+    roles = s.exec(select(Role).where(Role.project_id == pid).order_by(Role.id)).all()
+    return project_form(req, user, s, pr=pr, seats=[(r.name, r.skills, r.id) for r in roles if not r.filled], filled=[r for r in roles if r.filled])
+
+@app.post("/projects/{pid}/edit", dependencies=[limited("editproj", 30, 3600)])
+async def save_project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_session)):
+    pr = s.get(Project, pid)
+    if not pr: raise HTTPException(404)
+    if not user or user.id != pr.owner_id: return go(f"/projects/{pid}")
+    f, seats, err = read_project_form(await req.form(), pr)
+    roles = s.exec(select(Role).where(Role.project_id == pid).order_by(Role.id)).all()
+    open_roles = [r for r in roles if not r.filled]
+    if err:
+        for k, v in f.items(): setattr(pr, k, v)
+        s.expunge(pr)   # show what they typed without saving it
+        return project_form(req, user, s, pr=pr, seats=seats, error=err)
+    if not seats and not any(r.filled for r in roles): return project_form(req, user, s, pr=pr, seats=seats, error="Keep at least one seat.")
+    for k, v in f.items(): setattr(pr, k, v)
+    keep = {rid: (n, sk) for n, sk, rid in seats if rid}
+    for r in open_roles:   # edited seats keep their applicants; removed seats take their applications with them
+        if r.id in keep: r.name, r.skills = keep[r.id]
+        else:
+            for a in s.exec(select(Application).where(Application.role_id == r.id)).all(): s.delete(a)
+            s.delete(r)
+    ids = {r.id for r in open_roles}
+    for n, sk, rid in seats:
+        if rid not in ids: s.add(Role(project_id=pid, name=n, skills=sk))
+    s.commit(); return go(f"/projects/{pid}")
+
+@app.post("/projects/{pid}/status")
+def project_status(pid: int, status: str = Form(...), user=Depends(me), s: Session = Depends(get_session)):
+    pr = s.get(Project, pid)
+    if pr and user and user.id == pr.owner_id and status in ("open", "closed"): pr.status = status; s.commit()
+    return go(f"/projects/{pid}")
 
 @app.get("/projects/{pid}")
 def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_session)):
     pr = s.get(Project, pid)
-    if not pr: return go("/")
+    if not pr: raise HTTPException(404)
     owner = s.get(User, pr.owner_id); is_owner = bool(user and user.id == owner.id); out = []
     for r in s.exec(select(Role).where(Role.project_id == pid)):
         apps = []
@@ -265,7 +357,9 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
         out.append(dict(r=r, apps=apps, mine=any(u.id == (user.id if user else 0) for _, u in apps),
                         pct=pct, why=why(user, r, pct) if pct is not None else ""))
     reveal = bool(user and any(a.status == "accepted" and u.id == user.id for r in out for a, u in r["apps"]))
-    return render(req, "project.html", user, pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days_left(pr.deadline),
+    days = days_left(pr.deadline)
+    accepting = pr.status == "open" and not (days is not None and days < 0)
+    return render(req, "project.html", user, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
 
 @app.post("/projects/{pid}/delete")
@@ -281,25 +375,52 @@ def delete_project(pid: int, user=Depends(me), s: Session = Depends(get_session)
 @app.post("/roles/{rid}/apply", dependencies=[limited("apply", 30, 3600)])
 def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
-    r = s.get(Role, rid); pr = s.get(Project, r.project_id)
-    if r.filled: return go(f"/projects/{pr.id}")
+    r = s.get(Role, rid); pr = s.get(Project, r.project_id) if r else None
+    if not pr: raise HTTPException(404)
+    d = days_left(pr.deadline)
+    if r.filled or pr.status != "open" or (d is not None and d < 0): return go(f"/projects/{pr.id}?n=closed")
+    if pr.owner_id == user.id: return go(f"/projects/{pr.id}")
     dup = s.exec(select(Application).where(Application.role_id == rid, Application.user_id == user.id)).first()
-    if not dup and pr.owner_id != user.id: s.add(Application(role_id=rid, user_id=user.id, message=message[:500])); s.commit()
-    return go(f"/projects/{pr.id}")
+    if dup and dup.status == "withdrawn": dup.status, dup.message, dup.at = "pending", message.strip()[:500], datetime.utcnow(); s.commit()
+    elif not dup: s.add(Application(role_id=rid, user_id=user.id, message=message.strip()[:500])); s.commit()
+    return go(f"/projects/{pr.id}?n=sent")
 
 @app.post("/applications/{aid}/{decision}")
 def decide(aid: int, decision: str, user=Depends(me), s: Session = Depends(get_session)):
-    a = s.get(Application, aid); r = s.get(Role, a.role_id); pr = s.get(Project, r.project_id)
-    if user and user.id == pr.owner_id and decision in ("accepted", "rejected"):
+    a = s.get(Application, aid); r = s.get(Role, a.role_id) if a else None; pr = s.get(Project, r.project_id) if r else None
+    if not pr: raise HTTPException(404)
+    if not user: return go("/login")
+    if decision == "withdrawn" and a.user_id == user.id and a.status == "pending":
+        a.status = "withdrawn"; s.commit(); return go(f"/projects/{pr.id}?n=withdrawn")
+    if user.id == pr.owner_id and a.status == "pending" and decision in ("accepted", "rejected") and not r.filled:
         a.status = decision
-        if decision == "accepted": r.filled = True
+        if decision == "accepted":
+            r.filled = True   # the seat is taken: close the other applications for it
+            for o in s.exec(select(Application).where(Application.role_id == r.id, Application.id != a.id, Application.status == "pending")).all(): o.status = "closed"
         s.commit()
     return go(f"/projects/{pr.id}")
 
+@app.get("/activity")
+def activity(req: Request, user=Depends(me), s: Session = Depends(get_session)):
+    if not user: return go("/login")
+    mine = s.exec(select(Project).where(Project.owner_id == user.id).order_by(Project.created.desc())).all()
+    roles = {r.id: r for r in s.exec(select(Role).where(Role.project_id.in_([p.id for p in mine] or [-1])))}
+    pend = defaultdict(int); seats = defaultdict(lambda: [0, 0])
+    for r in roles.values(): seats[r.project_id][0] += 1; seats[r.project_id][1] += int(r.filled)
+    for a in s.exec(select(Application).where(Application.role_id.in_(list(roles) or [-1]), Application.status == "pending")): pend[roles[a.role_id].project_id] += 1
+    apps = s.exec(select(Application).where(Application.user_id == user.id).order_by(Application.at.desc())).all()
+    aroles = {r.id: r for r in s.exec(select(Role).where(Role.id.in_([a.role_id for a in apps] or [-1])))}
+    aprojs = {p.id: p for p in s.exec(select(Project).where(Project.id.in_([r.project_id for r in aroles.values()] or [-1])))}
+    sent = [(a, aroles[a.role_id], aprojs[aroles[a.role_id].project_id]) for a in apps if a.role_id in aroles and aroles[a.role_id].project_id in aprojs]
+    return render(req, "activity.html", user, mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left)
+
 @app.post("/report/{uid}", dependencies=[limited("report", 10, 3600)])
 def report(uid: int, reason: str = Form(...), user=Depends(me), s: Session = Depends(get_session)):
-    if user: s.add(Report(reporter_id=user.id, target_user_id=uid, reason=reason[:500])); s.commit()
-    return go("/")
+    target = s.get(User, uid)
+    if not target: raise HTTPException(404)
+    if user and user.id != uid and reason.strip() and not s.exec(select(Report).where(Report.reporter_id == user.id, Report.kind == "user", Report.target_user_id == uid, Report.resolved == False)).first():
+        s.add(Report(reporter_id=user.id, target_user_id=uid, reason=reason.strip()[:500])); s.commit()
+    return go(f"/u/{target.handle}?reported=1")
 
 # ---------- discuss (Reddit-style forum) ----------
 TOPICS = ["General", "Find a team", "Business", "Design & Arts", "Law & Policy", "Science & Health", "Social Impact", "Tech & Data"]
@@ -456,10 +577,13 @@ def admin_act(action: str, oid: int, user=Depends(me), s: Session = Depends(get_
         for u in s.exec(select(User).where(User.verified == False, User.banned == False)).all(): u.verified = True
     elif action == "approve_all":
         for c in s.exec(select(Competition).where(Competition.needs_review == True)).all(): c.needs_review = False
-    elif action == "approve": s.get(Competition, oid).needs_review = False
-    elif action == "reject": s.delete(s.get(Competition, oid))
-    elif action == "resolve": s.get(Report, oid).resolved = True
-    elif action == "verify": s.get(User, oid).verified = True
+    elif action in ("approve", "reject", "resolve", "verify"):
+        obj = s.get({"approve": Competition, "reject": Competition, "resolve": Report, "verify": User}[action], oid)
+        if not obj: return go("/admin")
+        if action == "approve": obj.needs_review = False
+        elif action == "reject": s.delete(obj)
+        elif action == "resolve": obj.resolved = True
+        else: obj.verified = True
     elif action == "rmsource":
         sp = s.get(SourcePage, oid)
         if sp: s.delete(sp)

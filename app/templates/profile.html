@@ -5,7 +5,7 @@
 <form id="cvform" class="cvpick"><input type="hidden" name="csrf" value="{{ csrf }}">
 <label class="btn ghost" for="cvfile">Choose CV file</label><input id="cvfile" name="file" type="file" accept=".pdf,.docx,.txt" hidden>
 <span id="cvmsg" class="muted" role="status"></span></form></section>
-<form method="post" id="pform"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="h">Handle</label><input id="h" name="handle" value="{{ user.handle }}" required>
+<form method="post" id="pform"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="h">Handle</label><input id="h" name="handle" value="{{ user.handle }}" required minlength="3" maxlength="30" pattern="[a-z0-9._\-]{3,30}" autocapitalize="none" spellcheck="false" aria-describedby="hh"><p class="muted fine" id="hh">3 to 30 characters: lowercase letters, numbers, dots, dashes or underscores. Your page is /u/your-handle.</p>
 <label for="b">Bio (major, interests)</label><textarea id="b" name="bio" rows="3">{{ user.bio }}</textarea>
 <label for="s">Skills, comma-separated</label><input id="s" name="skills" value="{{ user.skills }}" placeholder="figma, python, financial modeling">
 <div class="two"><div><label for="f">Faculty / major</label><input id="f" name="faculty" value="{{ user.faculty }}" placeholder="e.g. Computer Science"></div>

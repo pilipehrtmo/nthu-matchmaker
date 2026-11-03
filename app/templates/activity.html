@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block body %}<h1>Activity</h1>
+<p class="muted">Your projects and the applications you sent, in one place.</p>
+<h2>Your projects</h2>
+{% if not mine %}<p class="card muted">You have not posted a project yet. <a href="/projects/new">Post one</a>.</p>{% endif %}
+<div class="alist">{% for p in mine %}{% set d = days_left(p.deadline) %}<a class="card arow" href="/projects/{{ p.id }}">
+<span class="amain"><b>{{ p.title }}</b><small class="muted">{{ kind_of(p) }} · {{ seats[p.id][1] }} of {{ seats[p.id][0] }} seats filled{% if p.status == "closed" %} · not recruiting{% elif d is not none and d < 0 %} · join-by date passed{% endif %}</small></span>
+{% if pend[p.id] %}<span class="badge b-open">{{ pend[p.id] }} waiting</span>{% else %}<span class="badge b-pending">No new</span>{% endif %}</a>{% endfor %}</div>
+<h2>Applications you sent</h2>
+{% if not sent %}<p class="card muted">No applications yet. Find a seat on the <a href="/">home page</a>.</p>{% endif %}
+<div class="alist">{% for a, r, p in sent %}<a class="card arow" href="/projects/{{ p.id }}">
+<span class="amain"><b>{{ r.name }}</b><small class="muted">{{ p.title }} · sent {{ a.at|ago }}</small></span>
+<span class="badge b-{{ a.status }}">{{ {"closed": "Seat filled", "withdrawn": "Withdrawn", "accepted": "Accepted: see contacts"}.get(a.status, a.status|capitalize) }}</span></a>{% endfor %}</div>
+{% endblock %}

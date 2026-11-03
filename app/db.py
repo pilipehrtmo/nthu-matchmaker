@@ -9,7 +9,7 @@ if DB_URL.startswith("sqlite"):
 else:   # Postgres (e.g. Supabase): small pool, drop dead connections after the free tier pauses
     engine = create_engine(DB_URL, pool_pre_ping=True, pool_size=8, max_overflow=4, pool_timeout=15, pool_recycle=300,   # 12 max: stays under Supabase's free connection limit
                            connect_args={"connect_timeout": 10})   # fail fast with a clear error instead of hanging
-NEW_COLS = {"project": [("kind", "VARCHAR DEFAULT ''")], "post": [("hidden", "BOOLEAN DEFAULT 0")], "comment": [("hidden", "BOOLEAN DEFAULT 0")],
+NEW_COLS = {"project": [("kind", "VARCHAR DEFAULT ''"), ("category", "VARCHAR DEFAULT ''"), ("stage", "VARCHAR DEFAULT ''")], "post": [("hidden", "BOOLEAN DEFAULT 0")], "comment": [("hidden", "BOOLEAN DEFAULT 0")],
             "report": [("kind", "VARCHAR DEFAULT 'user'"), ("target_id", "INTEGER DEFAULT 0")],
             "competition": [("category", "VARCHAR DEFAULT 'Other'"), ("description", "VARCHAR DEFAULT ''")],
             "user": [("verified", "BOOLEAN DEFAULT 0"), ("name", "VARCHAR DEFAULT ''"), ("student_id", "VARCHAR DEFAULT ''"), ("faculty", "VARCHAR DEFAULT ''"), ("hours", "INTEGER DEFAULT 4"), ("line", "VARCHAR DEFAULT ''"), ("instagram", "VARCHAR DEFAULT ''"), ("discord", "VARCHAR DEFAULT ''"), ("linkedin", "VARCHAR DEFAULT ''"), ("github", "VARCHAR DEFAULT ''"), ("website", "VARCHAR DEFAULT ''"), ("behance", "VARCHAR DEFAULT ''"), ("scholar", "VARCHAR DEFAULT ''")]}
