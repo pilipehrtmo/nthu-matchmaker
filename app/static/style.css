@@ -438,3 +438,29 @@ img.av{display:block}img.av.xs{display:inline-block}
 .pneed{margin:1rem 0 0;padding:.7rem .9rem;border-radius:12px;background:var(--warn-bg);color:var(--warn-ink)}
 @media(max-width:699px){.pgrid{grid-template-columns:1fr}}
 .pnums+.pneed{margin-top:1.1rem}
+
+/* ---------- alignment pass: every row of small items is centred on one line ---------- */
+.pill,.badge{display:inline-flex;align-items:center;line-height:1.45;white-space:nowrap;vertical-align:middle}
+.meta{align-items:center}
+.meta>*{flex:none}
+.byline{display:inline-flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.byline .av.xs{margin:0;vertical-align:0}
+.byline .pill{margin:0}
+details.nme{margin:0}
+.dhead{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}.dhead h1{margin:0}.dhead form{margin:0}
+.seatcard header{align-items:center}.seattags{display:inline-flex;align-items:center;gap:.35rem;flex-wrap:wrap}
+.seatcard header h3{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin:0}.pill.advpill{vertical-align:0}
+.cact{align-items:center}.cact form{margin:0}
+.readyhead{align-items:center}
+.app-top{align-items:center}.app-who{display:inline-flex;align-items:center;flex-wrap:wrap;gap:.1rem .35rem}.app-who .vchk{margin-left:0}.app-who .pill.fac{margin-left:0}
+.ownacts .btn,.ownacts button{display:inline-flex;align-items:center;min-height:36px;margin:0}
+.remark .app-who .av.sm{margin-right:.15rem}
+/* phone fixes from the alignment pass */
+.foot{flex-wrap:wrap;gap:.6rem 1.2rem}.foot a{white-space:nowrap}.foot button{white-space:nowrap}
+.ctop{flex-wrap:wrap;row-gap:.35rem}.soonpill{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.rcard header{flex-wrap:wrap;row-gap:.35rem}.rcard header a{flex:1 1 170px;min-width:0}
+.fprog a b,.rcard header a b{overflow-wrap:anywhere}
+.pcard .ctop{flex-wrap:nowrap;align-items:center;gap:.6rem}
+.pcard .kindb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard .ctop .match{flex:none;white-space:nowrap}
+.pmeta .soonpill{font-size:.72rem}

@@ -344,7 +344,7 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
     soon = {}   # nearest program deadline within 30 days, per project kind
     for prog in s.exec(select(Program).where(Program.active == True)).all():
         d = days_left(prog.next_deadline)
-        if d is not None and 0 <= d <= 30 and (prog.for_kind not in soon or d < soon[prog.for_kind][1]): soon[prog.for_kind] = (prog.name.split(" (")[0], d)
+        if d is not None and 0 <= d <= 30 and (prog.for_kind not in soon or d < soon[prog.for_kind][1]): soon[prog.for_kind] = (short_name(prog.name), d)
     allc = s.exec(select(Competition).order_by(Competition.needs_review, Competition.id.desc())).all()
     cats = sorted({c.category for c in allc})
     comps = [c for c in allc if (not cat or c.category == cat) and (not q or q.lower() in (c.title + c.description).lower())][:60]
@@ -355,6 +355,10 @@ def metric_rows(text):   # "12 | stall owners interviewed" -> ("12", "stall owne
     rows = [tuple(x.strip() for x in line.split("|", 1)) for line in text.splitlines() if "|" in line]
     return [(v[:12], l[:60]) for v, l in rows if v and l][:3]
 templates.env.globals["metric_rows"] = metric_rows
+
+def short_name(name):   # "U-start Innovation & Startup Program" -> "U-start", for small badges
+    n = name.split(" (")[0]
+    return n if len(n) <= 16 else n.split()[0]
 
 def team_info(s, pr):
     """Accepted members, advisors and open seats of a project, plus its funding readiness checks."""

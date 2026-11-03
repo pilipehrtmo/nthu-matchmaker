@@ -4,7 +4,7 @@
 {% elif user %}<p class="box">Post a <a href="/projects/new?kind=Startup">startup</a> or <a href="/projects/new?kind=Research">research</a> project to get a readiness check against these programs.</p>{% endif %}
 {% for kind, label in [("Startup", "For startups"), ("Research", "For research"), ("Any", "For any project")] %}{% set ps = progs|selectattr("for_kind", "equalto", kind)|list %}
 {% if ps %}<h2>{{ label }}</h2><div class="rgrid">{% for p in ps %}{% set d = days_left(p.next_deadline) %}<article class="card fprog">
-<a href="{{ p.url }}" target="_blank" rel="noopener"><b>{{ p.name }} ↗</b></a><small class="muted">{{ p.org }}</small>
+<a href="{{ p.url }}" target="_blank" rel="noopener"><b>{{ p.name }}&nbsp;↗</b></a><small class="muted">{{ p.org }}</small>
 <p><b>What you get:</b> {{ p.amount }}</p><p><b>Who:</b> {{ p.who }}</p>
 <p class="{{ 'due' if d is not none and d >= 0 }}">{% if d is not none and d >= 0 %}<b>Deadline in {{ d }} day{{ "s" if d != 1 }}</b> ({{ p.next_deadline }}){% else %}{{ p.deadline_note }}{% endif %}</p></article>{% endfor %}</div>{% endif %}{% endfor %}
 <p class="muted fine">Rules, amounts and dates change every year. Always read the official call before you apply. Applications are sent to each program, not through this site.</p>{% endblock %}

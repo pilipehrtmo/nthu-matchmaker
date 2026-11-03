@@ -4,7 +4,7 @@
 {% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>{% endif %}
 <section class="card head"><h1>{{ pr.title }}</h1>
 <div class="meta"><span class="pill kindpill">{{ k }}</span>{% if pr.category %}<span class="pill">{{ pr.category }}</span>{% endif %}{% if pr.stage %}<span class="pill">Stage: {{ pr.stage }}</span>{% endif %}
-<span class="byline">{{ pic(owner, "av xs") }}by <a href="/u/{{ owner.handle }}">{{ owner|dn }}</a>{% if owner.verified %} <span class="pill ok">✔ verified</span>{% endif %}</span><span>{{ pr.hours_per_week }} h/week</span>
+<span class="byline">{{ pic(owner, "av xs") }}<span>by <a href="/u/{{ owner.handle }}">{{ owner|dn }}</a></span>{% if owner.verified %}<span class="pill ok">✔ verified</span>{% endif %}</span><span>{{ pr.hours_per_week }} h/week</span>
 {% if pr.status == "closed" %}<span class="pill warn">Not recruiting</span>
 {% elif days is not none %}<span class="pill {{ 'warn' if days <= 7 }}">{{ "Join-by date passed" if days < 0 else ("Last day to join" if days == 0 else (days ~ " days left to join")) }}</span>{% endif %}
 {% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% endif %}</div>
@@ -30,11 +30,11 @@
 {% elif k == "Research" %}<section class="card guide"><h2>Where to share this research</h2>
 {% set venues = G.RESEARCH_VENUES.get(pr.category) or G.RESEARCH_VENUES["Other"] %}
 <p class="muted">{% if pr.category %}Well-known places for <b>{{ pr.category }}</b>:{% else %}{% if is_owner %}<a href="/projects/{{ pr.id }}/edit">Pick your field</a> for better suggestions. {% endif %}General places for any field:{% endif %}</p>
-<div class="glinks">{% for t, u, d in venues %}<a class="glink" href="{{ u }}" target="_blank" rel="noopener"><b>{{ t }} ↗</b><span>{{ d }}</span></a>{% endfor %}</div>
+<div class="glinks">{% for t, u, d in venues %}<a class="glink" href="{{ u }}" target="_blank" rel="noopener"><b>{{ t }}&nbsp;↗</b><span>{{ d }}</span></a>{% endfor %}</div>
 <p class="muted fine">Ask your advisor before posting a preprint: some journals and conferences have rules about it.</p></section>{% endif %}
 {% if checks %}<section class="card ready" id="funding"><div class="readyhead"><h2>Funding and incubation readiness</h2><a href="/funding" class="muted">All programs →</a></div>
 <p class="muted">Checked from this team on Matchmaker. Items marked "Check yourself" are rules the site cannot see.</p>
-<div class="rgrid">{% for c in checks %}<article class="rcard {{ 'is-ready' if c.ready }}"><header><a href="{{ c.p.url }}" target="_blank" rel="noopener"><b>{{ c.p.name }} ↗</b></a>
+<div class="rgrid">{% for c in checks %}<article class="rcard {{ 'is-ready' if c.ready }}"><header><a href="{{ c.p.url }}" target="_blank" rel="noopener"><b>{{ c.p.name }}&nbsp;↗</b></a>
 <span class="badge {{ 'b-accepted' if c.ready else 'b-open' }}">{{ "Looks eligible" if c.ready else "Missing something" }}</span></header>
 <p class="muted rmeta">{{ c.p.amount }}<br>{% if c.days is not none and c.days >= 0 %}<b class="due">Deadline in {{ c.days }} day{{ "s" if c.days != 1 }} ({{ c.p.next_deadline }})</b>{% else %}{{ c.p.deadline_note }}{% endif %}</p>
 <ul class="checks">{% for st, text, fix in c.lines %}<li class="c-{{ st }}"><span class="ic" aria-hidden="true">{{ {"ok": "✔", "miss": "✘", "you": "○"}[st] }}</span><span>{{ text }}{% if st == "you" %} <small>Check yourself</small>{% endif %}
