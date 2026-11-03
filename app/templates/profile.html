@@ -35,6 +35,13 @@ document.getElementById("phfile").addEventListener("change",async e=>{const f=e.
 <div class="two">{% for p in PRO_LINKS %}<div><label for="pl-{{ p[0] }}" class="lk-label">{{ icon(p[0]) }} {{ p[1] }}</label><input id="pl-{{ p[0] }}" name="{{ p[0] }}" value="{{ user[p[0]] }}" placeholder="{{ p[2] }}" maxlength="200" inputmode="url" autocomplete="off"></div>{% endfor %}</div></div>
 <p><button>Save profile</button></p></form><section class="psec"><div class="psec-h"><h2>Appearance</h2></div><p class="muted">Choose how the site looks on this device.</p>
 <div class="kinds themes">{% for v, l in [("light", "Light"), ("dark", "Dark"), ("system", "Match my device")] %}<label class="kind"><input type="radio" name="theme" value="{{ v }}" {{ 'checked' if theme == v }}><span>{{ l }}</span></label>{% endfor %}</div></section>
+<h2 style="margin-top:2rem" id="password">{{ "Change password" if user.password_hash else "Set a password" }}</h2>
+{% if pw_ok %}<p class="box ok" role="status">Password saved.</p>{% endif %}{% if pw_error %}<p class="err" role="alert">{{ pw_error }}</p>{% endif %}
+<form method="post" action="/profile/password#password" class="card pwform"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="email" value="{{ user.email }}" autocomplete="username" hidden readonly>
+{% if user.password_hash %}<label for="cpw">Current password</label><input id="cpw" name="current" type="password" required autocomplete="current-password">{% endif %}
+<div class="two"><div><label for="npw">New password</label><input id="npw" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></div>
+<div><label for="npw2">Type it again</label><input id="npw2" name="password2" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></div></div>
+<p><button class="sm">Save password</button></p></form>
 <h2 style="margin-top:2rem">Delete my account</h2><p class="muted">Removes your profile, name, student ID, projects and applications. This cannot be undone.</p>
 <form method="post" action="/profile/delete" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="dl">Type DELETE to confirm</label><input id="dl" name="confirm" autocomplete="off"><p><button class="no">Delete my account</button></p></form><script>
 (() => {

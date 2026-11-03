@@ -1,25 +1,9 @@
-{% extends "base.html" %}{% block body %}{% set f = form or {} %}<h1>Log in or sign up</h1>
-<p class="muted">Already have an account? Just enter your email. The other fields are only for your first time. Other students see your full name; only admins see your student ID and email.</p>
-{% if sent %}<p class="box">Check your inbox for a login link. It expires in 15 minutes.</p>{% endif %}
-{% if demo_link %}<p class="box"><b>Demo mode:</b> <a href="{{ demo_link }}">click here to log in</a>. Only for classroom demos on a private network.</p>{% endif %}
+{% extends "base.html" %}{% block body %}<div class="authwrap narrow"><h1>Log in</h1>
+<p class="muted">New here? <a href="/signup">Create an account</a>.</p>
+{% if notice == "reset" %}<p class="box ok" role="status">Password saved. Log in with your new password.</p>{% endif %}
 {% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
 <form method="post" class="card" id="lf"><input type="hidden" name="csrf" value="{{ csrf }}">
-<label>New here? I am a…</label>
-<div class="kinds" role="radiogroup" aria-label="Account type"><label class="kind"><input type="radio" name="role" value="student" {{ "checked" if f.get("role", "student") != "faculty" }}><span>Student</span></label>
-<label class="kind"><input type="radio" name="role" value="faculty" {{ "checked" if f.get("role") == "faculty" }}><span>Professor or advisor</span></label></div>
-<label for="e" id="elabel">Email</label><input id="e" name="email" type="email" required value="{{ f.get('email', '') }}" autocomplete="email">
-<p class="muted fine" id="ehint" hidden>Use your NTHU staff email, such as name@cs.nthu.edu.tw or name@mx.nthu.edu.tw. Student @gapp addresses are not accepted.</p>
-<div class="two"><div><label for="n">Full name (first time only)</label><input id="n" name="name" autocomplete="name" value="{{ f.get('name', '') }}"></div>
-<div class="r-student"><label for="s">Student ID (first time only)</label><input id="s" name="student_id" maxlength="12" value="{{ f.get('sid', '') }}"></div>
-<div class="r-faculty" hidden><label for="ti">Title</label><select id="ti" name="title">{% for t in titles %}<option {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}</select></div></div>
-<div class="r-faculty" hidden><label for="dp">Department</label><input id="dp" name="dept" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science">
-<label for="pg">Link to an NTHU page that lists you with this email</label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
-<p class="muted fine">For example your department's faculty page or your lab page on nthu.edu.tw. We open it and look for your email to confirm you are NTHU teaching staff. If we cannot find it, an admin checks it by hand; until then your account works but has no Faculty badge.</p></div>
-<label class="chk"><input type="checkbox" name="agree" value="1"><span>I agree to the <a href="/privacy" target="_blank">privacy notice</a> (first time only)</span></label>
-<p><button>Send login link</button></p></form>
-<script>
-(()=>{const sync=()=>{const fac=document.querySelector("input[name=role]:checked").value==="faculty";
- document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>e.hidden=fac);
- document.getElementById("ehint").hidden=!fac;document.getElementById("elabel").textContent=fac?"NTHU staff email":"Email"};
- document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})();
-</script>{% endblock %}
+<label for="e">Email</label><input id="e" name="email" type="email" required autocomplete="email" autocapitalize="none" spellcheck="false" value="{{ email or '' }}" {{ "" if email else "autofocus" }}>
+<label for="pw">Password</label><input id="pw" name="password" type="password" required autocomplete="current-password" {{ "autofocus" if email }}>
+<p class="formacts"><button>Log in</button><a href="/forgot">Forgot password?</a></p></form>
+<p class="muted fine">Made your account before the site had passwords? Use <a href="/forgot">Forgot password</a> to set one{% if not verify_required() %}, or ask an admin for a setup link{% endif %}.</p></div>{% endblock %}

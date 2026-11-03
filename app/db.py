@@ -13,7 +13,7 @@ NEW_COLS = {"project": [("kind", "VARCHAR DEFAULT ''"), ("category", "VARCHAR DE
             "report": [("kind", "VARCHAR DEFAULT 'user'"), ("target_id", "INTEGER DEFAULT 0")],
             "competition": [("category", "VARCHAR DEFAULT 'Other'"), ("description", "VARCHAR DEFAULT ''")],
             "role": [("advisor", "BOOLEAN DEFAULT 0")],
-            "user": [("role", "VARCHAR DEFAULT 'student'"), ("faculty_status", "VARCHAR DEFAULT ''"), ("faculty_url", "VARCHAR DEFAULT ''"), ("faculty_note", "VARCHAR DEFAULT ''"), ("title", "VARCHAR DEFAULT ''"), ("avatar_v", "INTEGER DEFAULT 0"), ("is_faculty", "BOOLEAN DEFAULT 0"), ("verified", "BOOLEAN DEFAULT 0"), ("name", "VARCHAR DEFAULT ''"), ("student_id", "VARCHAR DEFAULT ''"), ("faculty", "VARCHAR DEFAULT ''"), ("hours", "INTEGER DEFAULT 4"), ("line", "VARCHAR DEFAULT ''"), ("instagram", "VARCHAR DEFAULT ''"), ("discord", "VARCHAR DEFAULT ''"), ("linkedin", "VARCHAR DEFAULT ''"), ("github", "VARCHAR DEFAULT ''"), ("website", "VARCHAR DEFAULT ''"), ("behance", "VARCHAR DEFAULT ''"), ("scholar", "VARCHAR DEFAULT ''")]}
+            "user": [("password_hash", "VARCHAR DEFAULT ''"), ("email_verified", "BOOLEAN DEFAULT 1"), ("role", "VARCHAR DEFAULT 'student'"), ("faculty_status", "VARCHAR DEFAULT ''"), ("faculty_url", "VARCHAR DEFAULT ''"), ("faculty_note", "VARCHAR DEFAULT ''"), ("title", "VARCHAR DEFAULT ''"), ("avatar_v", "INTEGER DEFAULT 0"), ("is_faculty", "BOOLEAN DEFAULT 0"), ("verified", "BOOLEAN DEFAULT 0"), ("name", "VARCHAR DEFAULT ''"), ("student_id", "VARCHAR DEFAULT ''"), ("faculty", "VARCHAR DEFAULT ''"), ("hours", "INTEGER DEFAULT 4"), ("line", "VARCHAR DEFAULT ''"), ("instagram", "VARCHAR DEFAULT ''"), ("discord", "VARCHAR DEFAULT ''"), ("linkedin", "VARCHAR DEFAULT ''"), ("github", "VARCHAR DEFAULT ''"), ("website", "VARCHAR DEFAULT ''"), ("behance", "VARCHAR DEFAULT ''"), ("scholar", "VARCHAR DEFAULT ''")]}
 def init_db():
     SQLModel.metadata.create_all(engine)
     if DB_URL.startswith("sqlite"):   # tiny migration so old matchmaker.db files keep working
@@ -26,7 +26,7 @@ def init_db():
         with engine.begin() as c:
             for table, cols in NEW_COLS.items():
                 for col, ddl in cols:
-                    ddl = ddl.replace("BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false")
+                    ddl = ddl.replace("BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false").replace("BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT true")
                     c.execute(text(f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS {col} {ddl}'))
             for t in SQLModel.metadata.sorted_tables:
                 c.execute(text(f'ALTER TABLE public."{t.name}" ENABLE ROW LEVEL SECURITY'))

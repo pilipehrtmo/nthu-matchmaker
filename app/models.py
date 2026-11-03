@@ -31,6 +31,8 @@ class User(SQLModel, table=True):
     faculty_url: str = ""      # NTHU page that lists them
     faculty_note: str = ""     # result of the last automatic check
     title: str = ""            # Professor, Associate Professor, ...
+    password_hash: str = ""   # salted scrypt hash; "" for accounts made before passwords (they set one through a link)
+    email_verified: bool = False
     avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one
     banned: bool = False
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
@@ -168,3 +170,11 @@ class Program(SQLModel, table=True):    # funding and incubation programs on /fu
 class Avatar(SQLModel, table=True):     # profile photo: a small square WebP, kept in the database so it survives redeploys
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     data: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+
+class AuthToken(SQLModel, table=True):  # one-time links: email verification and password reset (only a hash is stored)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    kind: str                 # verify / reset
+    token_hash: str = Field(unique=True, index=True)
+    expires: NaiveDatetime
+    used: bool = False

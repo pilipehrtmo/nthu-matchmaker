@@ -14,7 +14,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from .config import *
 from .db import init_db, get_session, engine
 from .models import *
-from .mail import send_magic
+from .mail import send_mail, email_enabled
+from .security import hash_password, check_password, password_problem, new_token, token_hash, expires_in
 from .scraper import run_scrapers
 from .seed import seed, seed_starter, seed_examples
 from .matching import match_pct, why, warm
@@ -72,11 +73,19 @@ async def csrf_check(request: Request):
             raise HTTPException(403, "Security check failed. Reload the page and try again.")
 
 HITS = defaultdict(deque)
-def hit(key: str, n: int, secs: int):
+def wait_left(key: str, n: int, secs: int) -> int:
+    """Seconds until `key` may act again (0 = allowed now). Does not count this call."""
     q = HITS[key]; now = time.time()
     while q and q[0] < now - secs: q.popleft()
-    if len(q) >= n: raise HTTPException(429, "Too many requests. Please wait a few minutes.")
-    q.append(now)
+    return int(q[0] + secs - now) + 1 if len(q) >= n else 0
+def note(key: str): HITS[key].append(time.time())
+def wait_text(secs: int) -> str:
+    m = (secs + 59) // 60
+    return "about a minute" if m <= 1 else f"about {m} minutes"
+def hit(key: str, n: int, secs: int):
+    w = wait_left(key, n, secs)
+    if w: raise HTTPException(429, f"You did that a lot in a short time. Please wait {wait_text(w)} and try again.")
+    note(key)
 def limited(name: str, n: int, secs: int):
     # Logged-in actions are limited per account, not per IP: a whole class on campus Wi-Fi shares one public IP.
     def dep(request: Request):
@@ -164,41 +173,171 @@ def name_handles():   # one-time: users who still have a random "student-xxxxxx"
 SID = re.compile(r"^[A-Za-z0-9]{6,12}$")
 HANDLE_RE = re.compile(r"^[a-z0-9._-]{3,30}$")
 
-@app.get("/login")
-def login_page(req: Request, user=Depends(me)): return render(req, "login.html", user, titles=TITLES)
+def verify_required() -> bool:   # only ask people to verify when the server can really send email
+    return REQUIRE_VERIFY == "1" or (REQUIRE_VERIFY == "auto" and bool(BREVO_API_KEY))
+templates.env.globals["verify_required"] = verify_required
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
-@app.post("/login", dependencies=[limited("login", 300, 600)])   # per IP; each email is also limited below
-def login(req: Request, email: str = Form(...), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""),
-          role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), s: Session = Depends(get_session)):
+def make_link(s, u, kind, hours):
+    t, h = new_token(); s.add(AuthToken(user_id=u.id, kind=kind, token_hash=h, expires=expires_in(hours))); s.commit()
+    return f"{BASE_URL}/{'verify' if kind == 'verify' else 'reset'}/{t}"
+
+def use_token(s, t, kinds):
+    tok = s.exec(select(AuthToken).where(AuthToken.token_hash == token_hash(t))).first()
+    if not tok or tok.used or tok.kind not in kinds or tok.expires < datetime.utcnow(): return None, None
+    return tok, s.get(User, tok.user_id)
+
+def send_verify(s, u):
+    link = make_link(s, u, "verify", 48)
+    send_mail(u.email, "Confirm your email for NTHU Matchmaker",
+              f"Hi {u.name or ''},\n\nConfirm your email to finish creating your NTHU Matchmaker account:\n{link}\n\nThe link works for 48 hours. If you did not sign up, ignore this email.")
+
+def start_session(req, u):
+    req.session.pop("pending_uid", None); req.session["uid"] = u.id
+
+def ip_of(req): return req.client.host if req.client else "-"
+
+@app.get("/login")
+def login_page(req: Request, n: str = "", user=Depends(me)):
+    if user: return go("/")
+    return render(req, "login.html", notice=n)
+
+@app.post("/login")
+def login(req: Request, email: str = Form(""), password: str = Form(""), s: Session = Depends(get_session)):
+    email = email.strip().lower()
+    back = lambda err, **kw: render(req, "login.html", error=err, email=email, **kw)
+    # count only failed attempts: 8 per email and 60 per network in 15 minutes
+    w = max(wait_left(f"fail:{email}", 8, 900), wait_left(f"failip:{ip_of(req)}", 60, 900))
+    if w: return back(f"Too many wrong passwords. Please wait {wait_text(w)}, or use Forgot password.")
+    u = s.exec(select(User).where(User.email == email)).first() if email else None
+    if u and not u.password_hash:
+        return back("This account was made before the site had passwords. Use Forgot password to set one." if email_enabled() and BREVO_API_KEY
+                    else "This account was made before the site had passwords. Ask an admin for a password setup link.")
+    if not u or not check_password(password, u.password_hash):
+        note(f"fail:{email}"); note(f"failip:{ip_of(req)}")
+        return back("That email and password do not match. Check both and try again.")
+    if u.banned and email not in ADMIN_EMAILS: return back("This account is banned.")
+    if verify_required() and not u.email_verified:
+        req.session["pending_uid"] = u.id
+        return render(req, "notice.html", title="Confirm your email first", pending=True,
+                      msg=f"We sent a link to {u.email}. Open it to finish signing up. Check your spam folder too.")
+    if email in ADMIN_EMAILS and (not u.is_admin or u.banned): u.is_admin = True; u.banned = False; s.commit()   # listed admins are never locked out
+    start_session(req, u); return go("/")
+
+@app.get("/signup")
+def signup_page(req: Request, user=Depends(me)):
+    if user: return go("/")
+    return render(req, "signup.html", titles=TITLES, form={})
+
+@app.post("/signup")
+def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), password: str = Form(""),
+           password2: str = Form(""), role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), s: Session = Depends(get_session)):
     email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = student_id.strip().upper()
     role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
-    back = lambda err: render(req, "login.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title))
-    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email): return back("Please enter a valid email address.")
-    exists = s.exec(select(User).where(User.email == email)).first()
-    if exists and exists.banned and email not in ADMIN_EMAILS: return back("This account is banned.")
-    hit(f"mail:{email}", 3, 600)   # max 3 login emails per address per 10 minutes
-    if not exists:
-        if not agree: return back("Please agree to the privacy notice to create an account.")
-        if role == "faculty":
-            if not staff_email(email):
-                return back("Professor and advisor accounts must use your NTHU staff email, for example name@cs.nthu.edu.tw or name@mx.nthu.edu.tw. Student addresses such as @gapp.nthu.edu.tw cannot be used.")
-            if len(name) < 2 or not dept: return back("Enter your full name and your department.")
-            if not nthu_url(page): return back("Paste a link to an NTHU page that lists you with this email, such as your department's faculty page. It must be on nthu.edu.tw.")
-            sid = ""
-        else:
-            if not name or not SID.match(sid):
-                return back("First time here? Enter your full name and student ID (6-12 letters or digits).")
-            if s.exec(select(User).where(User.student_id == sid)).first():
-                return back("That student ID already has an account.")
-    s.add(SignupLog(email=email, ip="-", allowed=True)); s.commit()
-    data = {'e': email, 'n': name, 's': sid}
-    if role == "faculty" and not exists: data.update(r="faculty", d=dept, p=page, t=title if title in TITLES else "")
-    link = f"{BASE_URL}/auth/{signer.dumps(data)}"
-    try: send_magic(email, link)
-    except Exception as e:   # mail server busy or down: tell the user instead of showing a server error
-        print(">>> LOGIN EMAIL FAILED for", email, type(e).__name__, e)
-        return back("We could not send the login email just now. Please wait a minute and try again.")
-    return render(req, "login.html", sent=True, titles=TITLES, demo_link=link if SHOW_LINK and not SMTP_HOST else "")
+    back = lambda err: render(req, "signup.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title))
+    # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
+    w = wait_left(f"signup:{ip_of(req)}", 200, 3600)
+    if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
+    if not EMAIL_RE.match(email): return back("Please enter a valid email address.")
+    if len(name) < 2: return back("Please enter your full name.")
+    if s.exec(select(User).where(User.email == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.")
+    if role == "faculty":
+        if not staff_email(email):
+            return back("Professor and advisor accounts must use your NTHU staff email, for example name@cs.nthu.edu.tw or name@mx.nthu.edu.tw. Student addresses such as @gapp.nthu.edu.tw cannot be used.")
+        if not dept: return back("Enter your department.")
+        if not nthu_url(page): return back("Paste a link to an NTHU page that lists you with this email, such as your department's faculty page. It must be on nthu.edu.tw.")
+        sid = ""
+    else:
+        if not SID.match(sid): return back("Enter your student ID (6 to 12 letters or digits).")
+        if s.exec(select(User).where(User.student_id == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.")
+    err = password_problem(password, email, name)
+    if err: return back(err)
+    if password != password2: return back("The two passwords are not the same.")
+    if not agree: return back("Please agree to the privacy notice to create an account.")
+    u = User(email=email, name=name, student_id=sid, handle=slugify(s, name), is_admin=email in ADMIN_EMAILS, password_hash=hash_password(password))
+    if role == "faculty": u.role, u.faculty, u.faculty_url, u.title, u.faculty_status = "faculty", dept, page, title if title in TITLES else "", "pending"
+    s.add(u); s.add(SignupLog(email=email, ip="-", allowed=True)); s.commit(); s.refresh(u)
+    note(f"signup:{ip_of(req)}")
+    if role == "faculty": run_faculty_check(s, u)
+    if verify_required():
+        req.session["pending_uid"] = u.id
+        try: send_verify(s, u)
+        except Exception as e:
+            print(">>> VERIFY EMAIL FAILED", email, type(e).__name__, e)
+            return render(req, "notice.html", title="Account created", pending=True, msg="We could not send the confirmation email just now. Press Send again in a minute.")
+        return render(req, "notice.html", title="Check your inbox", pending=True,
+                      msg=f"We sent a link to {email}. Open it to finish signing up. It can take a minute, and may land in spam.")
+    start_session(req, u); return go("/profile")
+
+@app.get("/verify/{t}")
+def verify(req: Request, t: str, s: Session = Depends(get_session)):
+    tok, u = use_token(s, t, ("verify",))
+    if not u: return render(req, "notice.html", title="Link not valid", msg="This confirmation link is wrong, expired or already used. Log in to get a new one.", show_login=True)
+    tok.used = True; u.email_verified = True; s.commit()
+    start_session(req, u); return go("/profile")
+
+@app.post("/verify/resend")
+def verify_resend(req: Request, s: Session = Depends(get_session)):
+    uid = req.session.get("pending_uid") or req.session.get("uid"); u = s.get(User, uid) if uid else None
+    if not u or u.email_verified: return go("/login")
+    w = wait_left(f"verify:{u.id}", 3, 3600)
+    if w: return render(req, "notice.html", title="Please wait", pending=True, msg=f"We already sent 3 links this hour. Please wait {wait_text(w)}, and check your spam folder.")
+    note(f"verify:{u.id}")
+    try: send_verify(s, u)
+    except Exception as e:
+        print(">>> VERIFY EMAIL FAILED", u.email, type(e).__name__, e)
+        return render(req, "notice.html", title="Could not send", pending=True, msg="We could not send the email just now. Try again in a minute.")
+    return render(req, "notice.html", title="Sent again", pending=True, msg=f"A new link is on its way to {u.email}.")
+
+@app.get("/forgot")
+def forgot_page(req: Request): return render(req, "forgot.html", can_email=bool(BREVO_API_KEY) or not PUBLIC)
+
+@app.post("/forgot")
+def forgot(req: Request, email: str = Form(""), s: Session = Depends(get_session)):
+    email = email.strip().lower(); can = bool(BREVO_API_KEY) or not PUBLIC
+    if not can: return render(req, "forgot.html", can_email=False)
+    w = max(wait_left(f"forgot:{email}", 3, 3600), wait_left(f"forgotip:{ip_of(req)}", 30, 3600))
+    if w: return render(req, "forgot.html", can_email=True, error=f"Too many reset emails. Please wait {wait_text(w)}.", email=email)
+    note(f"forgot:{email}"); note(f"forgotip:{ip_of(req)}")
+    u = s.exec(select(User).where(User.email == email)).first()
+    if u and not u.banned:
+        link = make_link(s, u, "reset", 1)
+        try: send_mail(u.email, "Set your NTHU Matchmaker password", f"Hi {u.name or ''},\n\nSet a new password here (the link works for 1 hour):\n{link}\n\nIf you did not ask for this, ignore this email.")
+        except Exception as e:
+            print(">>> RESET EMAIL FAILED", email, type(e).__name__, e)
+            return render(req, "forgot.html", can_email=True, error="We could not send the email just now. Try again in a minute.", email=email)
+    # same answer whether or not the account exists, so nobody can test which emails have accounts
+    return render(req, "notice.html", title="Check your inbox", msg="If an account uses that email, we sent it a link to set a new password. It works for 1 hour; check spam too.", show_login=True)
+
+@app.get("/reset/{t}")
+def reset_page(req: Request, t: str, s: Session = Depends(get_session)):
+    tok, u = use_token(s, t, ("reset", "setup"))
+    if not u: return render(req, "notice.html", title="Link not valid", msg="This password link is wrong, expired or already used. Ask for a new one.", show_login=True)
+    return render(req, "reset.html", t=t, who=u)
+
+@app.post("/reset/{t}")
+def reset(req: Request, t: str, password: str = Form(""), password2: str = Form(""), s: Session = Depends(get_session)):
+    tok, u = use_token(s, t, ("reset", "setup"))
+    if not u: return render(req, "notice.html", title="Link not valid", msg="This password link is wrong, expired or already used. Ask for a new one.", show_login=True)
+    err = password_problem(password, u.email, u.name) or ("The two passwords are not the same." if password != password2 else "")
+    if err: return render(req, "reset.html", t=t, who=u, error=err)
+    u.password_hash = hash_password(password)
+    if tok.kind == "reset": u.email_verified = True   # the link came by email, so they own the address
+    for x in s.exec(select(AuthToken).where(AuthToken.user_id == u.id, AuthToken.kind.in_(["reset", "setup"]), AuthToken.used == False)).all(): x.used = True
+    s.commit()
+    if u.banned and u.email not in ADMIN_EMAILS: return render(req, "notice.html", title="Account banned", msg="This account is banned.")
+    if u.email in ADMIN_EMAILS and not u.is_admin: u.is_admin = True; s.commit()
+    start_session(req, u); return go("/?n=pw")
+
+@app.post("/profile/password", dependencies=[limited("pwchange", 10, 3600)])
+def change_password(req: Request, current: str = Form(""), password: str = Form(""), password2: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+    if not user: return go("/login")
+    err = ""
+    if user.password_hash and not check_password(current, user.password_hash): err = "Your current password is not right."
+    err = err or password_problem(password, user.email, user.name) or ("The two new passwords are not the same." if password != password2 else "")
+    if err: return render(req, "profile.html", user, pw_error=err)
+    user.password_hash = hash_password(password); s.add(user); s.commit()
+    return render(req, "profile.html", user, pw_ok=True)
 
 def run_faculty_check(s, u):
     """Look for the user's email on their NTHU page. Found: verified automatically. Not found: an admin decides."""
@@ -208,23 +347,6 @@ def run_faculty_check(s, u):
     elif u.faculty_status != "rejected": u.faculty_status, u.is_faculty = "pending", False
     s.add(u); s.commit()
 
-@app.get("/auth/{token}")
-def auth(req: Request, token: str, s: Session = Depends(get_session)):
-    try: d = signer.loads(token, max_age=900)
-    except BadSignature: return render(req, "login.html", error="That link is invalid or expired. Request a new one.", titles=TITLES)
-    email = d["e"]; u = s.exec(select(User).where(User.email == email)).first(); new = u is None
-    if new:
-        fac = d.get("r") == "faculty"
-        if fac and not staff_email(email): return render(req, "login.html", error="Professor accounts must use an NTHU staff email.", titles=TITLES)
-        if not fac and (not d["s"] or s.exec(select(User).where(User.student_id == d["s"])).first()):
-            return render(req, "login.html", error="That student ID already has an account.", titles=TITLES)
-        u = User(email=email, name=d["n"], student_id=d["s"], handle=slugify(s, d["n"]), is_admin=email in ADMIN_EMAILS)
-        if fac: u.role, u.faculty, u.faculty_url, u.title, u.faculty_status = "faculty", d.get("d", ""), d.get("p", ""), d.get("t", ""), "pending"
-        s.add(u); s.commit(); s.refresh(u)
-        if fac: run_faculty_check(s, u)
-    if email in ADMIN_EMAILS and (not u.is_admin or u.banned): u.is_admin = True; u.banned = False; s.commit()   # listed admins are never locked out
-    req.session["uid"] = u.id
-    return go("/profile" if new else "/")
 
 @app.post("/logout")
 def logout(req: Request): req.session.clear(); return go("/")
@@ -254,7 +376,7 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     user.skills = ",".join(sorted(tags(skills))); s.add(user); s.commit()
     return go("/")
 
-@app.post("/profile/cv", dependencies=[limited("cv", 20, 3600)])
+@app.post("/profile/cv", dependencies=[limited("cv", 30, 3600)])
 def profile_cv(file: UploadFile = File(...), user=Depends(me), s: Session = Depends(get_session)):
     """Read an uploaded CV and return suggested profile fields. The file is not saved."""
     if not user: return JSONResponse({"error": "Please log in again."}, status_code=401)
@@ -273,7 +395,7 @@ def faculty_recheck(page: str = Form(""), user=Depends(me), s: Session = Depends
     else: user.faculty_note = "The link must be on an nthu.edu.tw website."; s.add(user); s.commit()
     return go("/profile#faculty")
 
-@app.post("/profile/photo", dependencies=[limited("photo", 20, 3600)])
+@app.post("/profile/photo", dependencies=[limited("photo", 30, 3600)])
 def profile_photo(file: UploadFile = File(...), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return JSONResponse({"error": "Please log in again."}, status_code=401)
     try: data = make_avatar(file.file.read(MAX_UPLOAD + 1))
@@ -347,9 +469,7 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         roles = [r for r in allr if not r.filled]
         days = days_left(pr.deadline)
         if not roles or (days is not None and days < 0): continue   # full or past its join-by date
-        text = (pr.title + pr.description + pr.category + " ".join(r.name + r.skills for r in roles)).lower()
-        if q and q.lower() not in text: continue
-        if kind and kind_of(pr) != kind: continue
+        # filtering and sorting happen in the browser (instant, no reload); the page holds every open project
         owner = owners.get(pr.owner_id)
         # no match score on your own project
         best = max((match_pct(user, r, pr, owner) for r in roles), default=0) if user and user.id != pr.owner_id else None
@@ -361,8 +481,8 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         if d is not None and 0 <= d <= 30 and (prog.for_kind not in soon or d < soon[prog.for_kind][1]): soon[prog.for_kind] = (short_name(prog.name), d)
     allc = s.exec(select(Competition).order_by(Competition.needs_review, Competition.id.desc())).all()
     cats = sorted({c.category for c in allc})
-    comps = [c for c in allc if (not cat or c.category == cat) and (not q or q.lower() in (c.title + c.description).lower())][:60]
-    return render(req, "board.html", user, rows=rows, comps=comps, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
+    comps = allc[:200]
+    return render(req, "board.html", user, rows=rows, comps=comps, comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
 
 PITCH_FIELDS = [("tagline", 140), ("problem", 600), ("audience", 400), ("solution", 600), ("progress", 600), ("needs", 300), ("metrics", 200)]
 def metric_rows(text):   # "12 | stall owners interviewed" -> ("12", "stall owners interviewed"), at most 3
@@ -427,7 +547,7 @@ def new_project(req: Request, comp: str = "", kind: str = "", user=Depends(me), 
     kind = kind if kind in PROJECT_KINDS else ("Competition" if comp else "")
     return project_form(req, user, s, kind=kind, sel=comp)
 
-@app.post("/projects/new", dependencies=[limited("newproj", 10, 3600)])
+@app.post("/projects/new", dependencies=[limited("newproj", 20, 3600)])
 async def create_project(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     f, seats, err = read_project_form(await req.form())
@@ -529,7 +649,7 @@ def delete_project(pid: int, user=Depends(me), s: Session = Depends(get_session)
         s.exec(delete(Remark).where(Remark.project_id == pid)); s.delete(pr); s.commit()
     return go("/")
 
-@app.post("/roles/{rid}/apply", dependencies=[limited("apply", 30, 3600)])
+@app.post("/roles/{rid}/apply", dependencies=[limited("apply", 60, 3600)])
 def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     r = s.get(Role, rid); pr = s.get(Project, r.project_id) if r else None
@@ -571,7 +691,7 @@ def activity(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     sent = [(a, aroles[a.role_id], aprojs[aroles[a.role_id].project_id]) for a in apps if a.role_id in aroles and aroles[a.role_id].project_id in aprojs]
     return render(req, "activity.html", user, mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left)
 
-@app.post("/projects/{pid}/remarks", dependencies=[limited("remark", 30, 3600)])
+@app.post("/projects/{pid}/remarks", dependencies=[limited("remark", 60, 3600)])
 def add_remark(pid: int, body: str = Form(...), public: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if not s.get(Project, pid): raise HTTPException(404)
@@ -640,7 +760,7 @@ def discuss(req: Request, topic: str = "", sort: str = "hot", user=Depends(me), 
 def new_post(req: Request, topic: str = "", user=Depends(me)):
     return render(req, "newpost.html", user, topics=TOPICS, sel=topic) if user else go("/login")
 
-@app.post("/discuss/new", dependencies=[limited("post", 10, 3600)])
+@app.post("/discuss/new", dependencies=[limited("post", 20, 3600)])
 def create_post(req: Request, title: str = Form(...), body: str = Form(""), topic: str = Form("General"), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if not title.strip(): return go("/discuss/new")
@@ -666,7 +786,7 @@ def thread(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_se
     authors = {u.id: u for u in s.exec(select(User).where(User.id.in_(list(ids)))).all()}
     return render(req, "thread.html", user, p=p, flat=flat, ptot=ptot, pmine=pmine, ctot=ctot, cmine=cmine, authors=authors, ncom=len(cs))
 
-@app.post("/discuss/{pid}/comment", dependencies=[limited("comment", 30, 3600)])
+@app.post("/discuss/{pid}/comment", dependencies=[limited("comment", 60, 3600)])
 def add_comment(pid: int, body: str = Form(...), parent_id: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if len(re.findall(r"https?://", body)) > 2: raise HTTPException(400, "Comments can contain at most 2 links.")
@@ -675,7 +795,7 @@ def add_comment(pid: int, body: str = Form(...), parent_id: str = Form(""), user
         s.add(Comment(post_id=pid, author_id=user.id, parent_id=par.id if par and par.post_id == pid else None, body=body.strip()[:2000])); s.commit()
     return go(f"/discuss/{pid}")
 
-@app.post("/vote/{kind}/{oid}", dependencies=[limited("vote", 120, 3600)])
+@app.post("/vote/{kind}/{oid}", dependencies=[limited("vote", 300, 3600)])
 def vote(kind: str, oid: int, v: int = Form(...), next: str = Form("/discuss"), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if kind in ("post", "comment") and v in (1, -1):
@@ -686,7 +806,7 @@ def vote(kind: str, oid: int, v: int = Form(...), next: str = Form("/discuss"), 
         s.commit()
     return go(next if next.startswith("/discuss") else "/discuss")
 
-@app.post("/flag/{kind}/{oid}", dependencies=[limited("flag", 20, 3600)])
+@app.post("/flag/{kind}/{oid}", dependencies=[limited("flag", 30, 3600)])
 def flag(kind: str, oid: int, reason: str = Form(...), next: str = Form("/discuss"), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     obj = s.get(Post, oid) if kind == "post" else s.get(Comment, oid) if kind == "comment" else None
@@ -724,7 +844,7 @@ def extra_admin(s):
 @app.get("/admin")
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
-    return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email,
+    return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None),
         fac_requests=s.exec(select(User).where(User.faculty_status == "pending")).all(), programs=s.exec(select(Program).order_by(Program.sort)).all(),
         logs=s.exec(select(SignupLog).order_by(SignupLog.at.desc()).limit(100)).all(),
         review=s.exec(select(Competition).where(Competition.needs_review == True)).all(), **extra_admin(s))
@@ -761,7 +881,7 @@ async def save_program(req: Request, user=Depends(me), s: Session = Depends(get_
     s.commit(); return go("/admin#programs")
 
 @app.post("/admin/{action}/{oid}")
-def admin_act(action: str, oid: int, user=Depends(me), s: Session = Depends(get_session)):
+def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
     if action == "ban":
         u = s.get(User, oid)
@@ -795,6 +915,9 @@ def admin_act(action: str, oid: int, user=Depends(me), s: Session = Depends(get_
                 obj = s.get(Post if r.kind == "post" else Comment, r.target_id)
                 if obj: obj.hidden = False
             for x in s.exec(select(Report).where(Report.kind == r.kind, Report.target_id == r.target_id)).all(): x.resolved = True
+    elif action == "pwlink":   # one-time link the admin copies and sends to someone who cannot log in
+        u = s.get(User, oid)
+        if u: req.session["flash_link"] = (u.name or u.email, make_link(s, u, "setup", 48)); s.commit(); return go("/admin#users")
     elif action == "rmphoto":   # remove an inappropriate profile photo
         u = s.get(User, oid)
         if u: s.exec(delete(Avatar).where(Avatar.user_id == oid)); u.avatar_v = 0

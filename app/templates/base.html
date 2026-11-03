@@ -13,13 +13,13 @@
 <a href="/profile">Your profile</a><a href="/u/{{ user.handle }}">See your public page</a><a href="/activity">Activity</a>{% if user.is_admin %}<a href="/admin">Admin</a>{% endif %}
 <button type="button" class="themebtn"><span class="t-dark">Dark mode</span><span class="t-light">Light mode</span></button><hr>
 <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Log out</button></form></div></details>
-{% else %}<a class="npost" href="/login">Log in</a>{% endif %}</div></nav></header>
-<main>{% if user and not request.cookies.get("namenote") %}<div class="namenote" id="namenote" role="status"><span>Matchmaker now shows your <b>full name</b> to other students instead of a handle. You can change it on <a href="/profile">your profile</a>.</span><button type="button" class="ghost sm">OK</button></div>{% endif %}{% block body %}{% endblock %}</main>
+{% else %}<a class="nlogin" href="/login">Log in</a><a class="npost" href="/signup">Sign up</a>{% endif %}</div></nav></header>
+<main>{% if request.query_params.get("n") == "pw" %}<p class="box ok" role="status">Password saved. You're logged in.</p>{% endif %}{% if user and not request.cookies.get("namenote") %}<div class="namenote" id="namenote" role="status"><span>Matchmaker now shows your <b>full name</b> to other students instead of a handle. You can change it on <a href="/profile">your profile</a>.</span><button type="button" class="ghost sm">OK</button></div>{% endif %}{% block body %}{% endblock %}</main>
 <footer class="foot muted"><a href="/funding">Funding &amp; incubation</a><a href="/privacy">Privacy notice</a><button type="button" id="themetoggle" class="ghost sm" aria-label="Switch light or dark mode"><span class="t-dark">Dark mode</span><span class="t-light">Light mode</span></button></footer>
 <nav class="tabbar" aria-label="Main">
 <a href="/" class="{{ 'on' if path == '/' }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</a>
 <a href="/discuss" class="{{ 'on' if path.startswith('/discuss') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Discuss</a>
 <a href="{{ '/projects/new' if user else '/login' }}" class="post {{ 'on' if path == '/projects/new' }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Post</a>
 {% if user %}<a href="/activity" class="{{ 'on' if path == '/activity' }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>Activity{% if inbox %}<span class="nbadge dot">{{ inbox }}</span>{% endif %}</a>{% endif %}
-<a href="{{ '/profile' if user else '/login' }}" class="{{ 'on' if path in ('/profile', '/login', '/admin') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>{{ 'Profile' if user else 'Log in' }}</a>
+<a href="{{ '/profile' if user else '/login' }}" class="{{ 'on' if path in ('/profile', '/login', '/signup', '/admin') }}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>{{ 'Profile' if user else 'Log in' }}</a>
 </nav></body></html>

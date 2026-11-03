@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% block body %}{% set f = form or {} %}<div class="authwrap"><h1>Create your account</h1>
+<p class="muted">Already have one? <a href="/login">Log in</a>. Other students see your full name; only admins see your student ID and email.</p>
+{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+<form method="post" class="card" id="lf"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label>I am a…</label>
+<div class="kinds" role="radiogroup" aria-label="Account type"><label class="kind"><input type="radio" name="role" value="student" {{ "checked" if f.get("role", "student") != "faculty" }}><span>Student</span></label>
+<label class="kind"><input type="radio" name="role" value="faculty" {{ "checked" if f.get("role") == "faculty" }}><span>Professor or advisor</span></label></div>
+<label for="e" id="elabel">Email</label><input id="e" name="email" type="email" required autocapitalize="none" spellcheck="false" value="{{ f.get('email', '') }}" autocomplete="email">
+<p class="muted fine" id="ehint" hidden>Use your NTHU staff email, such as name@cs.nthu.edu.tw or name@mx.nthu.edu.tw. Student @gapp addresses are not accepted.</p>
+<div class="two"><div><label for="n">Full name</label><input id="n" name="name" autocomplete="name" required value="{{ f.get('name', '') }}"></div>
+<div class="r-student"><label for="s">Student ID</label><input id="s" name="student_id" maxlength="12" value="{{ f.get('sid', '') }}"></div>
+<div class="r-faculty" hidden><label for="ti">Title</label><select id="ti" name="title">{% for t in titles %}<option {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}</select></div></div>
+<div class="r-faculty" hidden><label for="dp">Department</label><input id="dp" name="dept" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science">
+<label for="pg">Link to an NTHU page that lists you with this email</label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
+<p class="muted fine">For example your department's faculty page or your lab page on nthu.edu.tw. We open it and look for your email to confirm you are NTHU teaching staff. If we cannot find it, an admin checks it by hand; until then your account works but has no Faculty badge.</p></div>
+<div class="two"><div><label for="pw">Password</label><input id="pw" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="pwh"></div>
+<div><label for="pw2">Type it again</label><input id="pw2" name="password2" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></div></div>
+<p class="muted fine" id="pwh">At least 8 characters. Don't reuse your school or email password.</p>
+<label class="chk"><input type="checkbox" name="agree" value="1" required><span>I agree to the <a href="/privacy" target="_blank">privacy notice</a></span></label>
+<p><button>Create account</button></p></form>
+</div>
+<script>
+(()=>{const sync=()=>{const fac=document.querySelector("input[name=role]:checked").value==="faculty";
+ document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>{e.hidden=fac;e.querySelector("input").required=!fac});document.getElementById("dp").required=fac;document.getElementById("pg").required=fac;
+ document.getElementById("ehint").hidden=!fac;document.getElementById("elabel").textContent=fac?"NTHU staff email":"Email"};
+ document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})();
+</script>{% endblock %}
