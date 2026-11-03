@@ -16,7 +16,9 @@
 <div class="psec"><div class="psec-h"><h2>Professional links</h2><span class="pill ok">Public</span></div>
 <p class="muted">Shown on your profile and next to your applications, so team leads can see your work. Paste a link or just your username.</p>
 <div class="two">{% for p in PRO_LINKS %}<div><label for="pl-{{ p[0] }}" class="lk-label">{{ icon(p[0]) }} {{ p[1] }}</label><input id="pl-{{ p[0] }}" name="{{ p[0] }}" value="{{ user[p[0]] }}" placeholder="{{ p[2] }}" maxlength="200" inputmode="url" autocomplete="off"></div>{% endfor %}</div></div>
-<p><button>Save profile</button></p></form><h2 style="margin-top:2rem">Delete my account</h2><p class="muted">Removes your profile, name, student ID, projects and applications. This cannot be undone.</p>
+<p><button>Save profile</button></p></form><section class="psec"><div class="psec-h"><h2>Appearance</h2></div><p class="muted">Choose how the site looks on this device.</p>
+<div class="kinds themes">{% for v, l in [("light", "Light"), ("dark", "Dark"), ("system", "Match my device")] %}<label class="kind"><input type="radio" name="theme" value="{{ v }}" {{ 'checked' if theme == v }}><span>{{ l }}</span></label>{% endfor %}</div></section>
+<h2 style="margin-top:2rem">Delete my account</h2><p class="muted">Removes your profile, name, student ID, projects and applications. This cannot be undone.</p>
 <form method="post" action="/profile/delete" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="dl">Type DELETE to confirm</label><input id="dl" name="confirm" autocomplete="off"><p><button class="no">Delete my account</button></p></form><script>
 (() => {
   const inp = document.getElementById("cvfile"), msg = document.getElementById("cvmsg"), form = document.getElementById("cvform");

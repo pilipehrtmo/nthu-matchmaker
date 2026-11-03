@@ -1,4 +1,15 @@
 (() => {
+  // light / dark theme: saved in a cookie so the server renders the right one on the next page
+  const applyTheme = t => {
+    const h = document.documentElement; h.dataset.theme = t;
+    h.dataset.mode = t === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : t;
+    document.cookie = "theme=" + t + "; path=/; max-age=31536000; samesite=lax";
+    document.querySelectorAll("input[name=theme]").forEach(r => r.checked = r.value === t);
+  };
+  document.querySelectorAll("input[name=theme]").forEach(r => r.addEventListener("change", () => applyTheme(r.value)));
+  const tt = document.getElementById("themetoggle");
+  if (tt) tt.addEventListener("click", () => applyTheme(document.documentElement.dataset.mode === "dark" ? "light" : "dark"));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (document.documentElement.dataset.theme === "system") applyTheme("system"); });
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   // clicking anywhere in a date field opens the calendar, not just the small icon
   document.querySelectorAll("input[type=date]").forEach(el => el.addEventListener("click", () => { try { el.showPicker(); } catch (e) {} }));

@@ -85,7 +85,9 @@ def days_left(d):
     except (ValueError, TypeError): return None
 def render(req, name, user=None, **ctx):
     if "csrf" not in req.session: req.session["csrf"] = secrets.token_hex(16)
-    return templates.TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], **ctx})
+    theme = req.cookies.get("theme", "light")
+    if theme not in ("light", "dark", "system"): theme = "light"
+    return templates.TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, **ctx})
 def go(url): return RedirectResponse(url, status_code=303)
 def kind_of(pr):   # older projects have no kind saved: infer it from the competition link
     return pr.kind or ("Competition" if pr.competition_id else "Side project")
