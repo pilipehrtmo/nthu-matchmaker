@@ -150,7 +150,10 @@ def pic(u, cls="av"):   # profile photo if there is one, otherwise initials
     if u and u.avatar_v:
         return Markup(f'<img class="{cls} pic" src="/avatar/{u.id}?v={u.avatar_v}" alt="" loading="lazy" decoding="async">')
     return Markup(f'<span class="{cls}" aria-hidden="true">{escape(initials(u))}</span>')
-templates.env.filters["dn"] = dn; templates.env.globals.update(initials=initials, pic=pic)
+def facbadge(u):   # green badge for verified professors/advisors, showing the title they chose at sign-up
+    if not (u and u.is_faculty): return ""
+    return Markup(f'<span class="pill fac" title="Verified NTHU teaching staff">✔ {escape(u.title or "Faculty")}</span>')
+templates.env.filters["dn"] = dn; templates.env.globals.update(initials=initials, pic=pic, facbadge=facbadge)
 
 def name_handles():   # one-time: users who still have a random "student-xxxxxx" address get one made from their name
     with Session(engine) as s:

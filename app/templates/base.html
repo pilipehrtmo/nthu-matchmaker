@@ -9,7 +9,7 @@
 <span class="nsp"></span><div class="nright">
 {% if user %}<a class="npost" href="/projects/new">+ Post a project</a>
 <details class="nme"><summary aria-label="Your account menu">{{ pic(user, "nav-i") }}<span class="nname">{{ user|dn }}</span><span class="chev" aria-hidden="true">▾</span></summary>
-<div class="nmenu"><b>{{ user|dn }}</b><small>{{ user.faculty or "NTHU" }}{% if user.is_faculty %} · Faculty{% elif user.verified %} · verified{% endif %}</small>
+<div class="nmenu"><b>{{ user|dn }}</b><small>{{ user.faculty or "NTHU" }}{% if user.is_faculty %} · {{ user.title or "Faculty" }}{% elif user.verified %} · verified{% endif %}</small>
 <a href="/profile">Your profile</a><a href="/u/{{ user.handle }}">See your public page</a><a href="/activity">Activity</a>{% if user.is_admin %}<a href="/admin">Admin</a>{% endif %}
 <button type="button" class="themebtn"><span class="t-dark">Dark mode</span><span class="t-light">Light mode</span></button><hr>
 <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Log out</button></form></div></details>

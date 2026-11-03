@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% from "_links.html" import pro_links %}{% block body %}
 {% if reported %}<p class="box ok" role="status">Thanks. Your report was sent to the admins. They will review it.</p>{% endif %}
-<div class="phead">{{ pic(p, "av xl") }}<div><h1>{{ p|dn }}{% if p.is_faculty %} <span class="pill fac">Faculty</span>{% endif %}</h1>{% if p.faculty %}<p class="muted" style="margin:.1rem 0 .6rem">{{ p.faculty }}</p>{% endif %}</div></div><p>{{ p.bio }}</p>{{ pro_links(p) }}<p>{% for t in skills %}<span class="tag">{{ t }}</span>{% endfor %}</p>
+<div class="phead">{{ pic(p, "av xl") }}<div><h1>{{ p|dn }} {{ facbadge(p) }}</h1>{% if p.faculty %}<p class="muted" style="margin:.1rem 0 .6rem">{{ p.faculty }}</p>{% endif %}</div></div><p>{{ p.bio }}</p>{{ pro_links(p) }}<p>{% for t in skills %}<span class="tag">{{ t }}</span>{% endfor %}</p>
 <p>{% if p.verified %}<span class="pill match">✔ Verified by admin</span>{% else %}<span class="pill">Not yet verified</span>{% endif %}</p>
 <h2 class="projh">Projects{% if projects %} <span class="count">{{ projects|length }}</span>{% endif %}</h2>
 {% if projects %}<div class="plist">{% for x in projects %}{% set pr = x.p %}{% set rec = pr.status == "open" and x.open and not (x.days is not none and x.days < 0) %}

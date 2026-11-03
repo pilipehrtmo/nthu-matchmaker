@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% from "_links.html" import icon %}{% block body %}<h1>Your profile</h1>{% if error %}<p class="err">{{ error }}</p>{% endif %}
 <p class="muted">Other students see your full name, bio, skills, faculty and professional links. Your contacts stay private until you are accepted into a team.</p>
 {% if user.role == "faculty" %}<section class="card facbox" id="faculty"><h3>Professor / advisor status</h3>
-{% if user.faculty_status == "verified" %}<p><span class="pill fac">Faculty</span> Verified. {{ user.faculty_note }}</p>
+{% if user.faculty_status == "verified" %}<p>{{ facbadge(user) }} Verified. {{ user.faculty_note }}</p>
 {% elif user.faculty_status == "rejected" %}<p class="err">An admin could not confirm you as NTHU teaching staff. Contact the admins if this is a mistake.</p>
 {% else %}<p><span class="pill warn">Waiting</span> We could not confirm you automatically yet: {{ user.faculty_note or "not checked yet" }} An admin will check by hand, or you can try another page.</p>
 <form method="post" action="/profile/faculty"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="fp">NTHU page that lists your email</label>
