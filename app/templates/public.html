@@ -2,6 +2,11 @@
 {% if reported %}<p class="box ok" role="status">Thanks. Your report was sent to the admins. They will review it.</p>{% endif %}
 <div class="phead">{{ pic(p, "av xl") }}<div><h1>{{ p|dn }}{% if p.is_faculty %} <span class="pill fac">Faculty</span>{% endif %}</h1>{% if p.faculty %}<p class="muted" style="margin:.1rem 0 .6rem">{{ p.faculty }}</p>{% endif %}</div></div><p>{{ p.bio }}</p>{{ pro_links(p) }}<p>{% for t in skills %}<span class="tag">{{ t }}</span>{% endfor %}</p>
 <p>{% if p.verified %}<span class="pill match">✔ Verified by admin</span>{% else %}<span class="pill">Not yet verified</span>{% endif %}</p>
-{% if projects %}<h2>Recruiting now</h2><div class="alist">{% for x in projects %}<a class="card arow" href="/projects/{{ x.id }}"><span class="amain"><b>{{ x.title }}</b><small class="muted">{{ kind_of(x) }}</small></span></a>{% endfor %}</div>{% endif %}
+<h2 class="projh">Projects{% if projects %} <span class="count">{{ projects|length }}</span>{% endif %}</h2>
+{% if projects %}<div class="plist">{% for x in projects %}{% set pr = x.p %}{% set rec = pr.status == "open" and x.open and not (x.days is not none and x.days < 0) %}
+<a class="card prow" href="/projects/{{ pr.id }}"><div class="pr-top"><span class="pr-kind">{{ kind_of(pr) }}{% if pr.category %} · {{ pr.category }}{% endif %}</span><span class="badge {{ 'b-open' if rec else 'b-pending' }}">{{ "Recruiting" if rec else ("Team complete" if not x.open else "Not recruiting") }}</span></div>
+<b class="pr-title">{{ pr.title }}</b>
+<div class="pr-bottom"><span class="rolepill {{ 'lead' if x.role in ('Founder', 'Project lead') else ('adv' if x.advisor else '') }}">{{ x.role }}</span><span class="muted">{{ x.size }} member{{ "s" if x.size != 1 }}{% if pr.stage %} · {{ pr.stage }}{% endif %}</span></div></a>{% endfor %}</div>
+{% else %}<p class="muted">{{ "You have not" if user and user.id == p.id else "Not" }} joined or started a project yet.</p>{% endif %}
 {% if user and user.id != p.id and not reported %}<details class="reportbox"><summary>Report this user</summary><form method="post" action="/report/{{ p.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="r">What went wrong?</label>
 <input id="r" name="reason" required maxlength="500" placeholder="Only admins see this"><p><button class="ghost">Send report</button></p></form></details>{% endif %}{% endblock %}

@@ -316,8 +316,19 @@ def delete_account(req: Request, confirm: str = Form(""), user=Depends(me), s: S
 def public_profile(req: Request, handle: str, reported: str = "", user=Depends(me), s: Session = Depends(get_session)):
     p = s.exec(select(User).where(User.handle == handle)).first()
     if not p or p.banned: raise HTTPException(404)
-    mine = s.exec(select(Project).where(Project.owner_id == p.id, Project.status == "open").order_by(Project.created.desc())).all()
-    return render(req, "public.html", user, p=p, skills=sorted(tags(p.skills)), reported=bool(reported), projects=mine)
+    # every project this person leads or has joined, with their role in it
+    rows = [(pr, "Founder" if kind_of(pr) == "Startup" else "Project lead", False)
+            for pr in s.exec(select(Project).where(Project.owner_id == p.id).order_by(Project.created.desc())).all()]
+    for a, r, pr in s.exec(select(Application, Role, Project).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
+                           .where(Application.user_id == p.id, Application.status == "accepted").order_by(Application.at.desc())).all():
+        rows.append((pr, r.name, r.advisor))
+    ids = [pr.id for pr, _, _ in rows] or [-1]
+    size, open_seats = defaultdict(lambda: 1), defaultdict(int)   # team size counts the lead
+    for r in s.exec(select(Role).where(Role.project_id.in_(ids))).all():
+        if r.filled and not r.advisor: size[r.project_id] += 1
+        if not r.filled: open_seats[r.project_id] += 1
+    projects = [dict(p=pr, role=role, advisor=adv, size=size[pr.id], open=open_seats[pr.id], days=days_left(pr.deadline)) for pr, role, adv in rows]
+    return render(req, "public.html", user, p=p, skills=sorted(tags(p.skills)), reported=bool(reported), projects=projects)
 
 # ---------- board ----------
 @app.get("/")
