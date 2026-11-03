@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block body %}<h1>Log in or sign up</h1>
-<p class="muted">Name and student ID are only needed the first time. Only admins can see them. Other students see just your handle.</p>
+<p class="muted">Name and student ID are only needed the first time. Other students see your full name; only admins see your student ID and email.</p>
 {% if sent %}<p class="box">Check your inbox for a login link. It expires in 15 minutes.</p>{% endif %}
 {% if demo_link %}<p class="box"><b>Demo mode:</b> <a href="{{ demo_link }}">click here to log in</a>. Only for classroom demos on a private network.</p>{% endif %}
 {% if error %}<p class="err">{{ error }}</p>{% endif %}

@@ -44,7 +44,7 @@ async def lifespan(app):
     except Exception as e:
         print(">>> DATABASE CONNECTION FAILED:", type(e).__name__, str(e).splitlines()[0][:300], flush=True); raise
     print(">>> startup: database ready, seeding", flush=True)
-    seed(); seed_starter(); seed_programs()
+    seed(); seed_starter(); seed_programs(); name_handles()
     if not DEMO_DATA: seed_examples()
     if DEMO_DATA:
         from .demo_data import seed_demo; seed_demo(); print(">>> DEMO MODE: sample teams loaded into a separate database. Do not share this server with real users.")
@@ -132,6 +132,23 @@ templates.env.globals["kind_of"] = kind_of
 templates.env.globals.update(CONTACTS=CONTACTS, PRO_LINKS=PRO_LINKS, G=guide)
 templates.env.filters["shortlink"] = short
 
+# ---------- names: everyone is shown by full name; the handle is only the web address /u/<handle> ----------
+def dn(u): return (u.name or u.handle) if u else "[deleted]"
+def initials(u):
+    w = re.sub(r"[^\w\s]", " ", dn(u)).split()
+    return ((w[0][0] + (w[-1][0] if len(w) > 1 else w[0][1:2])) if w else "?").upper()
+def slugify(s, name, uid=None):
+    base = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:24].strip("-") or "student"
+    h, n = base if len(base) >= 3 else base + "-nthu", 1
+    while s.exec(select(User).where(User.handle == h, User.id != uid)).first(): n += 1; h = f"{base}-{n}"
+    return h
+templates.env.filters["dn"] = dn; templates.env.globals["initials"] = initials
+
+def name_handles():   # one-time: users who still have a random "student-xxxxxx" address get one made from their name
+    with Session(engine) as s:
+        for u in s.exec(select(User).where(User.handle.like("student-%"))).all():
+            if u.name.strip(): u.handle = slugify(s, u.name, u.id); s.commit()
+
 # ---------- auth ----------
 SID = re.compile(r"^[A-Za-z0-9]{6,12}$")
 HANDLE_RE = re.compile(r"^[a-z0-9._-]{3,30}$")
@@ -167,7 +184,7 @@ def auth(req: Request, token: str, s: Session = Depends(get_session)):
     if new:
         if not d["s"] or s.exec(select(User).where(User.student_id == d["s"])).first():
             return render(req, "login.html", error="That student ID already has an account.")
-        u = User(email=email, name=d["n"], student_id=d["s"], handle="student-" + secrets.token_hex(3), is_admin=email in ADMIN_EMAILS)
+        u = User(email=email, name=d["n"], student_id=d["s"], handle=slugify(s, d["n"]), is_admin=email in ADMIN_EMAILS)
         s.add(u); s.commit(); s.refresh(u)
     if email in ADMIN_EMAILS and (not u.is_admin or u.banned): u.is_admin = True; u.banned = False; s.commit()   # listed admins are never locked out
     req.session["uid"] = u.id
@@ -185,20 +202,18 @@ def profile(req: Request, user=Depends(me)):
     return render(req, "profile.html", user) if user else go("/login")
 
 @app.post("/profile")
-async def profile_save(req: Request, handle: str = Form(...), bio: str = Form(""), skills: str = Form(""),
+async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""), skills: str = Form(""),
                  contact: str = Form(""), faculty: str = Form(""), hours: int = Form(4), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     form = await req.form()
-    handle = handle.strip().lower()
-    if not HANDLE_RE.match(handle):
-        return render(req, "profile.html", user, error="Handles are 3 to 30 characters: lowercase letters, numbers, dots, dashes or underscores. No spaces.")
-    taken = s.exec(select(User).where(User.handle == handle, User.id != user.id)).first()
-    if taken: return render(req, "profile.html", user, error="That handle is taken.")
+    name = " ".join(name.split())[:60]
+    if len(name) < 2 or not re.search(r"\w", name): return render(req, "profile.html", user, error="Please enter your full name.")
     try: links = {f: clean_link(f, str(form.get(f, ""))) for f, *_ in PRO_LINKS}
     except LinkError as e: return render(req, "profile.html", user, error=str(e))
     for f in ("line", "instagram", "discord"): setattr(user, f, clean_handle(str(form.get(f, ""))))
     for f, v in links.items(): setattr(user, f, v)
-    user.handle, user.bio, user.contact = handle, bio[:500], clean_contact(contact, 100)
+    if name != user.name: user.handle = slugify(s, name, user.id)   # the web address follows the name
+    user.name, user.bio, user.contact = name, bio[:500], clean_contact(contact, 100)
     user.faculty, user.hours = faculty.strip()[:40], max(1, min(hours, 60))
     user.skills = ",".join(sorted(tags(skills))); s.add(user); s.commit()
     return go("/")

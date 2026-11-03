@@ -2,13 +2,13 @@
 <p><a href="/discuss">← All discussions</a></p>
 <article class="card post">{{ vote("post", p.id, ptot[p.id], pmine.get(p.id), csrf, "/discuss/" ~ p.id) }}
 <div style="flex:1"><span class="pill cat">{{ p.topic }}</span>{% if p.hidden %} <span class="pill warn">hidden (reported)</span>{% endif %}<h1 style="font-size:1.6rem;margin:.3rem 0">{{ p.title }}</h1>
-<div class="meta"><span>{{ authors[p.author_id].handle if p.author_id in authors else "[deleted]" }}</span><span>{{ p.created|ago }}</span><span>{{ ncom }} comment{{ "" if ncom == 1 else "s" }}</span></div>
+<div class="meta"><span>{{ authors.get(p.author_id)|dn }}</span><span>{{ p.created|ago }}</span><span>{{ ncom }} comment{{ "" if ncom == 1 else "s" }}</span></div>
 <p class="body">{{ p.body }}</p><div class="cact">
 {% if user.id == p.author_id or user.is_admin %}<form method="post" action="/delete/post/{{ p.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="no sm">Delete post</button></form>{% endif %}
 {% if user.id != p.author_id %}<details class="rp"><summary>Report</summary><form method="post" action="/flag/post/{{ p.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/discuss/{{ p.id }}"><input name="reason" required maxlength="300" placeholder="What is wrong?" aria-label="Reason"><button class="sm">Send</button></form></details>{% endif %}</div></div></article>
 <form method="post" action="/discuss/{{ p.id }}/comment" class="card"><input type="hidden" name="csrf" value="{{ csrf }}">
 <label for="cb">Add a comment</label><textarea id="cb" name="body" rows="3" maxlength="2000" required></textarea><p><button>Comment</button></p></form>
-{% for c, d in flat %}<div class="c" style="margin-left:{{ (d if d < 5 else 5) * 1.2 }}rem"><div class="cmeta">{{ authors[c.author_id].handle if c.author_id in authors else "[deleted]" }} · {{ c.created|ago }}{% if c.hidden %} · <span class="pill warn">hidden</span>{% endif %}</div>
+{% for c, d in flat %}<div class="c" style="margin-left:{{ (d if d < 5 else 5) * 1.2 }}rem"><div class="cmeta">{{ authors.get(c.author_id)|dn }} · {{ c.created|ago }}{% if c.hidden %} · <span class="pill warn">hidden</span>{% endif %}</div>
 {% if c.hidden and not user.is_admin %}<p class="muted">[hidden pending review]</p>{% else %}<p class="body">{{ c.body }}</p>
 <div class="cact">{{ vote("comment", c.id, ctot[c.id], cmine.get(c.id), csrf, "/discuss/" ~ p.id) }}
 <details><summary>Reply</summary><form method="post" action="/discuss/{{ p.id }}/comment"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="parent_id" value="{{ c.id }}">

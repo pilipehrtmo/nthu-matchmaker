@@ -1,10 +1,10 @@
 {% extends "base.html" %}{% block body %}{% from "_vote.html" import vote %}
 <div class="dhead"><h1>Discuss</h1><a class="btn" href="/discuss/new{{ '?topic=' ~ (topic|urlencode) if topic }}">New post</a></div>
-<p class="muted">Ask questions, share tips, and meet people from other faculties. Everyone appears under their handle.</p>
+<p class="muted">Ask questions, share tips, and meet people from other faculties. Everyone appears under their full name.</p>
 <div class="chips"><a class="chip {{ 'on' if not topic }}" href="/discuss?sort={{ sort }}">All</a>
 {% for t in topics %}<a class="chip {{ 'on' if topic == t }}" href="/discuss?topic={{ t|urlencode }}&sort={{ sort }}">{{ t }}</a>{% endfor %}</div>
 <div class="chips">{% for k in ["hot", "new", "top"] %}<a class="chip {{ 'on' if sort == k }}" href="/discuss?sort={{ k }}{{ '&topic=' ~ (topic|urlencode) if topic }}">{{ k|capitalize }}</a>{% endfor %}</div>
 {% for p in posts %}<article class="card post">{{ vote("post", p.id, tot[p.id], mine.get(p.id), csrf, "/discuss") }}
 <div><span class="pill cat">{{ p.topic }}</span>{% if p.hidden %} <span class="pill warn">hidden</span>{% endif %}<h3 style="margin:.3rem 0"><a href="/discuss/{{ p.id }}" style="color:inherit;text-decoration:none">{{ p.title }}</a></h3>
-<div class="meta"><span>{{ authors[p.author_id].handle if p.author_id in authors else "[deleted]" }}</span><span>{{ p.created|ago }}</span><span>{{ cc[p.id] }} comment{{ "" if cc[p.id] == 1 else "s" }}</span></div></div></article>
+<div class="meta"><span>{{ authors.get(p.author_id)|dn }}</span><span>{{ p.created|ago }}</span><span>{{ cc[p.id] }} comment{{ "" if cc[p.id] == 1 else "s" }}</span></div></div></article>
 {% else %}<div class="box">Nothing here yet. <a href="/discuss/new">Start the first discussion.</a></div>{% endfor %}{% endblock %}

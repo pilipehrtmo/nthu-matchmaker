@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% from "_links.html" import pro_links %}{% block body %}
 {% if reported %}<p class="box ok" role="status">Thanks. Your report was sent to the admins. They will review it.</p>{% endif %}
-<h1>{{ p.handle }}{% if p.is_faculty %} <span class="pill fac">Faculty</span>{% endif %}</h1>{% if p.faculty %}<p class="muted" style="margin:.1rem 0 .6rem">{{ p.faculty }}</p>{% endif %}<p>{{ p.bio }}</p>{{ pro_links(p) }}<p>{% for t in skills %}<span class="tag">{{ t }}</span>{% endfor %}</p>
+<h1>{{ p|dn }}{% if p.is_faculty %} <span class="pill fac">Faculty</span>{% endif %}</h1>{% if p.faculty %}<p class="muted" style="margin:.1rem 0 .6rem">{{ p.faculty }}</p>{% endif %}<p>{{ p.bio }}</p>{{ pro_links(p) }}<p>{% for t in skills %}<span class="tag">{{ t }}</span>{% endfor %}</p>
 <p>{% if p.verified %}<span class="pill match">✔ Verified by admin</span>{% else %}<span class="pill">Not yet verified</span>{% endif %}</p>
 {% if projects %}<h2>Recruiting now</h2><div class="alist">{% for x in projects %}<a class="card arow" href="/projects/{{ x.id }}"><span class="amain"><b>{{ x.title }}</b><small class="muted">{{ kind_of(x) }}</small></span></a>{% endfor %}</div>{% endif %}
 {% if user and user.id != p.id and not reported %}<details class="reportbox"><summary>Report this user</summary><form method="post" action="/report/{{ p.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="r">What went wrong?</label>

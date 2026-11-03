@@ -7,8 +7,16 @@
     document.querySelectorAll("input[name=theme]").forEach(r => r.checked = r.value === t);
   };
   document.querySelectorAll("input[name=theme]").forEach(r => r.addEventListener("change", () => applyTheme(r.value)));
-  const tt = document.getElementById("themetoggle");
-  if (tt) tt.addEventListener("click", () => applyTheme(document.documentElement.dataset.mode === "dark" ? "light" : "dark"));
+  document.querySelectorAll("#themetoggle,.themebtn").forEach(b => b.addEventListener("click", () => applyTheme(document.documentElement.dataset.mode === "dark" ? "light" : "dark")));
+  // name menu in the top bar: close it when clicking elsewhere or pressing Escape
+  const menu = document.querySelector("details.nme");
+  if (menu) {
+    document.addEventListener("click", e => { if (menu.open && !menu.contains(e.target)) menu.open = false; });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && menu.open) { menu.open = false; menu.querySelector("summary").focus(); } });
+  }
+  // one-time notice that full names are now shown
+  const nn = document.getElementById("namenote");
+  if (nn) nn.querySelector("button").addEventListener("click", () => { document.cookie = "namenote=1; path=/; max-age=31536000; samesite=lax"; nn.remove(); });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (document.documentElement.dataset.theme === "system") applyTheme("system"); });
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   // clicking anywhere in a date field opens the calendar, not just the small icon
