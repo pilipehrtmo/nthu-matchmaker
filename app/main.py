@@ -1,4 +1,4 @@
-import re, secrets, time
+import asyncio, re, secrets, time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -64,11 +64,21 @@ def hit(key: str, n: int, secs: int):
     if len(q) >= n: raise HTTPException(429, "Too many requests. Please wait a few minutes.")
     q.append(now)
 def limited(name: str, n: int, secs: int):
-    def dep(request: Request): hit(f"{name}:{request.client.host if request.client else '-'}", n, secs)
+    # Logged-in actions are limited per account, not per IP: a whole class on campus Wi-Fi shares one public IP.
+    def dep(request: Request):
+        uid = request.session.get("uid")
+        hit(f"{name}:u{uid}" if uid else f"{name}:{request.client.host if request.client else '-'}", n, secs)
     return Depends(dep)
 
 if SECRET == "dev-secret-change-me": print("WARNING: set SECRET_KEY before real use.")
 app = FastAPI(lifespan=lifespan, dependencies=[Depends(csrf_check)])
+# At most 10 pages are built at once; the rest wait in line without holding a thread.
+# The database pool has 12 connections, so a page never waits for one (no pile-up when a whole class logs in).
+SLOTS = asyncio.Semaphore(10)
+@app.middleware("http")
+async def one_queue(request: Request, call_next):
+    if request.url.path.startswith("/static"): return await call_next(request)
+    async with SLOTS: return await call_next(request)
 app.add_middleware(SessionMiddleware, secret_key=SECRET, max_age=60 * 60 * 24 * 30, https_only=PUBLIC, same_site="lax")
 if PUBLIC and SECRET == "dev-secret-change-me": raise SystemExit("Set SECRET_KEY before putting the site online.")
 if PUBLIC and not SMTP_HOST: print("WARNING: no SMTP settings, so login emails cannot be sent. Set SMTP_HOST/SMTP_USER/SMTP_PASS/SMTP_FROM.")
@@ -101,7 +111,7 @@ SID = re.compile(r"^[A-Za-z0-9]{6,12}$")
 @app.get("/login")
 def login_page(req: Request, user=Depends(me)): return render(req, "login.html", user)
 
-@app.post("/login", dependencies=[limited("login", 10, 600)])
+@app.post("/login", dependencies=[limited("login", 300, 600)])   # per IP; each email is also limited below
 def login(req: Request, email: str = Form(...), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), s: Session = Depends(get_session)):
     email = email.strip().lower(); name = name.strip()[:60]; sid = student_id.strip().upper()
     exists = s.exec(select(User).where(User.email == email)).first()
@@ -115,7 +125,10 @@ def login(req: Request, email: str = Form(...), name: str = Form(""), student_id
             return render(req, "login.html", error="That student ID already has an account.")
     s.add(SignupLog(email=email, ip="-", allowed=True)); s.commit()
     link = f"{BASE_URL}/auth/{signer.dumps({'e': email, 'n': name, 's': sid})}"
-    send_magic(email, link)
+    try: send_magic(email, link)
+    except Exception as e:   # mail server busy or down: tell the student instead of showing a server error
+        print(">>> LOGIN EMAIL FAILED for", email, type(e).__name__, e)
+        return render(req, "login.html", error="We could not send the login email just now. Please wait a minute and try again.")
     return render(req, "login.html", sent=True, demo_link=link if SHOW_LINK and not SMTP_HOST else "")
 
 @app.get("/auth/{token}")
@@ -195,14 +208,19 @@ def public_profile(req: Request, handle: str, user=Depends(me), s: Session = Dep
 @app.get("/")
 def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends(me), s: Session = Depends(get_session)):
     rows = []
-    for pr in s.exec(select(Project).where(Project.status == "open").order_by(Project.created.desc())):
-        allr = list(s.exec(select(Role).where(Role.project_id == pr.id)))
+    projs = s.exec(select(Project).where(Project.status == "open").order_by(Project.created.desc())).all()
+    ids = [p.id for p in projs] or [-1]
+    roles_of = defaultdict(list)   # 3 queries for the whole page instead of 2 per project
+    for r in s.exec(select(Role).where(Role.project_id.in_(ids))): roles_of[r.project_id].append(r)
+    owners = {u.id: u for u in s.exec(select(User).where(User.id.in_({p.owner_id for p in projs} or {-1})))}
+    for pr in projs:
+        allr = roles_of[pr.id]
         roles = [r for r in allr if not r.filled]
         if not roles: continue
         text = (pr.title + pr.description + " ".join(r.name + r.skills for r in roles)).lower()
         if q and q.lower() not in text: continue
         if kind and kind_of(pr) != kind: continue
-        owner = s.get(User, pr.owner_id)
+        owner = owners.get(pr.owner_id)
         # no match score on your own project
         best = max((match_pct(user, r, pr, owner) for r in roles), default=0) if user and user.id != pr.owner_id else None
         rows.append(dict(p=pr, roles=roles, owner=owner, score=best, total=len(allr), days=days_left(pr.deadline)))
