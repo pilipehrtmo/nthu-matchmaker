@@ -508,3 +508,19 @@ details.nme{margin:0}
  .tagrow{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}.tagrow::-webkit-scrollbar{display:none}.tagchip{white-space:nowrap}}
 @media(max-width:699px){.na .npost[href="/signup"]{display:inline-flex;padding:.45rem .85rem}.na .nlogin{padding:.45rem .5rem}}
 .na .nlogin,.na .npost{white-space:nowrap}@media(max-width:699px){.top nav.topnav.na{gap:.5rem}.na .nright{gap:.2rem;flex:none}.na .brand{min-width:0;font-size:1.02rem}.na .npost[href="/signup"]{padding:.4rem .75rem;font-size:.9rem}}
+
+/* ---------- floating words in the hero (text only, wide screens) ---------- */
+.hero>.ftext{position:absolute!important;left:52%;right:0;top:0;bottom:5.2rem;pointer-events:none;z-index:1;display:none}
+.ftext span{position:absolute;white-space:nowrap;font-weight:600;letter-spacing:.01em;color:#fff;opacity:.55;animation:ftdrift 7s ease-in-out infinite}
+:root[data-mode=dark] .ftext span{color:#c9b2ea;opacity:.5}
+.ftext .ft1{left:6%;top:12%;font-size:1.05rem}
+.ftext .ft2{left:46%;top:6%;font-size:.95rem;opacity:.4;animation-delay:-1.5s}
+.ftext .ft3{left:74%;top:22%;font-size:1.1rem;color:var(--gold);opacity:.75;animation-delay:-3s}
+.ftext .ft4{left:26%;top:34%;font-size:1.15rem;opacity:.65;animation-delay:-4.5s}
+.ftext .ft5{left:62%;top:48%;font-size:.95rem;animation-delay:-2s}
+.ftext .ft6{left:4%;top:58%;font-size:.9rem;opacity:.4;animation-delay:-5.5s}
+.ftext .ft7{left:34%;top:66%;font-size:1rem;animation-delay:-1s}
+.ftext .ft8{left:70%;top:63%;font-size:.88rem;opacity:.4;animation-delay:-3.8s}
+@keyframes ftdrift{50%{translate:0 -10px}}
+@media(min-width:1100px){.hero .ftext{display:block}}
+@media(prefers-reduced-motion:reduce){.ftext span{animation:none}}

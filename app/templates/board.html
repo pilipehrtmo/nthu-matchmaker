@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block body %}
-<section class="hero"><div class="hcopy"><p class="eyebrow">For every NTHU faculty</p><h1>Find the teammate you’re missing.</h1>
+<section class="hero"><div class="ftext" aria-hidden="true"><span class="ft1">need a UI designer</span><span class="ft2">python</span><span class="ft3">#startup</span><span class="ft4">pitch deck by Friday?</span><span class="ft5">co-founder wanted</span><span class="ft6">figma</span><span class="ft7">hackathon team</span><span class="ft8">research assistant</span></div><div class="hcopy"><p class="eyebrow">For every NTHU faculty</p><h1>Find the teammate you’re missing.</h1>
 <p class="sub"><b data-count="{{ rows|length }}">{{ rows|length }}</b> project{{ "" if rows|length == 1 else "s" }} with open seats right now. Browse, apply with a short note, and get their contact once you’re accepted.</p></div>
 <form method="get" class="search" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input name="q" value="{{ q }}" placeholder="Try: figma, pitch, python, hackathon" aria-label="Search projects"><button>Search</button></form></section>
 <div class="chips" id="kinds" role="tablist" aria-label="Project type"><button type="button" class="chip {{ 'on' if not kind }}" data-k="">All projects</button>
