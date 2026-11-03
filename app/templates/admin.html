@@ -5,7 +5,7 @@
 <div class="stat"><b>{{ stats.unverified }}</b><span>To verify</span></div>
 <div class="stat"><b>{{ stats.reports }}</b><span>Open reports</span></div>
 <div class="stat"><b>{{ stats.review }}</b><span>Competitions to review</span></div></div>
-<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
+<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
 
 <section class="sec" id="reports"><h2>Reports <span class="count">{{ stats.reports }}</span></h2>
 {% for r in reports %}<div class="card" style="margin:.6rem 0"><div class="meta"><span class="pill">{{ r.kind }}</span><span>Reason: {{ r.reason }}</span></div>
@@ -27,12 +27,26 @@
 <div><label for="cd">Deadline (text)</label><input id="cd" name="deadline" placeholder="e.g. 30 Nov 2026"></div></div>
 <label for="cx">Short description</label><input id="cx" name="description"><p><button>Add competition</button></p></form></details></section>
 
+<section class="sec" id="programs"><h2>Funding programs</h2>
+<p class="muted">Shown on /funding and in each startup or research project's readiness check. When a call is announced, set its deadline (YYYY-MM-DD) so the countdown appears.</p>
+{% for p in programs %}<details class="card" style="margin:.6rem 0"><summary><b>{{ p.name }}</b> <span class="muted">· {{ p.for_kind }} · {{ p.next_deadline or "no date" }}{% if not p.active %} · hidden{% endif %}</span></summary>
+<form method="post" action="/admin/program"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ p.id }}">
+<div class="two"><div><label>Next deadline</label><input type="date" name="next_deadline" value="{{ p.next_deadline }}"></div><div><label>Note when there is no date</label><input name="deadline_note" value="{{ p.deadline_note }}"></div></div>
+<div class="two"><div><label>Link</label><input name="url" type="url" value="{{ p.url }}"></div><div><label>Amount</label><input name="amount" value="{{ p.amount }}"></div></div>
+<label>Who can apply</label><input name="who" value="{{ p.who }}">
+<label class="chk"><input type="checkbox" name="active" {{ "checked" if p.active }}> Show on the site</label><p><button class="sm">Save</button></p></form></details>{% endfor %}
+<details class="card" style="margin:.6rem 0"><summary>Add a program</summary><form method="post" action="/admin/program"><input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="two"><div><label>Name</label><input name="name" required></div><div><label>For</label><select name="for_kind"><option>Startup</option><option>Research</option><option>Any</option></select></div></div>
+<div class="two"><div><label>Organizer</label><input name="org"></div><div><label>Link</label><input name="url" type="url"></div></div>
+<div class="two"><div><label>Amount</label><input name="amount"></div><div><label>Next deadline</label><input type="date" name="next_deadline"></div></div>
+<label>Who can apply</label><input name="who"><label>Note when there is no date</label><input name="deadline_note"><input type="hidden" name="active" value="on"><p><button class="sm">Add program</button></p></form></details></section>
+
 <section class="sec" id="users"><h2>Users <span class="count">{{ stats.users }}</span></h2>
 {% if stats.unverified %}<div class="acts" style="margin-bottom:.8rem"><form method="post" action="/admin/verify_all/0"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify all ({{ stats.unverified }})</button></form></div>{% endif %}
 <div class="tblwrap"><table class="tbl"><tr><th>Handle</th><th>Name</th><th>Student ID</th><th>Email</th><th>Status</th><th></th></tr>
 {% for u in users %}<tr><td>{{ u.handle }}</td><td>{{ u.name }}</td><td>{{ u.student_id }}</td><td>{{ u.email }}</td>
-<td>{% if u.is_admin %}<span class="pill match">Admin</span>{% elif u.banned %}<span class="pill bad">Banned</span>{% elif u.verified %}<span class="pill ok">✔ Verified</span>{% else %}<span class="pill">Unverified</span>{% endif %}</td>
-<td>{% if not u.is_admin %}<div class="acts">{% if u.banned %}<form method="post" action="/admin/unban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Unban</button></form>{% else %}{% if not u.verified %}<form method="post" action="/admin/verify/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify</button></form>{% endif %}<form method="post" action="/admin/ban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban</button></form>{% endif %}</div>{% endif %}</td></tr>{% endfor %}</table></div></section>
+<td>{% if u.is_faculty %}<span class="pill fac">Faculty</span> {% endif %}{% if u.is_admin %}<span class="pill match">Admin</span>{% elif u.banned %}<span class="pill bad">Banned</span>{% elif u.verified %}<span class="pill ok">✔ Verified</span>{% else %}<span class="pill">Unverified</span>{% endif %}</td>
+<td>{% if not u.is_admin %}<div class="acts">{% if u.banned %}<form method="post" action="/admin/unban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Unban</button></form>{% else %}<form method="post" action="/admin/{{ 'unfaculty' if u.is_faculty else 'faculty' }}/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">{{ "Remove Faculty" if u.is_faculty else "Mark as Faculty" }}</button></form>{% if not u.verified %}<form method="post" action="/admin/verify/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify</button></form>{% endif %}<form method="post" action="/admin/ban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban</button></form>{% endif %}</div>{% endif %}</td></tr>{% endfor %}</table></div></section>
 
 <section class="sec" id="scraper"><h2>Scraper</h2>
 <div class="tblwrap"><table class="tbl"><tr><th>When</th><th>Source</th><th>New items</th><th>Problem</th></tr>

@@ -67,3 +67,43 @@ RESEARCH_FIELDS = list(RESEARCH_VENUES)
 NSTC_GRANT = ("NSTC Undergraduate Research Grant (大專學生研究計畫)", "https://www.nstc.gov.tw/",
               "For undergraduates in year 2 or above with a professor as advisor: NT$6,000 a month for 8 months (July to February), "
               "plus up to NT$20,000 for materials. Applications are usually due in February through your school's research office.")
+
+# ---------- funding and incubation programs (seeded once into the Program table; admins edit dates later) ----------
+TECH_HEALTH = "AI & software,Health & biotech,Hardware & IoT,Climate & energy,Fintech,Mobility & logistics"
+PROGRAMS = [
+    dict(key="nthu-ocic", sort=1, for_kind="Startup", name="NTHU incubation office (OCIC)", org="National Tsing Hua University",
+         url="https://ocic.nthu.edu.tw/", amount="Coaching, incubator support and introductions",
+         who="NTHU students and cross-faculty teams turning an idea or research into a startup.",
+         deadline_note="Open all year: contact them any time.",
+         self_checks="Email or visit the office with a short summary of your idea"),
+    dict(key="ustart", sort=2, for_kind="Startup", name="U-start Innovation & Startup Program", org="Ministry of Education (Youth Development Administration)",
+         url="https://www.yda.gov.tw/", amount="About NT$500,000 in stage 1; strong teams with a registered company can get more in stage 2",
+         who="Teams of 3 or more; at least two thirds current students or graduates of the last 5 school years.",
+         deadline_note="Calls usually open around January to February. The date is added here once announced.",
+         min_members=3, self_checks="Apply through NTHU's incubation office, before the school's own internal deadline|One school per team"),
+    dict(key="fiti", sort=3, for_kind="Startup", name="FITI Innovation & Startup Incentive Program", org="NSTC / NIAR",
+         url="https://iic.npust.edu.tw/wp-content/uploads/2026/06/FITI-2026-2-%E5%BE%B5%E4%BB%B6%E8%AA%AA%E6%98%8E.pdf",
+         amount="Staged awards; finalists can win a NT$1,000,000 startup fund",
+         who="Tech and health-care teams with university students or graduates of the past year; outsiders at most half the team.",
+         deadline_note="About two calls a year; the last one closed on 24 June 2026.",
+         categories=TECH_HEALTH, self_checks="Team members are students or graduated within the past year"),
+    dict(key="nstc", sort=4, for_kind="Research", name="NSTC Undergraduate Research Grant (大專學生研究計畫)", org="National Science and Technology Council",
+         url="https://www.nstc.gov.tw/", amount="NT$6,000 a month for 8 months, plus up to NT$20,000 for materials",
+         who="Undergraduates in year 2 or above, with an NTHU professor as advisor.",
+         deadline_note="Usually due in February through the school's research office.",
+         needs_advisor=True, self_checks="The main applicant is in year 2 or above|Your advisor agrees to supervise the project"),
+]
+
+def readiness(prog, pr, members, students, advisors):
+    """Check a project against one program. Returns a list of (state, text, fix); state is ok / miss / you."""
+    out = []
+    if prog.min_members:
+        out.append(("ok" if members >= prog.min_members else "miss", f"Team has {members} of at least {prog.min_members} members", "seat"))
+        out.append(("ok" if students * 3 >= members * 2 else "miss", f"{students} of {members} members are students (at least two thirds needed)", ""))
+    if prog.needs_advisor:
+        out.append(("ok" if advisors else "miss", "Has a professor as advisor" if advisors else "No advisor yet", "advisor"))
+    if prog.categories:
+        fits = pr.category in prog.categories.split(",")
+        out.append(("ok" if fits else "you", f"Category fits ({pr.category})" if fits else "Check that your project is tech or health care", "category" if not pr.category else ""))
+    for c in filter(None, prog.self_checks.split("|")): out.append(("you", c, ""))
+    return out

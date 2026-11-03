@@ -24,6 +24,7 @@ class User(SQLModel, table=True):
     behance: str = ""
     scholar: str = ""
     is_admin: bool = False
+    is_faculty: bool = False   # set by an admin after checking the person is NTHU teaching staff
     banned: bool = False
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
@@ -67,6 +68,7 @@ class Role(SQLModel, table=True):
     name: str
     skills: str = ""
     filled: bool = False
+    advisor: bool = False     # a seat for a professor or mentor; accepted advisors can leave remarks
 
 class Application(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -122,3 +124,29 @@ class ScrapeLog(SQLModel, table=True):    # health of each scraper source
     count: int = 0
     error: str = ""
     at: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class Remark(SQLModel, table=True):     # advisor feedback on a project
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    author_id: int = Field(foreign_key="user.id")
+    body: str
+    public: bool = False      # False: only the team, advisors and admins see it
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class Program(SQLModel, table=True):    # funding and incubation programs on /funding, editable by admins
+    id: Optional[int] = Field(default=None, primary_key=True)
+    key: str = Field(unique=True)
+    name: str
+    org: str = ""
+    url: str = ""
+    for_kind: str = "Startup"   # Startup / Research / Any
+    amount: str = ""
+    who: str = ""
+    next_deadline: str = ""     # YYYY-MM-DD once the call is announced
+    deadline_note: str = ""     # shown when there is no date yet
+    min_members: int = 0
+    needs_advisor: bool = False
+    categories: str = ""        # comma-separated project categories it suits; empty = any
+    self_checks: str = ""       # "|"-separated things the team must check themselves
+    sort: int = 0
+    active: bool = True

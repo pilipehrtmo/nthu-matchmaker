@@ -24,20 +24,21 @@
 <label for="h">Hours per week</label><input id="h" name="hours" type="number" value="{{ pr.hours_per_week if pr else 4 }}" min="1" max="60" style="max-width:8rem" required>
 <label>{{ "Open seats" }}</label>
 {% if filled %}<p class="muted">Filled seats ({{ filled|map(attribute="name")|join(", ") }}) stay as they are. Removing an open seat also removes its applications.</p>{% endif %}
-<div id="rows"></div><p class="err" id="seaterr" hidden>Add at least one open seat.</p><p><button type="button" class="ghost sm" id="add">+ Add a seat</button></p>
+<div id="rows"></div><p class="err" id="seaterr" hidden>Add at least one open seat.</p><p><button type="button" class="ghost sm" id="add">+ Add a seat</button> <button type="button" class="ghost sm" id="addadv">+ Add an advisor seat</button></p>
+<p class="muted fine" id="advhint">An advisor seat is for a professor or mentor. Once you accept them, they can leave remarks on your project. Research grants such as NSTC's need a professor as advisor.</p>
 <input type="hidden" name="roles" id="roles"><p class="formacts"><button>{{ "Save changes" if editing else "Publish project" }}</button>{% if editing %} <a class="ghost btn" href="/projects/{{ pr.id }}">Cancel</a>{% endif %}</p></form>
 <script>
 const rows=document.getElementById("rows");
-function addRow(n="",s="",id=""){const d=document.createElement("div");d.className="row";d.dataset.id=id;
+function addRow(n="",s="",id="",adv=false){const d=document.createElement("div");d.className="row"+(adv?" adv":"");d.dataset.id=id;d.dataset.adv=adv?"1":"";
 d.innerHTML='<input placeholder="Role, e.g. UI designer" aria-label="Role" maxlength="60"><input placeholder="Skills, comma-separated" aria-label="Skills"><button type="button" class="ghost sm" aria-label="Remove seat">✕</button>';
-d.children[0].value=n;d.children[1].value=s;d.children[2].onclick=()=>d.remove();rows.appendChild(d)}
-document.getElementById("add").onclick=()=>addRow();
-const seats={{ seats|tojson }};if(seats.length)seats.forEach(x=>addRow(x[0],x[1],x[2]||""));else addRow();
+d.children[0].value=n;d.children[1].value=s;d.children[2].onclick=()=>d.remove();if(adv){d.children[1].placeholder="Field or expertise, e.g. machine learning";const t=document.createElement("span");t.className="advtag";t.textContent="Advisor";d.prepend(t)}rows.appendChild(d)}
+document.getElementById("add").onclick=()=>addRow();document.getElementById("addadv").onclick=()=>addRow("Advisor (professor)","","",true);
+const seats={{ seats|tojson }};if(seats.length)seats.forEach(x=>addRow(x[0],x[1],x[2]||"",!!x[3]));else addRow();
 const box=document.getElementById("compbox"),sel=document.getElementById("c");
 function syncKind(){const k=(document.querySelector("input[name=kind]:checked")||{}).value;box.style.display=k==="Competition"?"":"none";if(k!=="Competition")sel.value="";
  for(const x of ["Startup","Research"]){const b=document.getElementById("box-"+x),on=k===x;b.hidden=!on;b.querySelectorAll("input,select").forEach(e=>e.disabled=!on)}}
 document.querySelectorAll("input[name=kind]").forEach(r=>r.addEventListener("change",syncKind));syncKind();
-document.getElementById("f").onsubmit=e=>{const v=[...rows.children].filter(r=>r.children[0].value.trim());
+document.getElementById("f").onsubmit=e=>{const inp=r=>r.querySelectorAll("input");const v=[...rows.children].filter(r=>inp(r)[0].value.trim());
  if(!v.length&&!{{ 'true' if filled else 'false' }}){e.preventDefault();const m=document.getElementById("seaterr");m.hidden=false;m.scrollIntoView({block:"center"});return}
- document.getElementById("roles").value=v.map(r=>(r.dataset.id?"#"+r.dataset.id+" ":"")+r.children[0].value.trim()+": "+r.children[1].value.trim()).join("\n")};
+ document.getElementById("roles").value=v.map(r=>(r.dataset.id?"#"+r.dataset.id+" ":"")+(r.dataset.adv?"@":"")+inp(r)[0].value.trim().replace(/^[@#]+/,"")+": "+inp(r)[1].value.trim()).join("\n")};
 </script>{% endblock %}

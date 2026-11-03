@@ -359,3 +359,20 @@ html,body{overflow-x:clip}
 .errpage{max-width:560px;margin:3rem auto;text-align:center}.errpage .acts{justify-content:center;display:flex;gap:.6rem;flex-wrap:wrap}
 .reportbox{margin-top:1.4rem}.reportbox summary{cursor:pointer;color:var(--mut)}
 @media(max-width:699px){.stages{grid-template-columns:repeat(2,minmax(0,1fr))}.arow{flex-wrap:wrap}.glinks{grid-template-columns:1fr}}
+
+/* ---------- funding readiness, advisor seats, remarks ---------- */
+.readyhead{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;flex-wrap:wrap}.readyhead h2{margin:0}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.8rem;margin:.6rem 0}
+.rcard{border:1px solid var(--line);border-radius:12px;padding:.9rem;background:var(--bg)}.rcard.is-ready{border-color:var(--ok)}
+.rcard header{display:flex;justify-content:space-between;gap:.6rem;align-items:flex-start}.rcard header a{color:var(--pri-ink);text-decoration:none}.rcard header .badge{flex:none}
+.rmeta{margin:.4rem 0 .5rem;font-size:.85rem}.due{color:var(--warn-ink)}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.35rem;font-size:.9rem}.checks li{display:flex;gap:.5rem;align-items:flex-start}
+.checks .ic{flex:none;width:1.3rem;height:1.3rem;border-radius:50%;display:grid;place-items:center;font-size:.75rem;font-weight:800}
+.c-ok .ic{background:var(--ok-bg);color:var(--ok-ink)}.c-miss .ic{background:var(--bad-bg);color:var(--bad-ink)}.c-you .ic{background:var(--soft);color:var(--mut)}
+.checks small{color:var(--mut);font-size:.75rem;margin-left:.2rem}.checks a{font-weight:600;white-space:nowrap}
+.fprog{display:flex;flex-direction:column;gap:.2rem;margin:0}.fprog p{margin:.3rem 0;font-size:.92rem}.fprog a{text-decoration:none;color:var(--pri-ink)}
+.pill.advpill{font-size:.72rem;vertical-align:3px;background:var(--warn-bg);color:var(--warn-ink)}.pill.fac{background:var(--ok-bg);color:var(--ok-ink);font-size:.72rem;margin-left:.35rem;padding:.05rem .5rem}
+.row.adv{position:relative;border-left:3px solid var(--seat);padding-left:.5rem}.advtag{position:absolute;top:-.55rem;left:.6rem;font-size:.68rem;font-weight:800;background:var(--seat);color:#1a1026;border-radius:99px;padding:0 .45rem}
+.remarks{margin-top:1.4rem}.remarks h2{margin-top:0}.remark{border-top:1px solid var(--line);padding:.8rem 0 .2rem}.remark form{margin:.3rem 0 0}
+.chk{display:flex;gap:.5rem;align-items:center;font-weight:500}.chk input{width:auto}
+.soonpill{font-size:.72rem;font-weight:700;background:var(--warn-bg);color:var(--warn-ink);border-radius:99px;padding:.1rem .5rem;white-space:nowrap}
