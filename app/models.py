@@ -25,8 +25,13 @@ class User(SQLModel, table=True):
     behance: str = ""
     scholar: str = ""
     is_admin: bool = False
-    is_faculty: bool = False
-    avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one   # set by an admin after checking the person is NTHU teaching staff
+    is_faculty: bool = False   # verified NTHU professor / advisor (staff email + found on an NTHU page, or approved by an admin)
+    role: str = "student"      # student / faculty (chosen at sign-up)
+    faculty_status: str = ""   # "" / pending / verified / rejected
+    faculty_url: str = ""      # NTHU page that lists them
+    faculty_note: str = ""     # result of the last automatic check
+    title: str = ""            # Professor, Associate Professor, ...
+    avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one
     banned: bool = False
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)

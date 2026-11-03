@@ -87,11 +87,32 @@ PROGRAMS = [
          who="Tech and health-care teams with university students or graduates of the past year; outsiders at most half the team.",
          deadline_note="About two calls a year; the last one closed on 24 June 2026.",
          categories=TECH_HEALTH, self_checks="Team members are students or graduated within the past year"),
+    dict(key="appworks", sort=5, for_kind="Startup", name="AppWorks Accelerator", org="AppWorks (Taipei)",
+         url="https://appworks.tw/accelerator", amount="6 months of mentoring and a founder network; free, takes no equity and charges no fees",
+         who="Founders from first prototype to scaling; Taiwan and the rest of Asia. Each batch also names focus areas.",
+         deadline_note="New batch every 6 months. AW#34 applications run October to December 2026 (kick-off March 2027).",
+         self_checks="At least one founder can commit to the 6-month program"),
+    dict(key="youth-loan", sort=6, for_kind="Startup", name="Youth Startup Loan (青年創業貸款)", org="Ministry of Economic Affairs, SME and Startup Administration",
+         url="https://www.sme.gov.tw/", amount="Low-interest loan: up to NT$6 million for working capital and NT$12 million for equipment and other capital costs",
+         who="Founders aged 18 to 45 with a registered business. Foreign founders need an entrepreneur visa, Gold Card or valid residence permit.",
+         deadline_note="Open all year through banks. It is a loan, not a grant: it has to be paid back.",
+         self_checks="The person in charge is 18 to 45|The business is registered (company, firm or partnership)|At least 20 hours of approved startup training in the last 3 years"),
     dict(key="nstc", sort=4, for_kind="Research", name="NSTC Undergraduate Research Grant (大專學生研究計畫)", org="National Science and Technology Council",
          url="https://www.nstc.gov.tw/", amount="NT$6,000 a month for 8 months, plus up to NT$20,000 for materials",
          who="Undergraduates in year 2 or above, with an NTHU professor as advisor.",
          deadline_note="Usually due in February through the school's research office.",
          needs_advisor=True, self_checks="The main applicant is in year 2 or above|Your advisor agrees to supervise the project"),
+    dict(key="sinica-summer", sort=7, for_kind="Research", name="Academia Sinica summer student programs (中研院暑期大專生研習)", org="Academia Sinica",
+         url="https://www.sinica.edu.tw/", amount="A summer working in an Academia Sinica research lab",
+         who="Undergraduates; each institute (physics, chemistry, IT, humanities and more) runs its own program and rules.",
+         deadline_note="Most institutes take applications around March to April (Physics 2026: 13 March to 22 April).",
+         self_checks="Check the rules of the institute you want; foreign-student rules differ"),
+    dict(key="macronix", sort=8, for_kind="Research", name="Macronix Golden Silicon Awards (旺宏金矽獎)", org="Macronix Education Foundation",
+         url="https://www.mxeduc.org.tw/SiliconAwards", amount="Scholarship prizes; a single team won NT$700,000 in 2026",
+         who="Student teams from Taiwan universities with semiconductor or AI application projects (Design and Application groups).",
+         deadline_note="Runs once a year; see the official site for the next call.",
+         categories="Electrical engineering,Computer science & AI,Physics & math,Chemistry & materials",
+         self_checks="The project uses semiconductor chips or designs them"),
 ]
 
 def readiness(prog, pr, members, students, advisors):
@@ -104,6 +125,6 @@ def readiness(prog, pr, members, students, advisors):
         out.append(("ok" if advisors else "miss", "Has a professor as advisor" if advisors else "No advisor yet", "advisor"))
     if prog.categories:
         fits = pr.category in prog.categories.split(",")
-        out.append(("ok" if fits else "you", f"Category fits ({pr.category})" if fits else "Check that your project is tech or health care", "category" if not pr.category else ""))
+        out.append(("ok" if fits else "you", f"Category fits ({pr.category})" if fits else "Check that your project's field fits this program", "category" if not pr.category else ""))
     for c in filter(None, prog.self_checks.split("|")): out.append(("you", c, ""))
     return out

@@ -1,5 +1,11 @@
 {% extends "base.html" %}{% from "_links.html" import icon %}{% block body %}<h1>Your profile</h1>{% if error %}<p class="err">{{ error }}</p>{% endif %}
 <p class="muted">Other students see your full name, bio, skills, faculty and professional links. Your contacts stay private until you are accepted into a team.</p>
+{% if user.role == "faculty" %}<section class="card facbox" id="faculty"><h3>Professor / advisor status</h3>
+{% if user.faculty_status == "verified" %}<p><span class="pill fac">Faculty</span> Verified. {{ user.faculty_note }}</p>
+{% elif user.faculty_status == "rejected" %}<p class="err">An admin could not confirm you as NTHU teaching staff. Contact the admins if this is a mistake.</p>
+{% else %}<p><span class="pill warn">Waiting</span> We could not confirm you automatically yet: {{ user.faculty_note or "not checked yet" }} An admin will check by hand, or you can try another page.</p>
+<form method="post" action="/profile/faculty"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="fp">NTHU page that lists your email</label>
+<input id="fp" name="page" type="url" value="{{ user.faculty_url }}" placeholder="https://….nthu.edu.tw/…"><p><button class="sm">Check again</button></p></form>{% endif %}</section>{% endif %}
 <section class="photobox"><span id="phwrap">{{ pic(user, "av xl") }}</span><div><h3>Profile photo</h3><p class="muted">A clear photo of your face helps teammates recognise you. JPG, PNG or WebP, up to 8 MB. We crop it to a square and remove location data.</p>
 <div class="acts"><form id="phform"><input type="hidden" name="csrf" value="{{ csrf }}"><label class="btn ghost sm" for="phfile">{{ "Change photo" if user.avatar_v else "Upload photo" }}</label><input id="phfile" name="file" type="file" accept="image/jpeg,image/png,image/webp" hidden></form>
 {% if user.avatar_v %}<form method="post" action="/profile/photo/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm no">Remove</button></form>{% endif %}<span id="phmsg" class="muted" role="status"></span></div></div></section>

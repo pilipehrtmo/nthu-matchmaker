@@ -22,6 +22,8 @@ from .cv import parse_cv, CVError, MAX_BYTES
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
 from . import guide
 from .photo import make_avatar, PhotoError, MAX_UPLOAD
+from .faculty import staff_email, nthu_url, check_page
+TITLES = ["Professor", "Associate Professor", "Assistant Professor", "Lecturer", "Adjunct Professor", "Researcher", "Advisor"]
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -160,38 +162,63 @@ SID = re.compile(r"^[A-Za-z0-9]{6,12}$")
 HANDLE_RE = re.compile(r"^[a-z0-9._-]{3,30}$")
 
 @app.get("/login")
-def login_page(req: Request, user=Depends(me)): return render(req, "login.html", user)
+def login_page(req: Request, user=Depends(me)): return render(req, "login.html", user, titles=TITLES)
 
 @app.post("/login", dependencies=[limited("login", 300, 600)])   # per IP; each email is also limited below
-def login(req: Request, email: str = Form(...), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), s: Session = Depends(get_session)):
-    email = email.strip().lower(); name = name.strip()[:60]; sid = student_id.strip().upper()
+def login(req: Request, email: str = Form(...), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""),
+          role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), s: Session = Depends(get_session)):
+    email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = student_id.strip().upper()
+    role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
+    back = lambda err: render(req, "login.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title))
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email): return back("Please enter a valid email address.")
     exists = s.exec(select(User).where(User.email == email)).first()
-    if exists and exists.banned and email not in ADMIN_EMAILS: return render(req, "login.html", error="This account is banned.")
+    if exists and exists.banned and email not in ADMIN_EMAILS: return back("This account is banned.")
     hit(f"mail:{email}", 3, 600)   # max 3 login emails per address per 10 minutes
     if not exists:
-        if not agree: return render(req, "login.html", error="Please agree to the privacy notice to create an account.")
-        if not name or not SID.match(sid):
-            return render(req, "login.html", error="First time here? Enter your full name and student ID (6-12 letters or digits).")
-        if s.exec(select(User).where(User.student_id == sid)).first():
-            return render(req, "login.html", error="That student ID already has an account.")
+        if not agree: return back("Please agree to the privacy notice to create an account.")
+        if role == "faculty":
+            if not staff_email(email):
+                return back("Professor and advisor accounts must use your NTHU staff email, for example name@cs.nthu.edu.tw or name@mx.nthu.edu.tw. Student addresses such as @gapp.nthu.edu.tw cannot be used.")
+            if len(name) < 2 or not dept: return back("Enter your full name and your department.")
+            if not nthu_url(page): return back("Paste a link to an NTHU page that lists you with this email, such as your department's faculty page. It must be on nthu.edu.tw.")
+            sid = ""
+        else:
+            if not name or not SID.match(sid):
+                return back("First time here? Enter your full name and student ID (6-12 letters or digits).")
+            if s.exec(select(User).where(User.student_id == sid)).first():
+                return back("That student ID already has an account.")
     s.add(SignupLog(email=email, ip="-", allowed=True)); s.commit()
-    link = f"{BASE_URL}/auth/{signer.dumps({'e': email, 'n': name, 's': sid})}"
+    data = {'e': email, 'n': name, 's': sid}
+    if role == "faculty" and not exists: data.update(r="faculty", d=dept, p=page, t=title if title in TITLES else "")
+    link = f"{BASE_URL}/auth/{signer.dumps(data)}"
     try: send_magic(email, link)
-    except Exception as e:   # mail server busy or down: tell the student instead of showing a server error
+    except Exception as e:   # mail server busy or down: tell the user instead of showing a server error
         print(">>> LOGIN EMAIL FAILED for", email, type(e).__name__, e)
-        return render(req, "login.html", error="We could not send the login email just now. Please wait a minute and try again.")
-    return render(req, "login.html", sent=True, demo_link=link if SHOW_LINK and not SMTP_HOST else "")
+        return back("We could not send the login email just now. Please wait a minute and try again.")
+    return render(req, "login.html", sent=True, titles=TITLES, demo_link=link if SHOW_LINK and not SMTP_HOST else "")
+
+def run_faculty_check(s, u):
+    """Look for the user's email on their NTHU page. Found: verified automatically. Not found: an admin decides."""
+    found, note = check_page(u.email, u.faculty_url)
+    u.faculty_note = note[:300]
+    if found: u.faculty_status, u.is_faculty = "verified", True
+    elif u.faculty_status != "rejected": u.faculty_status, u.is_faculty = "pending", False
+    s.add(u); s.commit()
 
 @app.get("/auth/{token}")
 def auth(req: Request, token: str, s: Session = Depends(get_session)):
     try: d = signer.loads(token, max_age=900)
-    except BadSignature: return render(req, "login.html", error="That link is invalid or expired. Request a new one.")
+    except BadSignature: return render(req, "login.html", error="That link is invalid or expired. Request a new one.", titles=TITLES)
     email = d["e"]; u = s.exec(select(User).where(User.email == email)).first(); new = u is None
     if new:
-        if not d["s"] or s.exec(select(User).where(User.student_id == d["s"])).first():
-            return render(req, "login.html", error="That student ID already has an account.")
+        fac = d.get("r") == "faculty"
+        if fac and not staff_email(email): return render(req, "login.html", error="Professor accounts must use an NTHU staff email.", titles=TITLES)
+        if not fac and (not d["s"] or s.exec(select(User).where(User.student_id == d["s"])).first()):
+            return render(req, "login.html", error="That student ID already has an account.", titles=TITLES)
         u = User(email=email, name=d["n"], student_id=d["s"], handle=slugify(s, d["n"]), is_admin=email in ADMIN_EMAILS)
+        if fac: u.role, u.faculty, u.faculty_url, u.title, u.faculty_status = "faculty", d.get("d", ""), d.get("p", ""), d.get("t", ""), "pending"
         s.add(u); s.commit(); s.refresh(u)
+        if fac: run_faculty_check(s, u)
     if email in ADMIN_EMAILS and (not u.is_admin or u.banned): u.is_admin = True; u.banned = False; s.commit()   # listed admins are never locked out
     req.session["uid"] = u.id
     return go("/profile" if new else "/")
@@ -234,6 +261,14 @@ def profile_cv(file: UploadFile = File(...), user=Depends(me), s: Session = Depe
     try: return parse_cv(file.filename or "", data, known)
     except CVError as e: return JSONResponse({"error": str(e)}, status_code=400)
     finally: del data
+
+@app.post("/profile/faculty", dependencies=[limited("faccheck", 6, 3600)])
+def faculty_recheck(page: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+    if not user or user.role != "faculty" or user.faculty_status == "verified": return go("/profile")
+    page = page.strip()[:300] or user.faculty_url
+    if nthu_url(page): user.faculty_url = page; run_faculty_check(s, user)
+    else: user.faculty_note = "The link must be on an nthu.edu.tw website."; s.add(user); s.commit()
+    return go("/profile#faculty")
 
 @app.post("/profile/photo", dependencies=[limited("photo", 20, 3600)])
 def profile_photo(file: UploadFile = File(...), user=Depends(me), s: Session = Depends(get_session)):
@@ -640,7 +675,8 @@ def extra_admin(s):
 @app.get("/admin")
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
-    return render(req, "admin.html", user, users=s.exec(select(User)).all(), programs=s.exec(select(Program).order_by(Program.sort)).all(),
+    return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email,
+        fac_requests=s.exec(select(User).where(User.faculty_status == "pending")).all(), programs=s.exec(select(Program).order_by(Program.sort)).all(),
         logs=s.exec(select(SignupLog).order_by(SignupLog.at.desc()).limit(100)).all(),
         review=s.exec(select(Competition).where(Competition.needs_review == True)).all(), **extra_admin(s))
 
@@ -713,8 +749,13 @@ def admin_act(action: str, oid: int, user=Depends(me), s: Session = Depends(get_
     elif action == "rmphoto":   # remove an inappropriate profile photo
         u = s.get(User, oid)
         if u: s.exec(delete(Avatar).where(Avatar.user_id == oid)); u.avatar_v = 0
-    elif action in ("faculty", "unfaculty"):
+    elif action in ("faculty", "unfaculty"):   # admins can approve only people with an NTHU staff email
         u = s.get(User, oid)
-        if u: u.is_faculty = action == "faculty"
+        if u and (action == "unfaculty" or staff_email(u.email)):
+            u.is_faculty = action == "faculty"; u.faculty_status = "verified" if u.is_faculty else ("rejected" if u.role == "faculty" else "")
+            if u.is_faculty: u.role = "faculty"
+    elif action == "faccheck":
+        u = s.get(User, oid)
+        if u and u.faculty_url: run_faculty_check(s, u)
     elif action == "scrape": run_scrapers()
     s.commit(); return go("/admin")

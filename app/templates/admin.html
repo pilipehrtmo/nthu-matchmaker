@@ -5,7 +5,7 @@
 <div class="stat"><b>{{ stats.unverified }}</b><span>To verify</span></div>
 <div class="stat"><b>{{ stats.reports }}</b><span>Open reports</span></div>
 <div class="stat"><b>{{ stats.review }}</b><span>Competitions to review</span></div></div>
-<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
+<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#faculty">Professor requests{% if fac_requests %} ({{ fac_requests|length }}){% endif %}</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
 
 <section class="sec" id="reports"><h2>Reports <span class="count">{{ stats.reports }}</span></h2>
 {% for r in reports %}<div class="card" style="margin:.6rem 0"><div class="meta"><span class="pill">{{ r.kind }}</span><span>Reason: {{ r.reason }}</span></div>
@@ -27,6 +27,15 @@
 <div><label for="cd">Deadline (text)</label><input id="cd" name="deadline" placeholder="e.g. 30 Nov 2026"></div></div>
 <label for="cx">Short description</label><input id="cx" name="description"><p><button>Add competition</button></p></form></details></section>
 
+<section class="sec" id="faculty"><h2>Professor requests <span class="count">{{ fac_requests|length }}</span></h2>
+<p class="muted">Professor and advisor sign-ups whose email was not found automatically on the NTHU page they gave. Open the page, check the person is NTHU teaching staff, then approve or reject.</p>
+{% for u in fac_requests %}<div class="card" style="margin:.6rem 0"><div class="meta"><b>{{ u.name }}</b><span>{{ u.title }}</span><span>{{ u.faculty }}</span><span>{{ u.email }}</span></div>
+<p style="margin:.3rem 0">Page: {% if u.faculty_url %}<a href="{{ u.faculty_url }}" target="_blank" rel="noopener noreferrer">{{ u.faculty_url }}</a>{% else %}none{% endif %}<br><span class="muted">Automatic check: {{ u.faculty_note or "not run" }}</span></p>
+<div class="acts"><form method="post" action="/admin/faculty/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Approve as Faculty</button></form>
+<form method="post" action="/admin/faccheck/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Check page again</button></form>
+<form method="post" action="/admin/unfaculty/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Reject</button></form></div></div>
+{% else %}<p class="muted">No requests waiting.</p>{% endfor %}</section>
+
 <section class="sec" id="programs"><h2>Funding programs</h2>
 <p class="muted">Shown on /funding and in each startup or research project's readiness check. When a call is announced, set its deadline (YYYY-MM-DD) so the countdown appears.</p>
 {% for p in programs %}<details class="card" style="margin:.6rem 0"><summary><b>{{ p.name }}</b> <span class="muted">· {{ p.for_kind }} · {{ p.next_deadline or "no date" }}{% if not p.active %} · hidden{% endif %}</span></summary>
@@ -46,7 +55,7 @@
 <div class="tblwrap"><table class="tbl"><tr><th>Handle</th><th>Name</th><th>Student ID</th><th>Email</th><th>Status</th><th></th></tr>
 {% for u in users %}<tr><td><a href="/u/{{ u.handle }}">{{ u.handle }}</a></td><td>{{ u.name }}</td><td>{{ u.student_id }}</td><td>{{ u.email }}</td>
 <td>{% if u.is_faculty %}<span class="pill fac">Faculty</span> {% endif %}{% if u.is_admin %}<span class="pill match">Admin</span>{% elif u.banned %}<span class="pill bad">Banned</span>{% elif u.verified %}<span class="pill ok">✔ Verified</span>{% else %}<span class="pill">Unverified</span>{% endif %}</td>
-<td>{% if not u.is_admin %}<div class="acts">{% if u.banned %}<form method="post" action="/admin/unban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Unban</button></form>{% else %}{% if u.avatar_v %}<a href="/avatar/{{ u.id }}?v={{ u.avatar_v }}" target="_blank" rel="noopener"><img class="av xs pic" alt="photo" src="/avatar/{{ u.id }}?v={{ u.avatar_v }}"></a><form method="post" action="/admin/rmphoto/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Remove photo</button></form>{% endif %}<form method="post" action="/admin/{{ 'unfaculty' if u.is_faculty else 'faculty' }}/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">{{ "Remove Faculty" if u.is_faculty else "Mark as Faculty" }}</button></form>{% if not u.verified %}<form method="post" action="/admin/verify/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify</button></form>{% endif %}<form method="post" action="/admin/ban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban</button></form>{% endif %}</div>{% endif %}</td></tr>{% endfor %}</table></div></section>
+<td>{% if not u.is_admin %}<div class="acts">{% if u.banned %}<form method="post" action="/admin/unban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Unban</button></form>{% else %}{% if u.avatar_v %}<a href="/avatar/{{ u.id }}?v={{ u.avatar_v }}" target="_blank" rel="noopener"><img class="av xs pic" alt="photo" src="/avatar/{{ u.id }}?v={{ u.avatar_v }}"></a><form method="post" action="/admin/rmphoto/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Remove photo</button></form>{% endif %}{% if u.is_faculty or staff_email(u.email) %}<form method="post" action="/admin/{{ 'unfaculty' if u.is_faculty else 'faculty' }}/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">{{ "Remove Faculty" if u.is_faculty else "Mark as Faculty" }}</button></form>{% endif %}{% if not u.verified %}<form method="post" action="/admin/verify/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify</button></form>{% endif %}<form method="post" action="/admin/ban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban</button></form>{% endif %}</div>{% endif %}</td></tr>{% endfor %}</table></div></section>
 
 <section class="sec" id="scraper"><h2>Scraper</h2>
 <div class="tblwrap"><table class="tbl"><tr><th>When</th><th>Source</th><th>New items</th><th>Problem</th></tr>
