@@ -428,3 +428,13 @@ img.av{display:block}img.av.xs{display:inline-block}
 .pmeta .pleft{margin-left:auto;padding:.18rem .55rem;border-radius:99px;background:var(--soft);color:var(--ink);font-weight:600;font-size:.76rem;white-space:nowrap}
 .pmeta .pleft.soon{background:var(--warn-bg);color:var(--warn-ink)}
 :root[data-mode=dark] .pmeta{color:#b9acd0}
+
+/* ---------- startup pitch on the project page ---------- */
+.ptag{font-size:1.1rem;color:var(--mut);margin:.2rem 0 .7rem;max-width:60ch}
+.pitch{margin-top:1rem}.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.6rem}
+.pitch h3{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--pur);margin:0 0 .3rem}.pitch p{margin:0;white-space:pre-line}.pitch ul{margin:0;padding-left:1.1rem}
+.pnums{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin-top:1rem}
+.pnums div{border:1px solid var(--line);border-radius:12px;padding:.7rem .9rem;background:var(--bg)}.pnums b{display:block;font-size:1.6rem;line-height:1.1;color:var(--pri-ink)}.pnums span{font-size:.85rem;color:var(--mut)}
+.pneed{margin:1rem 0 0;padding:.7rem .9rem;border-radius:12px;background:var(--warn-bg);color:var(--warn-ink)}
+@media(max-width:699px){.pgrid{grid-template-columns:1fr}}
+.pnums+.pneed{margin-top:1.1rem}

@@ -8,12 +8,19 @@
 {% if pr.status == "closed" %}<span class="pill warn">Not recruiting</span>
 {% elif days is not none %}<span class="pill {{ 'warn' if days <= 7 }}">{{ "Join-by date passed" if days < 0 else ("Last day to join" if days == 0 else (days ~ " days left to join")) }}</span>{% endif %}
 {% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% endif %}</div>
-<p style="margin:0;white-space:pre-line">{{ pr.description or "No description yet." }}</p>
+{% if k == "Startup" and pr.tagline %}<p class="ptag">{{ pr.tagline }}</p>{% endif %}
+<p style="margin:0;white-space:pre-line">{{ pr.description or ("" if k == "Startup" and (pr.problem or pr.solution) else "No description yet.") }}</p>
 {% if user and (is_owner or user.is_admin) %}<div class="acts ownacts">
-{% if is_owner %}<a class="btn ghost sm" href="/projects/{{ pr.id }}/edit">Edit project and seats</a>
+{% if is_owner %}<a class="btn ghost sm" href="/projects/{{ pr.id }}/edit">Edit project and seats</a>{% if k == "Startup" %}<a class="btn ghost sm" href="/projects/{{ pr.id }}/onepager" target="_blank" rel="noopener">One-pager (PDF)</a>{% endif %}
 <form method="post" action="/projects/{{ pr.id }}/status"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ 'closed' if pr.status == 'open' else 'open' }}"><button class="ghost sm">{{ "Stop recruiting" if pr.status == "open" else "Start recruiting again" }}</button></form>{% endif %}
 <form method="post" action="/projects/{{ pr.id }}/delete" onsubmit="return confirm('Delete this project and its applications?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="no sm">Delete project</button></form></div>
 {% if is_owner and days is not none and days < 0 and pr.status == "open" %}<p class="muted" style="margin:.6rem 0 0">The join-by date has passed, so this project is hidden from the home page. Edit it to set a new date.</p>{% endif %}{% endif %}</section>
+{% if k == "Startup" and (pr.problem or pr.audience or pr.solution or pr.progress or pr.metrics) %}<section class="card pitch"><div class="pgrid">
+{% for key, label in [("problem", "The problem"), ("audience", "Who has it"), ("solution", "Our solution")] if pr[key] %}<div><h3>{{ label }}</h3><p>{{ pr[key] }}</p></div>{% endfor %}
+{% if pr.progress %}<div><h3>Done so far</h3><ul>{% for l in pr.progress.splitlines() if l.strip() %}<li>{{ l.strip().lstrip("-•* ") }}</li>{% endfor %}</ul></div>{% endif %}</div>
+{% set mr = metric_rows(pr.metrics) %}{% if mr %}<div class="pnums">{% for v, l in mr %}<div><b>{{ v }}</b><span>{{ l }}</span></div>{% endfor %}</div>{% endif %}
+{% if pr.needs %}<p class="pneed"><b>What we need:</b> {{ pr.needs }}</p>{% endif %}
+{% if reveal and not is_owner %}<p class="muted fine"><a href="/projects/{{ pr.id }}/onepager" target="_blank" rel="noopener">Open the one-pager (PDF)</a></p>{% endif %}</section>{% endif %}
 {% if reveal %}<div class="reveal">You're in the team. Contact the lead: {{ contact_list(owner) }}</div>{% endif %}
 
 {% if k == "Startup" and (pr.stage or is_owner) %}<section class="card guide"><h2>Where to take it next</h2>

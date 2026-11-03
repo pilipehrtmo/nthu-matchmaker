@@ -350,6 +350,27 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
     comps = [c for c in allc if (not cat or c.category == cat) and (not q or q.lower() in (c.title + c.description).lower())][:60]
     return render(req, "board.html", user, rows=rows, comps=comps, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
 
+PITCH_FIELDS = [("tagline", 140), ("problem", 600), ("audience", 400), ("solution", 600), ("progress", 600), ("needs", 300), ("metrics", 200)]
+def metric_rows(text):   # "12 | stall owners interviewed" -> ("12", "stall owners interviewed"), at most 3
+    rows = [tuple(x.strip() for x in line.split("|", 1)) for line in text.splitlines() if "|" in line]
+    return [(v[:12], l[:60]) for v, l in rows if v and l][:3]
+templates.env.globals["metric_rows"] = metric_rows
+
+def team_info(s, pr):
+    """Accepted members, advisors and open seats of a project, plus its funding readiness checks."""
+    roles = s.exec(select(Role).where(Role.project_id == pr.id).order_by(Role.id)).all()
+    acc = s.exec(select(Application, Role).join(Role, Role.id == Application.role_id).where(Role.project_id == pr.id, Application.status == "accepted")).all()
+    people = {u.id: u for u in s.exec(select(User).where(User.id.in_([a.user_id for a, _ in acc] or [-1])))}
+    members = [(people[a.user_id], r.name) for a, r in acc if not r.advisor and a.user_id in people]
+    advisors = [(people[a.user_id], r.name) for a, r in acc if r.advisor and a.user_id in people]
+    students = 1 + len([u for u, _ in members if not u.is_faculty])
+    k = kind_of(pr); checks = []
+    if k in ("Startup", "Research"):
+        for prog in s.exec(select(Program).where(Program.active == True, Program.for_kind.in_([k, "Any"])).order_by(Program.sort)).all():
+            items = guide.readiness(prog, pr, 1 + len(members), students, len(advisors))
+            checks.append(dict(p=prog, lines=items, ready=not any(st == "miss" for st, _, _ in items), days=days_left(prog.next_deadline)))
+    return dict(members=members, advisors=advisors, open=[r for r in roles if not r.filled], checks=checks)
+
 def project_form(req, user, s, pr=None, seats=None, error="", **kw):
     kind = kw.get("kind", pr.kind if pr else "")
     return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), kind=kind, kinds=PROJECT_KINDS, sel=kw.get("sel", str(pr.competition_id or "") if pr else ""),
@@ -358,6 +379,7 @@ def project_form(req, user, s, pr=None, seats=None, error="", **kw):
 def read_project_form(form, pr=None):
     """Check the project form. Returns (fields, seat lines, error)."""
     f = {k: str(form.get(k, "")).strip() for k in ("title", "description", "competition_id", "hours", "deadline", "roles", "kind", "category", "stage")}
+    pitch = {k: str(form.get(k, "")).replace("\r", "").strip()[:n] for k, n in PITCH_FIELDS}
     kind = f["kind"] if f["kind"] in PROJECT_KINDS else "Other"
     seats = []
     for line in f["roles"].splitlines():          # one seat per line: "UI designer: figma, ux", existing seats start with "#<id> "
@@ -378,6 +400,7 @@ def read_project_form(form, pr=None):
                deadline=f["deadline"][:10], category=f["category"] if f["category"] in cats else "",
                stage=f["stage"] if kind == "Startup" and f["stage"] in [n for n, _ in guide.STARTUP_STAGES] else "",
                competition_id=int(f["competition_id"]) if f["competition_id"].isdigit() and kind == "Competition" else None)
+    for k, _ in PITCH_FIELDS: out[k] = pitch[k] if kind == "Startup" else ""
     return out, seats, err
 
 @app.get("/projects/new")
@@ -453,15 +476,7 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     reveal = bool(user and any(a.status == "accepted" and u.id == user.id for r in out for a, u in r["apps"]))
     days = days_left(pr.deadline)
     accepting = pr.status == "open" and not (days is not None and days < 0)
-    acc = s.exec(select(Application, Role).join(Role, Role.id == Application.role_id).where(Role.project_id == pid, Application.status == "accepted")).all()
-    team = [a.user_id for a, r in acc if not r.advisor]; advisors = [a.user_id for a, r in acc if r.advisor]
-    fac = {u.id for u in s.exec(select(User).where(User.id.in_(team or [-1]), User.is_faculty == True))}
-    students = 1 + len([t for t in team if t not in fac])
-    k = kind_of(pr); checks = []
-    if k in ("Startup", "Research"):
-        for prog in s.exec(select(Program).where(Program.active == True, Program.for_kind.in_([k, "Any"])).order_by(Program.sort)).all():
-            items = guide.readiness(prog, pr, 1 + len(team), students, len(advisors))
-            checks.append(dict(p=prog, lines=items, ready=not any(st == "miss" for st, _, _ in items), days=days_left(prog.next_deadline)))
+    checks = team_info(s, pr)["checks"]
     my_adv = bool(user and any(x["r"].advisor and a.status == "accepted" and u.id == user.id for x in out for a, u in x["apps"]))
     insider = bool(user and (is_owner or user.is_admin or reveal or my_adv))
     rq = select(Remark).where(Remark.project_id == pid).order_by(Remark.created.desc())
@@ -469,6 +484,22 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     rauthors = {u.id: u for u in s.exec(select(User).where(User.id.in_([r.author_id for r in remarks] or [-1])))}
     return render(req, "project.html", user, checks=checks, remarks=remarks, rauthors=rauthors, can_remark=my_adv, insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
+
+@app.get("/projects/{pid}/onepager")
+def onepager(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_session)):
+    """Printable one-page summary of a startup, for the team to save as PDF and share."""
+    pr = s.get(Project, pid)
+    if not pr or kind_of(pr) != "Startup": raise HTTPException(404)
+    if not user: return go("/login")
+    info = team_info(s, pr)
+    if not (user.id == pr.owner_id or user.is_admin or any(u.id == user.id for u, _ in info["members"] + info["advisors"])):
+        return go(f"/projects/{pid}")   # only the team can make the one-pager: it lists who is in the team
+    import io, qrcode, qrcode.image.svg
+    link = f"{BASE_URL}/projects/{pid}"; buf = io.BytesIO()
+    qrcode.make(link, image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=1).save(buf)
+    svg = buf.getvalue().decode(); svg = svg[svg.index("<svg"):]
+    return templates.TemplateResponse(req, "onepager.html", dict(pr=pr, owner=s.get(User, pr.owner_id), link=link, qr=Markup(svg),
+                                      today=datetime.utcnow().strftime("%-d %b %Y"), **info))
 
 @app.post("/projects/{pid}/delete")
 def delete_project(pid: int, user=Depends(me), s: Session = Depends(get_session)):

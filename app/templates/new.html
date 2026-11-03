@@ -11,7 +11,15 @@
 <div class="xbox" id="box-Startup" hidden><p class="xh">About your startup</p>
 <label>Category</label><div class="kinds" role="radiogroup" aria-label="Startup category">{% for c in G.STARTUP_CATEGORIES %}<label class="kind"><input type="radio" name="category" value="{{ c }}" data-for="Startup" {{ "checked" if pr and pr.kind == "Startup" and pr.category == c }}><span>{{ c }}</span></label>{% endfor %}</div>
 <label>How far along is it?</label><div class="stages">{% for n, d in G.STARTUP_STAGES %}<label class="stage"><input type="radio" name="stage" value="{{ n }}" {{ "checked" if pr and pr.stage == n }}><span><b>{{ n }}</b><small>{{ d }}</small></span></label>{% endfor %}</div>
-<p class="muted">In the description, explain in a few lines: the problem, who has it, your solution, and what you have done so far. Your project page will then suggest next steps, such as NTHU's incubation office, U-start and FITI.</p></div>
+<p class="xh" style="margin-top:1rem">Your pitch <small class="muted">(optional, used on your page and your one-page PDF)</small></p>
+<label for="tg">One-line pitch</label><input id="tg" name="tagline" maxlength="140" value="{{ pr.tagline if pr else '' }}" placeholder="e.g. An app that lets students buy campus restaurants' unsold food at a discount">
+<div class="two"><div><label for="pb">The problem</label><textarea id="pb" name="problem" rows="3" maxlength="600" placeholder="What goes wrong today, and why it matters">{{ pr.problem if pr else '' }}</textarea></div>
+<div><label for="au">Who has it</label><textarea id="au" name="audience" rows="3" maxlength="400" placeholder="The people or groups with this problem">{{ pr.audience if pr else '' }}</textarea></div></div>
+<div class="two"><div><label for="so">Your solution</label><textarea id="so" name="solution" rows="3" maxlength="600" placeholder="What you build and how it helps">{{ pr.solution if pr else '' }}</textarea></div>
+<div><label for="pr2">What you have done so far</label><textarea id="pr2" name="progress" rows="3" maxlength="600" placeholder="One per line, e.g. Interviewed 12 stall owners">{{ pr.progress if pr else '' }}</textarea></div></div>
+<label for="mt">Key numbers <small class="muted">(up to 3 lines, number | what it counts)</small></label><textarea id="mt" name="metrics" rows="3" maxlength="200" placeholder="12 | stall owners interviewed&#10;15 | students tested the prototype">{{ pr.metrics if pr else '' }}</textarea>
+<label for="nd">What you need</label><input id="nd" name="needs" maxlength="300" value="{{ pr.needs if pr else '' }}" placeholder="e.g. a backend developer and coaching on pricing">
+<p class="muted fine">Only write numbers that are true: people reading your one-pager may check them.</p></div>
 
 <div class="xbox" id="box-Research" hidden><p class="xh">About your research</p>
 <label for="rf">Field</label><select id="rf" name="category" data-for="Research"><option value="">Pick a field</option>{% for c in G.RESEARCH_FIELDS %}<option {{ "selected" if pr and pr.kind == "Research" and pr.category == c }}>{{ c }}</option>{% endfor %}</select>

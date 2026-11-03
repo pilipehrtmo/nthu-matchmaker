@@ -13,3 +13,4 @@ joblib
 pypdf
 psycopg2-binary
 pillow
+qrcode
