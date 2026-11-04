@@ -10,8 +10,8 @@ body{margin:0;font-family:'Instrument Sans','Inter','Noto Sans TC','Microsoft Jh
 .bar button,.bar a{font:inherit;font-weight:700;border:0;border-radius:10px;padding:8px 16px;cursor:pointer;text-decoration:none}
 .bar button{background:#f2c14e;color:#1a1026}.bar a{background:transparent;color:#d9c4f5;border:1px solid #5b4a75}
 .bar span{color:#c9bde0;font-size:13px}
-.sheet{width:210mm;min-height:297mm;margin:16px auto;background:#fff;box-shadow:0 10px 40px rgba(30,10,60,.2)}
-.page{width:210mm;height:297mm;padding:16mm 16mm 12mm;display:flex;flex-direction:column;overflow:hidden}
+.sheet{width:210mm;height:297mm;overflow:hidden;margin:16px auto;background:#fff;box-shadow:0 10px 40px rgba(30,10,60,.2)}
+.page{zoom:var(--z,1);width:calc(210mm / var(--z,1));height:calc(297mm / var(--z,1));padding:14mm 15mm 11mm;display:flex;flex-direction:column;overflow:hidden}
 .top{display:flex;align-items:center;gap:3mm;color:#5b2a86;font-weight:700;font-size:9pt}
 .logo{width:6mm;height:6mm;border-radius:1.6mm;background:linear-gradient(135deg,#5b2a86,#9a6ad8)}
 h1{font-family:'Bricolage Grotesque','Inter',sans-serif;font-weight:800;font-size:28pt;line-height:1.05;margin:6mm 0 2mm;letter-spacing:-.01em;overflow-wrap:anywhere}
@@ -24,7 +24,7 @@ h1{font-family:'Bricolage Grotesque','Inter',sans-serif;font-weight:800;font-siz
 .wide{grid-column:1/-1}
 .nums{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}
 .num{border:1px solid #e2d9ee;border-radius:3mm;padding:3mm}.num b{display:block;font-family:'Bricolage Grotesque','Inter',sans-serif;font-weight:800;font-size:18pt;color:#5b2a86;line-height:1}.num span{font-size:8.5pt;color:#6b6078}
-hr{border:0;border-top:1px solid #e2d9ee;margin:5mm 0 4mm}
+hr{border:0;border-top:1px solid #e2d9ee;margin:4.5mm 0 3.5mm}
 .team{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}
 .p{display:flex;gap:2.5mm;align-items:center;border:1px solid #e2d9ee;border-radius:3mm;padding:2.5mm;min-width:0}
 .p .av{width:9mm;height:9mm;border-radius:50%;background:#5b2a86;color:#fff;display:grid;place-items:center;font-weight:700;font-size:8pt;flex:none;object-fit:cover}
@@ -34,7 +34,7 @@ hr{border:0;border-top:1px solid #e2d9ee;margin:5mm 0 4mm}
 .ready{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}
 .r{border:1px solid #e2d9ee;border-radius:3mm;padding:2.5mm 3mm;font-size:8.8pt}.r b{display:block;font-size:9.3pt;margin-bottom:1mm}
 .ok{color:#145c3d}.no{color:#8f251c}
-.foot{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;font-size:8.5pt;color:#6b6078;border-top:1px solid #e2d9ee;padding-top:3mm}
+.foot{margin-top:auto;flex:none;display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;font-size:8.5pt;color:#6b6078;border-top:1px solid #e2d9ee;padding-top:3mm}
 .foot a{color:#5b2a86;font-weight:700;text-decoration:none;word-break:break-all}
 .qr{width:20mm;height:20mm;flex:none}.qr svg{width:100%;height:100%}
 .empty{color:#9b90aa;font-style:italic}
@@ -69,4 +69,11 @@ hr{border:0;border-top:1px solid #e2d9ee;margin:5mm 0 4mm}
 {% if c.ready %}<span class="ok">✔ Looks eligible</span>{% else %}<span class="no">✘ {{ miss[0][1] }}</span>{% endif %}
 {% if c.days is not none and c.days >= 0 %}<br>Deadline: {{ c.p.next_deadline }}{% endif %}</div>{% endfor %}</div></div>{% endif %}
 <div class="foot"><div>Contact the team on NTHU Matchmaker:<br><a href="{{ link }}">{{ link }}</a><br>Made on {{ today }}. Funding rules and dates change; check each program's official call.</div><div class="qr" aria-label="QR code linking to the project">{{ qr }}</div></div>
-</div></div></body></html>
+</div></div>
+<script>
+// Long pitches would run past the bottom of the A4 page: shrink the whole page evenly until everything, QR code included, fits.
+(function(){const pg=document.querySelector(".page");
+ function fit(){let z=1;pg.style.setProperty("--z",z);
+  while(pg.scrollHeight>pg.clientHeight+1&&z>.55){z=Math.round((z-.02)*100)/100;pg.style.setProperty("--z",z)}}
+ fit();(document.fonts&&document.fonts.ready||Promise.resolve()).then(fit);addEventListener("load",fit);addEventListener("beforeprint",fit)})();
+</script></body></html>
