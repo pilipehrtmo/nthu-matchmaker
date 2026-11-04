@@ -1,4 +1,4 @@
-import asyncio, re, secrets, time
+import asyncio, hashlib, re, secrets, time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -90,7 +90,7 @@ def limited(name: str, n: int, secs: int):
     # Logged-in actions are limited per account, not per IP: a whole class on campus Wi-Fi shares one public IP.
     def dep(request: Request):
         uid = request.session.get("uid")
-        hit(f"{name}:u{uid}" if uid else f"{name}:{request.client.host if request.client else '-'}", n, secs)
+        hit(f"{name}:u{uid}" if uid else f"{name}:{ip_of(request)}", n, secs)
     return Depends(dep)
 
 if SECRET == "dev-secret-change-me": print("WARNING: set SECRET_KEY before real use.")
@@ -102,6 +102,24 @@ SLOTS = asyncio.Semaphore(10)
 async def one_queue(request: Request, call_next):
     if request.url.path.startswith("/static"): return await call_next(request)
     async with SLOTS: return await call_next(request)
+# Browser security headers on every response
+CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+       "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; form-action 'self'; "
+       "frame-ancestors 'none'; base-uri 'self'; object-src 'none'")
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    resp = await call_next(request)
+    h = resp.headers
+    h.setdefault("Content-Security-Policy", CSP)
+    h.setdefault("X-Frame-Options", "DENY")                 # no one can put the site inside their page (clickjacking)
+    h.setdefault("X-Content-Type-Options", "nosniff")
+    h.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    h.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+    h.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    if PUBLIC: h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    if "session" in request.scope and request.session.get("uid") and not request.url.path.startswith(("/static", "/avatar/")):
+        h.setdefault("Cache-Control", "private, no-store")   # pages with someone's data are never kept by shared caches
+    return resp
 app.add_middleware(SessionMiddleware, secret_key=SECRET, max_age=60 * 60 * 24 * 30, https_only=PUBLIC, same_site="lax")
 if PUBLIC and SECRET == "dev-secret-change-me": raise SystemExit("Set SECRET_KEY before putting the site online.")
 if PUBLIC and not SMTP_HOST: print("WARNING: no SMTP settings, so login emails cannot be sent. Set SMTP_HOST/SMTP_USER/SMTP_PASS/SMTP_FROM.")
@@ -122,7 +140,11 @@ async def form_error(req: Request, exc):
 
 def me(req: Request, s: Session = Depends(get_session)):
     uid = req.session.get("uid"); u = s.get(User, uid) if uid else None
-    return u if u and not u.banned else None
+    if not u or u.banned: return None
+    if "pv" not in req.session: req.session["pv"] = pw_stamp(u)   # logged in before this check existed
+    elif req.session["pv"] != pw_stamp(u):   # the password changed since this login (or an old cookie): log this device out
+        req.session.clear(); return None
+    return u
 
 def tags(text: str): return {t.strip().lower() for t in text.split(",") if t.strip()}
 def days_left(d):
@@ -200,10 +222,16 @@ def send_verify(s, u):
     send_mail(u.email, "Confirm your email for NTHU Matchmaker",
               f"Hi {u.name or ''},\n\nConfirm your email to finish creating your NTHU Matchmaker account:\n{link}\n\nThe link works for 48 hours. If you did not sign up, ignore this email.")
 
+def pw_stamp(u): return hashlib.sha256((u.password_hash or "").encode()).hexdigest()[:12]
 def start_session(req, u):
-    req.session.pop("pending_uid", None); req.session["uid"] = u.id
+    req.session.pop("pending_uid", None); req.session["uid"] = u.id; req.session["pv"] = pw_stamp(u)
 
-def ip_of(req): return req.client.host if req.client else "-"
+def ip_of(req):
+    """The visitor's real IP, for rate limits. On Render, Cloudflare sets CF-Connecting-IP and overwrites any copy the visitor sends.
+    X-Forwarded-For is not used: anyone can put a fake address in it and dodge the limits."""
+    cf = req.headers.get("cf-connecting-ip", "").strip()
+    if PUBLIC and cf: return cf[:64]
+    return req.client.host if req.client else "-"
 
 @app.get("/login")
 def login_page(req: Request, n: str = "", user=Depends(me)):
@@ -345,6 +373,7 @@ def change_password(req: Request, current: str = Form(""), password: str = Form(
     err = err or password_problem(password, user.email, user.name) or ("The two new passwords are not the same." if password != password2 else "")
     if err: return render(req, "profile.html", user, pw_error=err)
     user.password_hash = hash_password(password); s.add(user); s.commit()
+    req.session["pv"] = pw_stamp(user)   # stay logged in here; every other device is logged out
     return render(req, "profile.html", user, pw_ok=True)
 
 def run_faculty_check(s, u):
@@ -738,6 +767,7 @@ def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depe
     d = days_left(pr.deadline)
     if r.filled or pr.status != "open" or (d is not None and d < 0): return go(f"/projects/{pr.id}?n=closed")
     if pr.owner_id == user.id: return go(f"/projects/{pr.id}")
+    if r.advisor and not user.is_faculty: return go(f"/projects/{pr.id}?n=facultyonly")
     dup = s.exec(select(Application).where(Application.role_id == rid, Application.user_id == user.id)).first()
     if dup and dup.status == "withdrawn": dup.status, dup.message, dup.at = "pending", message.strip()[:500], datetime.utcnow(); s.commit()
     elif not dup: s.add(Application(role_id=rid, user_id=user.id, message=message.strip()[:500])); s.commit()
