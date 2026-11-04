@@ -9,7 +9,7 @@
 <p class="muted fine" id="ehint" hidden>Use your NTHU staff email, such as name@cs.nthu.edu.tw or name@mx.nthu.edu.tw. Student @gapp addresses are not accepted.</p>
 <div class="two"><div><label for="n">Full name</label><input id="n" name="name" autocomplete="name" required value="{{ f.get('name', '') }}"></div>
 <div class="r-student"><label for="s">Student ID</label><input id="s" name="student_id" maxlength="12" value="{{ f.get('sid', '') }}"></div>
-<div class="r-faculty" hidden><label for="ti">Title</label><select id="ti" name="title">{% for t in titles %}<option {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}</select></div></div>
+<div class="r-faculty" hidden><label for="ti">Title</label><select id="ti" name="title">{% for t in titles %}<option value="{{ t }}" {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}</select></div></div>
 <div class="r-faculty" hidden><label for="dp">Department</label><input id="dp" name="dept" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science">
 <label for="pg">Link to an NTHU page that lists you with this email</label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
 <p class="muted fine">For example your department's faculty page or your lab page on nthu.edu.tw. We open it and look for your email to confirm you are NTHU teaching staff. If we cannot find it, an admin checks it by hand; until then your account works but has no Faculty badge.</p></div>

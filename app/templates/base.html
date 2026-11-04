@@ -1,4 +1,4 @@
-{% set path = request.url.path %}<!doctype html><html lang="en" data-theme="{{ theme or 'light' }}" data-mode="{{ 'dark' if theme == 'dark' else 'light' }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+{% set path = request.url.path %}<!doctype html><html lang="{{ 'zh-Hant-TW' if lang == 'zh' else 'en' }}" data-theme="{{ theme or 'light' }}" data-mode="{{ 'dark' if theme == 'dark' else 'light' }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NTHU Matchmaker</title>
 <script>(()=>{const h=document.documentElement;if(h.dataset.theme==="system")h.dataset.mode=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";h.classList.add("js")})()</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap">
@@ -7,6 +7,7 @@
 <div class="nlinks"><a href="/discuss" class="{{ 'on' if path.startswith('/discuss') }}">Discuss</a><a href="/funding" class="{{ 'on' if path == '/funding' }}">Funding</a>
 {% if user %}<a href="/activity" class="{{ 'on' if path == '/activity' }}">Activity{% if inbox %}<span class="nbadge" aria-label="{{ inbox }} waiting">{{ inbox }}</span>{% endif %}</a>{% endif %}</div>
 <span class="nsp"></span><div class="nright">
+<a class="nlang" href="/lang/{{ 'en' if lang == 'zh' else 'zh' }}?next={{ (request.url.path ~ ('?' ~ request.url.query if request.url.query else ''))|urlencode }}" hx-boost="false" lang="{{ 'en' if lang == 'zh' else 'zh-Hant' }}" title="{{ 'Switch to English' if lang == 'zh' else '切換成中文' }}">{{ "EN" if lang == "zh" else "中文" }}</a>
 {% if user %}<a class="npost" href="/projects/new">+ Post a project</a>
 <details class="nme"><summary aria-label="Your account menu">{{ pic(user, "nav-i") }}<span class="nname">{{ user|dn }}</span><span class="chev" aria-hidden="true">▾</span></summary>
 <div class="nmenu"><b>{{ user|dn }}</b><small>{{ user.faculty or "NTHU" }}{% if user.is_faculty %} · {{ user.title or "Faculty" }}{% elif user.verified %} · verified{% endif %}</small>

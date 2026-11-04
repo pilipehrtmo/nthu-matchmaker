@@ -23,7 +23,7 @@
 <details class="card" style="margin-top:1rem"><summary>Add a competition</summary>
 <form method="post" action="/admin/competition"><input type="hidden" name="csrf" value="{{ csrf }}">
 <div class="two"><div><label for="ct">Title</label><input id="ct" name="title" required></div><div><label for="cu">Link (https://...)</label><input id="cu" name="url" type="url" required></div></div>
-<div class="two"><div><label for="cc">Category</label><select id="cc" name="category"><option>Business</option><option>Design &amp; Arts</option><option>Law &amp; Policy</option><option>Science &amp; Health</option><option>Social Impact</option><option>Tech &amp; Data</option><option>Other</option></select></div>
+<div class="two"><div><label for="cc">Category</label><select id="cc" name="category"><option value="Business">Business</option><option value="Design &amp; Arts">Design &amp; Arts</option><option value="Law &amp; Policy">Law &amp; Policy</option><option value="Science &amp; Health">Science &amp; Health</option><option value="Social Impact">Social Impact</option><option value="Tech &amp; Data">Tech &amp; Data</option><option value="Other">Other</option></select></div>
 <div><label for="cd">Deadline (text)</label><input id="cd" name="deadline" placeholder="e.g. 30 Nov 2026"></div></div>
 <label for="cx">Short description</label><input id="cx" name="description"><p><button>Add competition</button></p></form></details></section>
 
@@ -45,7 +45,7 @@
 <label>Who can apply</label><input name="who" value="{{ p.who }}">
 <label class="chk"><input type="checkbox" name="active" {{ "checked" if p.active }}> Show on the site</label><p><button class="sm">Save</button></p></form></details>{% endfor %}
 <details class="card" style="margin:.6rem 0"><summary>Add a program</summary><form method="post" action="/admin/program"><input type="hidden" name="csrf" value="{{ csrf }}">
-<div class="two"><div><label>Name</label><input name="name" required></div><div><label>For</label><select name="for_kind"><option>Startup</option><option>Research</option><option>Any</option></select></div></div>
+<div class="two"><div><label>Name</label><input name="name" required></div><div><label>For</label><select name="for_kind"><option value="Startup">Startup</option><option value="Research">Research</option><option value="Any">Any</option></select></div></div>
 <div class="two"><div><label>Organizer</label><input name="org"></div><div><label>Link</label><input name="url" type="url"></div></div>
 <div class="two"><div><label>Amount</label><input name="amount"></div><div><label>Next deadline</label><input type="date" name="next_deadline"></div></div>
 <label>Who can apply</label><input name="who"><label>Note when there is no date</label><input name="deadline_note"><input type="hidden" name="active" value="on"><p><button class="sm">Add program</button></p></form></details></section>

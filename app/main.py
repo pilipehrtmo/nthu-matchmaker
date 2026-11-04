@@ -35,6 +35,18 @@ def ago(d):
         if s >= n: return f"{s // n}{u} ago"
     return "just now"
 templates = Jinja2Templates(directory="app/templates"); templates.env.filters["ago"] = ago
+# 中文: the same templates, translated when loaded (see i18n.py); globals and filters are shared with the English set
+from jinja2 import Environment
+from .i18n import ZhLoader, finalize_zh, keep, pick_lang, LANGS
+templates_zh = Jinja2Templates(env=Environment(loader=ZhLoader("app/templates"), autoescape=True, finalize=finalize_zh))
+templates_zh.env.globals = templates.env.globals; templates_zh.env.filters = templates.env.filters
+templates.env.globals.update(keep=keep, LANGS=LANGS)
+from jinja2 import pass_context
+from .i18n import t as _t
+@pass_context
+def tr_filter(ctx, s): return keep(_t(s, ctx.get("lang", "en")))   # translate a value on purpose (e.g. for a script's lookup table)
+templates.env.filters["tr"] = tr_filter
+def tpl(req): return templates_zh if pick_lang(req) == "zh" else templates
 
 def purge_logs():
     with Session(engine) as s:
@@ -130,11 +142,11 @@ ERR_TITLES = {403: "Security check failed", 404: "Page not found", 429: "Slow do
 async def http_error(req: Request, exc):
     if req.url.path.startswith(("/profile/cv", "/profile/photo", "/avatar/", "/static")) and not req.url.path.endswith("/delete"): return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
     msg = exc.detail if exc.status_code != 404 else "That page does not exist, or it was deleted."
-    return templates.TemplateResponse(req, "error.html", {"user": None, "csrf": req.session.get("csrf", "") if "session" in req.scope else "",
+    return tpl(req).TemplateResponse(req, "error.html", {"user": None, "lang": pick_lang(req), "csrf": req.session.get("csrf", "") if "session" in req.scope else "",
         "theme": req.cookies.get("theme", "light"), "inbox": 0, "title": ERR_TITLES.get(exc.status_code, "Something went wrong"), "msg": msg}, status_code=exc.status_code)
 @app.exception_handler(RequestValidationError)
 async def form_error(req: Request, exc):
-    return templates.TemplateResponse(req, "error.html", {"user": None, "csrf": req.session.get("csrf", ""), "theme": req.cookies.get("theme", "light"), "inbox": 0,
+    return tpl(req).TemplateResponse(req, "error.html", {"user": None, "lang": pick_lang(req), "csrf": req.session.get("csrf", ""), "theme": req.cookies.get("theme", "light"), "inbox": 0,
         "title": "Please check the form", "msg": "A field was missing or had the wrong format (for example letters in a number box). Go back and try again."}, status_code=422)
 
 
@@ -159,7 +171,7 @@ def render(req, name, user=None, **ctx):
         with Session(engine) as s:
             inbox = len(s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
                                .where(Project.owner_id == user.id, Application.status == "pending")).all())
-    return templates.TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, **ctx})
+    return tpl(req).TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, "lang": pick_lang(req), **ctx})
 def go(url): return RedirectResponse(url, status_code=303)
 def kind_of(pr):   # older projects have no kind saved: infer it from the competition link
     return pr.kind or ("Competition" if pr.competition_id else "Side project")
@@ -387,6 +399,12 @@ def run_faculty_check(s, u):
 
 @app.post("/logout")
 def logout(req: Request): req.session.clear(); return go("/")
+
+@app.get("/lang/{code}")
+def set_lang(req: Request, code: str, next: str = "/"):
+    if code not in LANGS: code = "en"
+    back = next if next.startswith("/") and not next.startswith("//") and "\\" not in next else "/"
+    r = go(back); r.set_cookie("lang", code, max_age=31536000, samesite="lax", secure=PUBLIC); return r
 
 @app.get("/privacy")
 def privacy(req: Request, user=Depends(me)): return render(req, "privacy.html", user)
@@ -658,11 +676,12 @@ def new_project(req: Request, comp: str = "", kind: str = "", user=Depends(me), 
 @app.post("/projects/new", dependencies=[limited("newproj", 20, 3600)])
 async def create_project(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
-    f, seats, err = read_project_form(await req.form())
+    form = await req.form()
+    f, seats, err = read_project_form(form)
     if not seats and not err: err = "Add at least one open seat, so people know who you need."
     if err:
         draft = Project(owner_id=user.id, **f)
-        return project_form(req, user, s, pr=draft, seats=seats, error=err, kind=f["kind"], sel="other" if f["event_name"] and f["kind"] == "Competition" else str(f["competition_id"] or ""))
+        return project_form(req, user, s, pr=draft, seats=seats, error=err, kind=f["kind"], sel=str(form.get("competition_id", "")) if f["kind"] == "Competition" else "")
     pr = Project(owner_id=user.id, **f); s.add(pr); s.commit(); s.refresh(pr)
     for x in seats: s.add(Role(project_id=pr.id, advisor=x["adv"], **{k: x[k] for k in SEAT_FIELDS}))
     s.commit(); return go(f"/projects/{pr.id}")
@@ -746,7 +765,7 @@ def onepager(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_
     link = f"{BASE_URL}/projects/{pid}"; buf = io.BytesIO()
     qrcode.make(link, image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=1).save(buf)
     svg = buf.getvalue().decode(); svg = svg[svg.index("<svg"):]
-    return templates.TemplateResponse(req, "onepager.html", dict(pr=pr, owner=s.get(User, pr.owner_id), link=link, qr=Markup(svg),
+    return tpl(req).TemplateResponse(req, "onepager.html", dict(lang=pick_lang(req), pr=pr, owner=s.get(User, pr.owner_id), link=link, qr=Markup(svg),
                                       today=datetime.utcnow().strftime("%-d %b %Y"), **info))
 
 @app.post("/projects/{pid}/delete")

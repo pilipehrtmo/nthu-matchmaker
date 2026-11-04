@@ -11,7 +11,7 @@
 {% elif days is not none %}<span class="pill {{ 'warn' if days <= 7 }}">{{ "Join-by date passed" if days < 0 else ("Last day to join" if days == 0 else (days ~ " days left to join")) }}</span>{% endif %}
 {% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% elif pr.event_name %}<span>{{ "for" if k == "Competition" else "with" }} <b>{{ pr.event_name }}</b></span>{% endif %}</div>
 {% if k == "Startup" and pr.tagline %}<p class="ptag">{{ pr.tagline }}</p>{% endif %}
-{% set ptags = parse_tags(pr.tags) %}{% if ptags %}<div class="ptagrow">{% for n, c in ptags %}<span class="ptag tg-{{ c }}">{{ n }}</span>{% endfor %}</div>{% endif %}
+{% set ptags = parse_tags(pr.tags) %}{% if ptags %}<div class="ptagrow">{% for n, c in ptags %}<span class="ptag tg-{{ c }}">{{ keep(n) }}</span>{% endfor %}</div>{% endif %}
 <p style="margin:0;white-space:pre-line">{{ pr.description or ("" if k == "Startup" and (pr.problem or pr.solution) else "No description yet.") }}</p>
 {% set plinks = parse_links(pr.links) %}{% set shown = plinks|rejectattr("team")|list if not insider else plinks %}
 {% if shown %}<div class="plinks">{% for l in shown %}<a class="plink" href="{{ l.url }}" target="_blank" rel="noopener noreferrer"><span class="li li-{{ link_icon(l.url) }}" aria-hidden="true"></span><span><b>{{ l.label }}</b><small>{{ l.url|replace("https://", "")|replace("http://", "")|truncate(42, True, "…") }}</small></span>{% if l.team %}<span class="pill lockpill" title="Only the team sees this link">🔒 Team</span>{% endif %}</a>{% endfor %}</div>{% endif %}
