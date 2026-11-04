@@ -7,6 +7,17 @@
 <label>What kind of project?</label>
 <div class="kinds" role="radiogroup" aria-label="Project kind">{% for k in kinds %}<label class="kind"><input type="radio" name="kind" value="{{ k }}" {{ "checked" if k == kind }} required><span>{{ k }}</span></label>{% endfor %}</div>
 <p class="muted kindhint">Not entering a competition? Pick Startup, Research or Side project.</p>
+<div class="xbox" id="box-Competition" hidden><p class="xh">Which competition?</p>
+<select id="c" name="competition_id" aria-label="Competition"><option value="">Pick one (optional)</option>
+{% for cat, cs in cgroups %}<optgroup label="{{ cat }}">{% for c in cs %}{% set dl = days_left(c.deadline) if c.deadline else none %}<option value="{{ c.id }}" {{ "selected" if c.id|string == sel }}>{{ c.title }}{% if dl is not none %} · {{ "closed" if dl < 0 else ("deadline today" if dl == 0 else dl ~ " days left") }}{% endif %}</option>{% endfor %}</optgroup>{% endfor %}
+<option value="other" {{ "selected" if sel == "other" }}>Other: not on this list</option></select>
+<div id="cother" hidden><label for="cn">Competition name</label><input id="cn" name="event_name" maxlength="120" value="{{ pr.event_name if pr and pr.kind == 'Competition' else '' }}" placeholder="e.g. Microsoft Imagine Cup 2027">
+<p class="muted fine">Add its website under Links below, so people can read the rules.</p></div>
+<p class="muted fine">These are the {{ comps|length }} competitions listed on the <a href="/#comps">home page</a>.</p></div>
+<div class="xbox" id="box-Club" hidden><p class="xh">Which club or event?</p>
+<label for="cl">Name</label><input id="cl" name="event_name" maxlength="120" list="clubnames" value="{{ pr.event_name if pr and pr.kind == 'Club or event' else '' }}" placeholder="e.g. NTHU Robotics Club, Mei-Chu Games booth">
+<datalist id="clubnames">{% for n in clubs %}<option value="{{ n }}">{% endfor %}</datalist>
+<p class="muted fine">{{ "Start typing to pick a name other teams already used, or type a new one." if clubs else "Type the club or event name. Names you add are suggested to the next teams." }}</p></div>
 <label>Tags <small class="muted">(up to 6; they show on your project card and help people filter)</small></label>
 <div class="ptagpick" id="tagpick">{% for n, c in G.PROJECT_TAGS %}<button type="button" class="ptag tg-{{ c }}" data-n="{{ n }}" data-c="{{ c }}">{{ n }}</button>{% endfor %}</div>
 <div class="customtag"><input id="ctname" maxlength="24" placeholder="Your own tag, e.g. Rust" aria-label="Custom tag name">
@@ -36,9 +47,7 @@
 <div id="links"></div><p><button type="button" class="ghost sm" id="addlink">+ Add a link</button></p>
 <p class="muted fine">Tick "Team only" for links only your accepted teammates should see, like a private repo invite or your task board.</p>
 <input type="hidden" name="links_json" id="linksin">
-<div class="two"><div id="compbox"><label for="c">Which competition? (optional)</label><select id="c" name="competition_id"><option value="">None</option>
-{% for c in comps %}<option value="{{ c.id }}" {{ "selected" if c.id|string == sel }}>{{ c.title }}</option>{% endfor %}</select></div>
-<div><label for="dl">Team must be formed by (optional)</label><input id="dl" name="deadline" type="date" min="{{ today }}" value="{{ pr.deadline if pr else '' }}"></div></div>
+<div class="two"><div><label for="dl">Team must be formed by (optional)</label><input id="dl" name="deadline" type="date" min="{{ today }}" value="{{ pr.deadline if pr else '' }}"></div></div>
 <label for="h">Hours per week</label><input id="h" name="hours" type="number" value="{{ pr.hours_per_week if pr else 4 }}" min="1" max="60" style="max-width:8rem" required>
 <label>Open seats</label>
 {% if filled %}<p class="muted">Filled seats ({{ filled|map(attribute="name")|join(", ") }}) stay as they are. Removing an open seat also removes its applications.</p>{% endif %}
@@ -83,9 +92,12 @@ document.querySelectorAll(".swatches .sw").forEach(b=>b.onclick=()=>{pick=b.data
 const addCustom=()=>{const n=$("ctname").value.replace(/[,:]/g," ").trim().slice(0,24);if(!n||tags.length>=6||tags.some(t=>t.n.toLowerCase()===n.toLowerCase()))return;tags.push({n,c:pick});$("ctname").value="";drawTags()};
 $("ctadd").onclick=addCustom;$("ctname").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCustom()}});drawTags();
 // kind boxes
-const box=$("compbox"),sel=$("c");
-function syncKind(){const k=(document.querySelector("input[name=kind]:checked")||{}).value;box.style.display=k==="Competition"?"":"none";if(k!=="Competition")sel.value="";
- for(const x of ["Startup","Research"]){const b=$("box-"+x),on=k===x;b.hidden=!on;b.querySelectorAll("input,select,textarea").forEach(e=>e.disabled=!on)}}
+const sel=$("c");
+function syncOther(){const on=sel.value==="other"&&!sel.disabled;$("cother").hidden=!on;$("cn").disabled=!on;$("cn").required=on}
+function syncKind(){const k=(document.querySelector("input[name=kind]:checked")||{}).value;
+ for(const [x,id] of [["Startup","Startup"],["Research","Research"],["Competition","Competition"],["Club or event","Club"]]){const b=$("box-"+id),on=k===x;b.hidden=!on;b.querySelectorAll("input,select,textarea").forEach(e=>e.disabled=!on)}
+ syncOther()}
+sel.addEventListener("change",()=>{syncOther();if(sel.value==="other")$("cn").focus()});
 document.querySelectorAll("input[name=kind]").forEach(r=>r.addEventListener("change",syncKind));syncKind();
 $("f").addEventListener("submit",e=>{const v=[...rows.children].map(n=>{const q=c=>n.querySelector(c).value;return{id:n.dataset.id||null,adv:!!n.dataset.adv,name:q(".s-name").trim(),skills:q(".s-skills"),about:q(".s-about"),must:q(".s-must"),nice:q(".s-nice"),years:q(".s-years"),years_in:q(".s-yin")}}).filter(x=>x.name);
  if(!v.length&&!{{ 'true' if filled else 'false' }}){e.preventDefault();e.stopImmediatePropagation();const m=$("seaterr");m.hidden=false;m.scrollIntoView({block:"center"});return}

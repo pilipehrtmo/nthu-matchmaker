@@ -523,8 +523,14 @@ def team_info(s, pr):
 
 def project_form(req, user, s, pr=None, seats=None, error="", **kw):
     kind = kw.get("kind", pr.kind if pr else "")
-    return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), kind=kind, kinds=PROJECT_KINDS, sel=kw.get("sel", str(pr.competition_id or "") if pr else ""),
-                  today=datetime.utcnow().date().isoformat(), comps=s.exec(select(Competition).order_by(Competition.title)).all())
+    sel = kw.get("sel", ("other" if pr.event_name and pr.kind == "Competition" else str(pr.competition_id or "")) if pr else "")
+    comps = s.exec(select(Competition).order_by(Competition.title)).all()
+    groups = {}   # competitions grouped by category, open ones first within each group
+    for c in sorted(comps, key=lambda c: (days_left(c.deadline) is not None and days_left(c.deadline) < 0, c.title.lower())):
+        groups.setdefault(c.category or "Other", []).append(c)
+    clubs = sorted({n for n in s.exec(select(Project.event_name).where(Project.kind == "Club or event")).all() if n}, key=str.lower)[:200]
+    return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), kind=kind, kinds=PROJECT_KINDS, sel=sel,
+                  today=datetime.utcnow().date().isoformat(), comps=comps, cgroups=sorted(groups.items(), key=lambda g: (g[0] == "Other", g[0])), clubs=clubs, days_left=days_left)
 
 SEAT_FIELDS = ("name", "skills", "about", "must", "nice", "years", "years_in")
 def _lines(v, n=8, w=160): return "\n".join([re.sub(r"\s+", " ", l).strip(" -•*")[:w] for l in str(v or "").splitlines() if l.strip()][:n])
@@ -601,11 +607,14 @@ def read_project_form(form, pr=None):
     elif f["deadline"] and days_left(f["deadline"]) is None: err = "The join-by date is not a valid date."
     elif f["deadline"] and days_left(f["deadline"]) < 0 and not (pr and pr.deadline == f["deadline"]): err = "The join-by date is in the past. Pick a future date or leave it empty."
     elif len(seats) > 12: err = "A project can have at most 12 seats."
+    other = kind == "Competition" and f["competition_id"] == "other"
+    event = re.sub(r"\s+", " ", str(form.get("event_name", ""))).strip()[:120] if other or kind == "Club or event" else ""
+    if not err and other and len(event) < 3: err = "You picked Other: type the competition's name."
     cats = guide.STARTUP_CATEGORIES if kind == "Startup" else guide.RESEARCH_FIELDS if kind == "Research" else []
     out = dict(title=f["title"][:120], description=f["description"][:2000], kind=kind, hours_per_week=hours if 1 <= hours <= 60 else 4,
                deadline=f["deadline"][:10], category=f["category"] if f["category"] in cats else "",
                stage=f["stage"] if kind == "Startup" and f["stage"] in [n for n, _ in guide.STARTUP_STAGES] else "",
-               competition_id=int(f["competition_id"]) if f["competition_id"].isdigit() and kind == "Competition" else None)
+               competition_id=int(f["competition_id"]) if f["competition_id"].isdigit() and kind == "Competition" else None, event_name=event)
     for k, _ in PITCH_FIELDS: out[k] = pitch[k] if kind == "Startup" else ""
     out["tags"] = tags_str(form.get("tags", ""))
     out["links"] = json.dumps(parse_links(str(form.get("links_json", ""))), ensure_ascii=False)
@@ -624,7 +633,7 @@ async def create_project(req: Request, user=Depends(me), s: Session = Depends(ge
     if not seats and not err: err = "Add at least one open seat, so people know who you need."
     if err:
         draft = Project(owner_id=user.id, **f)
-        return project_form(req, user, s, pr=draft, seats=seats, error=err, kind=f["kind"], sel=str(f["competition_id"] or ""))
+        return project_form(req, user, s, pr=draft, seats=seats, error=err, kind=f["kind"], sel="other" if f["event_name"] and f["kind"] == "Competition" else str(f["competition_id"] or ""))
     pr = Project(owner_id=user.id, **f); s.add(pr); s.commit(); s.refresh(pr)
     for x in seats: s.add(Role(project_id=pr.id, advisor=x["adv"], **{k: x[k] for k in SEAT_FIELDS}))
     s.commit(); return go(f"/projects/{pr.id}")

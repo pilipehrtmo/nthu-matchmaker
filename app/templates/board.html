@@ -25,7 +25,7 @@
 <div class="fillrow"><div class="bar" aria-hidden="true"><i style="width:{{ (filled / r.total * 100)|int }}%"></i></div><span>{{ filled }} of {{ r.total }} seat{{ "s" if r.total != 1 }} filled</span></div></article>
 {% endfor %}</div>
 <div class="box" id="f-empty" {{ "hidden" if rows else "" }}>No open seats match these filters. <button type="button" class="linkbtn" id="f-reset">Clear filters</button> or <a href="/projects/new">post a project</a>.</div>
-<h2 style="margin-top:2.2rem">Competitions &amp; grants</h2>
+<h2 style="margin-top:2.2rem" id="comps">Competitions &amp; grants</h2>
 <p class="muted">Contests for every faculty, not just engineering. Pick one and start a team for it.</p>
 <div class="chips" id="ccats"><button type="button" class="chip {{ 'on' if not cat }}" data-c="">All</button>
 {% for c in cats %}<button type="button" class="chip {{ 'on' if cat == c }}" data-c="{{ c }}">{{ c }}</button>{% endfor %}</div>

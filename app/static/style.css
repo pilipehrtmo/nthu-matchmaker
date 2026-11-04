@@ -610,3 +610,5 @@ html.loading{cursor:progress}
   .seat-top{grid-template-columns:minmax(0,1fr) auto}.seat-top .s-skills{grid-column:1/-1;grid-row:2}
   .seat-ed{padding:.95rem}.ptagpick .ptag{font-size:.85rem;padding:.38rem .8rem}
 }
+#box-Competition select{max-width:100%}#cother{margin-top:.2rem}
+#box-Competition optgroup{font-weight:700}#box-Competition option{font-weight:400}

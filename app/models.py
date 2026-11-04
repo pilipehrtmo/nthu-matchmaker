@@ -77,6 +77,7 @@ class Project(SQLModel, table=True):
     needs: str = ""       # what the team needs (people, help)
     metrics: str = ""     # up to 3 lines "12 | stall owners interviewed"
     tags: str = ""        # "Website:blue,Robotics:orange" (name:colour), at most 6
+    event_name: str = ""  # Competition not on the site's list, or the club / event name
     links: str = ""       # JSON list of {label, url, team}: repo, Trello, timeline...; team=True means only the team sees it
     hours_per_week: int = 4
     deadline: str = ""

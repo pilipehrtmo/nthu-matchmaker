@@ -8,7 +8,7 @@
 <span class="byline">{{ pic(owner, "av xs") }}<span>by <a href="/u/{{ owner.handle }}">{{ owner|dn }}</a></span>{% if owner.verified %}<span class="pill ok">✔ verified</span>{% endif %}</span><span>{{ pr.hours_per_week }} h/week</span>
 {% if pr.status == "closed" %}<span class="pill warn">Not recruiting</span>
 {% elif days is not none %}<span class="pill {{ 'warn' if days <= 7 }}">{{ "Join-by date passed" if days < 0 else ("Last day to join" if days == 0 else (days ~ " days left to join")) }}</span>{% endif %}
-{% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% endif %}</div>
+{% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% elif pr.event_name %}<span>{{ "for" if k == "Competition" else "with" }} <b>{{ pr.event_name }}</b></span>{% endif %}</div>
 {% if k == "Startup" and pr.tagline %}<p class="ptag">{{ pr.tagline }}</p>{% endif %}
 {% set ptags = parse_tags(pr.tags) %}{% if ptags %}<div class="ptagrow">{% for n, c in ptags %}<span class="ptag tg-{{ c }}">{{ n }}</span>{% endfor %}</div>{% endif %}
 <p style="margin:0;white-space:pre-line">{{ pr.description or ("" if k == "Startup" and (pr.problem or pr.solution) else "No description yet.") }}</p>
