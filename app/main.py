@@ -142,6 +142,14 @@ def go(url): return RedirectResponse(url, status_code=303)
 def kind_of(pr):   # older projects have no kind saved: infer it from the competition link
     return pr.kind or ("Competition" if pr.competition_id else "Side project")
 templates.env.globals["kind_of"] = kind_of
+
+@__import__('functools').lru_cache(maxsize=None)
+def asset(name: str) -> str:   # /static/x?v=<content hash>: browsers fetch a new copy whenever the file changes
+    import hashlib
+    try: v = hashlib.md5(open(f"app/static/{name}", "rb").read()).hexdigest()[:10]
+    except OSError: v = "0"
+    return f"/static/{name}?v={v}"
+templates.env.globals["asset"] = asset
 templates.env.globals.update(CONTACTS=CONTACTS, PRO_LINKS=PRO_LINKS, G=guide)
 templates.env.filters["shortlink"] = short
 
