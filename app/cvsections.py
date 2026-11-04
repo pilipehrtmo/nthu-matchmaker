@@ -66,7 +66,11 @@ def _entries(lines, kind):
     for g in groups:
         if kind == "projects":
             m = re.match(rf"(.{{3,80}}?)[\s,·|]+((?:{MON}\s+)?(?:19|20)\d\d(?:\W{{1,4}}(?:(?:{MON}\s+)?(?:19|20)\d\d|present|now|ongoing))?)\s*$", g[0], re.I)
-            title = f"{m.group(1).strip(' ,·|')} ({re.sub(r'\W{1,4}(?=[A-Za-z]|\d{4})', lambda x: ' – ' if not x.group(0).strip() == '' or len(x.group(0)) > 1 else ' ', m.group(2)).strip()})" if m else g[0]
+            if m:   # no backslashes inside f-strings: Render runs Python 3.11, which does not allow them
+                dates = re.sub(r"\W{1,4}(?=[A-Za-z]|\d{4})", lambda x: " – " if x.group(0).strip() or len(x.group(0)) > 1 else " ", m.group(2)).strip()
+                title = m.group(1).strip(" ,·|") + " (" + dates + ")"
+            else:
+                title = g[0]
             if m:
                 rest = " ".join(g[1:])
                 sub = g[1] if len(g) > 1 and len(g[1]) <= 70 else re.split(r"(?<=[.!?])\s", rest, maxsplit=1)[0]
