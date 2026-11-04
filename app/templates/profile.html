@@ -44,7 +44,7 @@ document.getElementById("phfile").addEventListener("change",async e=>{const f=e.
 <form method="post" action="/profile/password#password" class="card pwform"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="email" value="{{ user.email }}" autocomplete="username" hidden readonly>
 {% if user.password_hash %}<label for="cpw">Current password</label><input id="cpw" name="current" type="password" required autocomplete="current-password">{% endif %}
 <div class="two"><div><label for="npw">New password</label><input id="npw" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></div>
-<div><label for="npw2">Type it again</label><input id="npw2" name="password2" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></div></div>
+<div><label for="npw2">Confirm password</label><input id="npw2" name="password2" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></div></div>
 <p><button class="sm">Save password</button></p></form>
 <h2 style="margin-top:2rem">Delete my account</h2><p class="muted">Removes your profile, name, student ID, projects and applications. This cannot be undone.</p>
 <form method="post" action="/profile/delete" class="card"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="dl">Type DELETE to confirm</label><input id="dl" name="confirm" autocomplete="off"><p><button class="no">Delete my account</button></p></form><script>

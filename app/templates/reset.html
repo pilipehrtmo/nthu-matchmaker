@@ -4,5 +4,5 @@
 <form method="post" class="card" hx-boost="false"><input type="hidden" name="csrf" value="{{ csrf }}">
 <input type="email" value="{{ who.email }}" autocomplete="username" hidden readonly>
 <label for="pw">New password</label><input id="pw" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" autofocus>
-<label for="pw2">Type it again</label><input id="pw2" name="password2" type="password" required minlength="8" maxlength="128" autocomplete="new-password">
+<label for="pw2">Confirm password</label><input id="pw2" name="password2" type="password" required minlength="8" maxlength="128" autocomplete="new-password">
 <p class="muted fine">At least 8 characters. Don't reuse your school or email password.</p><p><button>Save password and log in</button></p></form></div>{% endblock %}
