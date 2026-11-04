@@ -31,6 +31,9 @@ class User(SQLModel, table=True):
     faculty_url: str = ""      # NTHU page that lists them
     faculty_note: str = ""     # result of the last automatic check
     title: str = ""            # Professor, Associate Professor, ...
+    competitions: str = ""    # one per line: competitions they entered (public)
+    past_projects: str = ""   # one per line: projects they built (public)
+    awards: str = ""          # one per line: awards and honours (public)
     password_hash: str = ""   # salted scrypt hash; "" for accounts made before passwords (they set one through a link)
     email_verified: bool = False
     avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one
@@ -73,6 +76,8 @@ class Project(SQLModel, table=True):
     progress: str = ""    # what the team has done so far, one item per line
     needs: str = ""       # what the team needs (people, help)
     metrics: str = ""     # up to 3 lines "12 | stall owners interviewed"
+    tags: str = ""        # "Website:blue,Robotics:orange" (name:colour), at most 6
+    links: str = ""       # JSON list of {label, url, team}: repo, Trello, timeline...; team=True means only the team sees it
     hours_per_week: int = 4
     deadline: str = ""
     status: str = "open"
@@ -85,6 +90,11 @@ class Role(SQLModel, table=True):
     skills: str = ""
     filled: bool = False
     advisor: bool = False     # a seat for a professor or mentor; accepted advisors can leave remarks
+    about: str = ""           # what this person will do
+    must: str = ""            # requirements, one per line
+    nice: str = ""            # nice to have, one per line
+    years: int = 0            # minimum years of experience (0 = none asked)
+    years_in: str = ""        # ... in what, e.g. "Rust"
 
 class Application(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

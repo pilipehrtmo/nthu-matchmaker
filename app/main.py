@@ -373,7 +373,11 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     if name != user.name: user.handle = slugify(s, name, user.id)   # the web address follows the name
     user.name, user.bio, user.contact = name, bio[:500], clean_contact(contact, 100)
     user.faculty, user.hours = faculty.strip()[:40], max(1, min(hours, 60))
-    user.skills = ",".join(sorted(tags(skills))); s.add(user); s.commit()
+    user.skills = ",".join(sorted(tags(skills)))
+    for f in ("competitions", "past_projects", "awards"):   # one item per line, at most 10 lines of 200 characters
+        lines = [re.sub(r"\s+", " ", l).strip(" -•*")[:200] for l in str(form.get(f, "")).splitlines()]
+        setattr(user, f, "\n".join([l for l in lines if l][:10]))
+    s.add(user); s.commit()
     return go("/")
 
 @app.post("/profile/cv", dependencies=[limited("cv", 30, 3600)])
@@ -514,17 +518,73 @@ def project_form(req, user, s, pr=None, seats=None, error="", **kw):
     return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), kind=kind, kinds=PROJECT_KINDS, sel=kw.get("sel", str(pr.competition_id or "") if pr else ""),
                   today=datetime.utcnow().date().isoformat(), comps=s.exec(select(Competition).order_by(Competition.title)).all())
 
+SEAT_FIELDS = ("name", "skills", "about", "must", "nice", "years", "years_in")
+def _lines(v, n=8, w=160): return "\n".join([re.sub(r"\s+", " ", l).strip(" -•*")[:w] for l in str(v or "").splitlines() if l.strip()][:n])
+def clean_seat(d):
+    try: years = max(0, min(int(d.get("years") or 0), 20))
+    except (TypeError, ValueError): years = 0
+    try: rid = int(d.get("id") or 0) or None
+    except (TypeError, ValueError): rid = None
+    return dict(id=rid, adv=bool(d.get("adv")), name=re.sub(r"\s+", " ", str(d.get("name", ""))).strip()[:60],
+                skills=",".join(t.strip() for t in str(d.get("skills", "")).split(",") if t.strip())[:200],
+                about=str(d.get("about", "")).strip()[:600], must=_lines(d.get("must")), nice=_lines(d.get("nice")),
+                years=years, years_in=re.sub(r"\s+", " ", str(d.get("years_in", ""))).strip()[:40] if years else "")
+
+def parse_seats(js, legacy=""):
+    """Seats come from the form as JSON; the old one-line-per-seat text ("UI designer: figma") still works."""
+    import json
+    try: raw = json.loads(js) if js.strip() else None
+    except ValueError: raw = None
+    if not isinstance(raw, list):
+        raw = []
+        for line in legacy.splitlines():
+            m = re.match(r"#(\d+) (.*)", line); rid = int(m.group(1)) if m else None; line = m.group(2) if m else line
+            adv = line.startswith("@"); name, _, sk = (line[1:] if adv else line).partition(":")
+            raw.append(dict(id=rid, adv=adv, name=name, skills=sk))
+    return [x for x in (clean_seat(d) for d in raw[:13] if isinstance(d, dict)) if x["name"]]
+
+def parse_tags(v):
+    out = []
+    for part in str(v or "").split(","):
+        name, _, color = part.partition(":"); name = re.sub(r"\s+", " ", name).strip()[:24]
+        if name and name.lower() not in [n.lower() for n, _ in out]:
+            out.append((name, color if color in guide.TAG_COLORS else "slate"))
+    return out[:6]
+def tags_str(v): return ",".join(f"{n}:{c}" for n, c in parse_tags(v))
+
+def parse_links(v):
+    import json
+    try: raw = json.loads(v) if isinstance(v, str) and v.strip() else (v or [])
+    except ValueError: raw = []
+    out = []
+    for d in raw if isinstance(raw, list) else []:
+        if not isinstance(d, dict): continue
+        url = str(d.get("url", "")).strip()[:300]
+        if url and not re.match(r"^https?://", url, re.I): url = "https://" + url
+        if not re.match(r"^https?://[^\s/$.?#][^\s]*\.[^\s]+$", url, re.I): continue
+        label = re.sub(r"\s+", " ", str(d.get("label", ""))).strip()[:30] or link_label(url)
+        out.append(dict(label=label, url=url, team=bool(d.get("team"))))
+    return out[:6]
+def link_label(url):
+    for label, host in guide.LINK_KINDS:
+        if host and host in url.lower(): return label
+    return "Link"
+def link_icon(url):
+    u = url.lower()
+    for key in ("github", "trello", "notion", "figma", "google", "gitlab", "miro", "canva", "youtube"):
+        if key in u: return key
+    return "link"
+templates.env.globals.update(parse_tags=parse_tags, parse_links=parse_links, link_icon=link_icon)
+
+def seat_dict(r): return dict(id=r.id, adv=r.advisor, **{k: getattr(r, k) for k in SEAT_FIELDS})
+
 def read_project_form(form, pr=None):
     """Check the project form. Returns (fields, seat lines, error)."""
     f = {k: str(form.get(k, "")).strip() for k in ("title", "description", "competition_id", "hours", "deadline", "roles", "kind", "category", "stage")}
+    import json
     pitch = {k: str(form.get(k, "")).replace("\r", "").strip()[:n] for k, n in PITCH_FIELDS}
     kind = f["kind"] if f["kind"] in PROJECT_KINDS else "Other"
-    seats = []
-    for line in f["roles"].splitlines():          # one seat per line: "UI designer: figma, ux", existing seats start with "#<id> "
-        m = re.match(r"#(\d+) (.*)", line); rid = int(m.group(1)) if m else None; line = m.group(2) if m else line
-        adv = line.startswith("@"); line = line[1:] if adv else line   # "@" marks an advisor seat
-        name, _, sk = line.partition(":")
-        if name.strip(): seats.append((name.strip()[:60], ",".join(t.strip() for t in sk.split(",") if t.strip())[:200], rid, adv))
+    seats = parse_seats(str(form.get("roles_json", "")), f["roles"])
     try: hours = int(f["hours"] or 4)
     except ValueError: hours = 0
     err = ""
@@ -539,6 +599,8 @@ def read_project_form(form, pr=None):
                stage=f["stage"] if kind == "Startup" and f["stage"] in [n for n, _ in guide.STARTUP_STAGES] else "",
                competition_id=int(f["competition_id"]) if f["competition_id"].isdigit() and kind == "Competition" else None)
     for k, _ in PITCH_FIELDS: out[k] = pitch[k] if kind == "Startup" else ""
+    out["tags"] = tags_str(form.get("tags", ""))
+    out["links"] = json.dumps(parse_links(str(form.get("links_json", ""))), ensure_ascii=False)
     return out, seats, err
 
 @app.get("/projects/new")
@@ -556,7 +618,7 @@ async def create_project(req: Request, user=Depends(me), s: Session = Depends(ge
         draft = Project(owner_id=user.id, **f)
         return project_form(req, user, s, pr=draft, seats=seats, error=err, kind=f["kind"], sel=str(f["competition_id"] or ""))
     pr = Project(owner_id=user.id, **f); s.add(pr); s.commit(); s.refresh(pr)
-    for n, sk, _, adv in seats: s.add(Role(project_id=pr.id, name=n, skills=sk, advisor=adv))
+    for x in seats: s.add(Role(project_id=pr.id, advisor=x["adv"], **{k: x[k] for k in SEAT_FIELDS}))
     s.commit(); return go(f"/projects/{pr.id}")
 
 @app.get("/projects/{pid}/edit")
@@ -565,7 +627,7 @@ def edit_project(req: Request, pid: int, user=Depends(me), s: Session = Depends(
     if not pr: raise HTTPException(404)
     if not user or user.id != pr.owner_id: return go(f"/projects/{pid}")
     roles = s.exec(select(Role).where(Role.project_id == pid).order_by(Role.id)).all()
-    return project_form(req, user, s, pr=pr, seats=[(r.name, r.skills, r.id, r.advisor) for r in roles if not r.filled], filled=[r for r in roles if r.filled])
+    return project_form(req, user, s, pr=pr, seats=[seat_dict(r) for r in roles if not r.filled], filled=[r for r in roles if r.filled])
 
 @app.post("/projects/{pid}/edit", dependencies=[limited("editproj", 30, 3600)])
 async def save_project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_session)):
@@ -581,15 +643,17 @@ async def save_project(req: Request, pid: int, user=Depends(me), s: Session = De
         return project_form(req, user, s, pr=pr, seats=seats, error=err)
     if not seats and not any(r.filled for r in roles): return project_form(req, user, s, pr=pr, seats=seats, error="Keep at least one seat.")
     for k, v in f.items(): setattr(pr, k, v)
-    keep = {rid: (n, sk, adv) for n, sk, rid, adv in seats if rid}
+    keep = {x["id"]: x for x in seats if x["id"]}
     for r in open_roles:   # edited seats keep their applicants; removed seats take their applications with them
-        if r.id in keep: r.name, r.skills, r.advisor = keep[r.id]
+        if r.id in keep:
+            for k in SEAT_FIELDS: setattr(r, k, keep[r.id][k])
+            r.advisor = keep[r.id]["adv"]
         else:
             for a in s.exec(select(Application).where(Application.role_id == r.id)).all(): s.delete(a)
             s.delete(r)
     ids = {r.id for r in open_roles}
-    for n, sk, rid, adv in seats:
-        if rid not in ids: s.add(Role(project_id=pid, name=n, skills=sk, advisor=adv))
+    for x in seats:
+        if x["id"] not in ids: s.add(Role(project_id=pid, advisor=x["adv"], **{k: x[k] for k in SEAT_FIELDS}))
     s.commit(); return go(f"/projects/{pid}")
 
 @app.post("/projects/{pid}/status")
@@ -603,7 +667,7 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     pr = s.get(Project, pid)
     if not pr: raise HTTPException(404)
     owner = s.get(User, pr.owner_id); is_owner = bool(user and user.id == owner.id); out = []
-    for r in s.exec(select(Role).where(Role.project_id == pid)):
+    for r in s.exec(select(Role).where(Role.project_id == pid).order_by(Role.id)):
         apps = []
         for a in s.exec(select(Application).where(Application.role_id == r.id)):
             # application notes are private: only the project lead, the applicant and admins see them
@@ -662,13 +726,21 @@ def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depe
     elif not dup: s.add(Application(role_id=rid, user_id=user.id, message=message.strip()[:500])); s.commit()
     return go(f"/projects/{pr.id}?n=sent")
 
+@app.post("/applications/{aid}/edit", dependencies=[limited("appedit", 60, 3600)])
+def edit_application(aid: int, message: str = Form(""), next: str = Form("/activity"), user=Depends(me), s: Session = Depends(get_session)):
+    a = s.get(Application, aid)
+    if not a: raise HTTPException(404)
+    if user and a.user_id == user.id and a.status == "pending": a.message = message.strip()[:500]; s.commit()
+    return go((next if next.startswith(("/activity", "/projects/")) else "/activity") + "?n=edited")
+
 @app.post("/applications/{aid}/{decision}")
-def decide(aid: int, decision: str, user=Depends(me), s: Session = Depends(get_session)):
+def decide(aid: int, decision: str, next: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     a = s.get(Application, aid); r = s.get(Role, a.role_id) if a else None; pr = s.get(Project, r.project_id) if r else None
     if not pr: raise HTTPException(404)
     if not user: return go("/login")
     if decision == "withdrawn" and a.user_id == user.id and a.status == "pending":
-        a.status = "withdrawn"; s.commit(); return go(f"/projects/{pr.id}?n=withdrawn")
+        a.status = "withdrawn"; s.commit()
+        return go("/activity?n=withdrawn" if next == "/activity" else f"/projects/{pr.id}?n=withdrawn")
     if user.id == pr.owner_id and a.status == "pending" and decision in ("accepted", "rejected") and not r.filled:
         a.status = decision
         if decision == "accepted":

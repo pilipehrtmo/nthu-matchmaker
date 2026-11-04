@@ -128,3 +128,11 @@ def readiness(prog, pr, members, students, advisors):
         out.append(("ok" if fits else "you", f"Category fits ({pr.category})" if fits else "Check that your project's field fits this program", "category" if not pr.category else ""))
     for c in filter(None, prog.self_checks.split("|")): out.append(("you", c, ""))
     return out
+
+# ---------- project tags: a fixed palette so every colour reads well in light and dark mode ----------
+TAG_COLORS = ["violet", "blue", "sky", "teal", "green", "lime", "amber", "orange", "red", "pink", "slate"]
+PROJECT_TAGS = [("Website", "blue"), ("Mobile app", "sky"), ("Systems", "slate"), ("Robotics", "orange"), ("Business", "amber"),
+                ("Embedded", "teal"), ("Database", "violet"), ("Kernel", "red"), ("AI / ML", "pink"), ("Hardware", "orange"),
+                ("Design", "pink"), ("Data", "green"), ("Game", "violet"), ("Security", "red"), ("Cloud", "sky"), ("Social impact", "lime")]
+LINK_KINDS = [("GitHub repo", "github.com"), ("GitHub project", "github.com"), ("Trello board", "trello.com"), ("Notion", "notion."),
+              ("Figma", "figma.com"), ("Google Doc / Drive", "google.com"), ("Timeline", ""), ("Website", ""), ("Other", "")]

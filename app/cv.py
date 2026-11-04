@@ -5,6 +5,7 @@ The student always checks the suggestions before pressing Save.
 """
 import io, re, zipfile
 from xml.etree import ElementTree
+from .cvsections import unspace, find_sections
 
 MAX_BYTES = 5 * 1024 * 1024
 
@@ -40,7 +41,7 @@ HEADER = re.compile(r"^\s*(education|experience|work experience|projects?|skills
                     r"leadership|certifications?|languages|publications|volunteer|references|interests|學歷|經歷|專案|技能|獲獎)\s*:?\s*$", re.I)
 FAC_PATTERNS = [
     re.compile(r"(?:department|dept\.?|school|college|faculty|institute)\s+of\s+([A-Z][A-Za-z&,\- ]{3,50})", re.I),
-    re.compile(r"(?:b\.?s\.?c?\.?|b\.?a\.?|bachelor(?:'s)?(?: of [a-z]+)?|m\.?s\.?|master(?:'s)?(?: of [a-z]+)?)\s*(?:degree\s*)?(?:in|,)\s+([A-Z][A-Za-z&\- ]{3,50})", re.I),
+    re.compile(r"\b(?:b\.?s\.?c?\.?|b\.?a\.?|bachelor(?:'s)?(?: of [a-z]+)?|m\.?s\.?|master(?:'s)?(?: of [a-z]+)?)\s*(?:degree\s*)?(?:in|,)\s+([A-Z][A-Za-z&\- ]{3,50})", re.I),
     re.compile(r"\bmajor(?:ing)?\s*(?:in|:)\s*([A-Za-z&\- ]{3,50})", re.I),
     re.compile(r"([一-鿿]{2,12}(?:學系|系|研究所|學院|學位學程))"),
 ]
@@ -190,7 +191,7 @@ def _find_bio(text: str, faculty: str, skills: list[str]) -> str:
 
 
 def parse_cv(filename: str, data: bytes, known_skills: set[str] = frozenset()) -> dict:
-    text = extract_text(filename, data)
+    text = unspace(extract_text(filename, data))
     text = text.replace(" ", " ").replace("\r", "")
     skills = _find_skills(text, set(known_skills))
     faculty = _find_faculty(text)
@@ -198,4 +199,4 @@ def parse_cv(filename: str, data: bytes, known_skills: set[str] = frozenset()) -
     email = EMAIL.search(text)
     return {"skills": skills, "faculty": faculty, "contacts": contacts, "links": _find_links(text),
             "contact": email.group(0) if email and not contacts else "",   # "other" contact only as a fallback
-            "bio": _find_bio(text, faculty, skills)}
+            "bio": _find_bio(text, faculty, skills), **find_sections(text)}

@@ -7,6 +7,12 @@
 <label>What kind of project?</label>
 <div class="kinds" role="radiogroup" aria-label="Project kind">{% for k in kinds %}<label class="kind"><input type="radio" name="kind" value="{{ k }}" {{ "checked" if k == kind }} required><span>{{ k }}</span></label>{% endfor %}</div>
 <p class="muted kindhint">Not entering a competition? Pick Startup, Research or Side project.</p>
+<label>Tags <small class="muted">(up to 6; they show on your project card and help people filter)</small></label>
+<div class="ptagpick" id="tagpick">{% for n, c in G.PROJECT_TAGS %}<button type="button" class="ptag tg-{{ c }}" data-n="{{ n }}" data-c="{{ c }}">{{ n }}</button>{% endfor %}</div>
+<div class="customtag"><input id="ctname" maxlength="24" placeholder="Your own tag, e.g. Rust" aria-label="Custom tag name">
+<div class="swatches" role="radiogroup" aria-label="Tag colour">{% for c in G.TAG_COLORS %}<button type="button" class="sw tg-{{ c }} {{ 'on' if loop.first }}" data-c="{{ c }}" aria-label="{{ c }}"></button>{% endfor %}</div>
+<button type="button" class="ghost sm" id="ctadd">Add tag</button></div>
+<div class="ptagsel" id="tagsel" aria-live="polite"></div><input type="hidden" name="tags" id="tagsin" value="{{ pr.tags if pr else '' }}">
 
 <div class="xbox" id="box-Startup" hidden><p class="xh">About your startup</p>
 <label>Category</label><div class="kinds" role="radiogroup" aria-label="Startup category">{% for c in G.STARTUP_CATEGORIES %}<label class="kind"><input type="radio" name="category" value="{{ c }}" data-for="Startup" {{ "checked" if pr and pr.kind == "Startup" and pr.category == c }}><span>{{ c }}</span></label>{% endfor %}</div>
@@ -26,27 +32,64 @@
 <p class="muted">Your project page will suggest well-known places to publish or share work in this field, and the NSTC undergraduate research grant.</p></div>
 
 <label for="d">What are you building?</label><textarea id="d" name="description" rows="5" maxlength="2000" placeholder="The idea, the goal, what you've done so far">{{ pr.description if pr else '' }}</textarea>
+<label>Links <small class="muted">(optional: GitHub repo, Trello board, timeline, docs…)</small></label>
+<div id="links"></div><p><button type="button" class="ghost sm" id="addlink">+ Add a link</button></p>
+<p class="muted fine">Tick "Team only" for links only your accepted teammates should see, like a private repo invite or your task board.</p>
+<input type="hidden" name="links_json" id="linksin">
 <div class="two"><div id="compbox"><label for="c">Which competition? (optional)</label><select id="c" name="competition_id"><option value="">None</option>
 {% for c in comps %}<option value="{{ c.id }}" {{ "selected" if c.id|string == sel }}>{{ c.title }}</option>{% endfor %}</select></div>
 <div><label for="dl">Team must be formed by (optional)</label><input id="dl" name="deadline" type="date" min="{{ today }}" value="{{ pr.deadline if pr else '' }}"></div></div>
 <label for="h">Hours per week</label><input id="h" name="hours" type="number" value="{{ pr.hours_per_week if pr else 4 }}" min="1" max="60" style="max-width:8rem" required>
-<label>{{ "Open seats" }}</label>
+<label>Open seats</label>
 {% if filled %}<p class="muted">Filled seats ({{ filled|map(attribute="name")|join(", ") }}) stay as they are. Removing an open seat also removes its applications.</p>{% endif %}
 <div id="rows"></div><p class="err" id="seaterr" hidden>Add at least one open seat.</p><p><button type="button" class="ghost sm" id="add">+ Add a seat</button> <button type="button" class="ghost sm" id="addadv">+ Add an advisor seat</button></p>
 <p class="muted fine" id="advhint">An advisor seat is for a professor or mentor. Once you accept them, they can leave remarks on your project. Research grants such as NSTC's need a professor as advisor.</p>
-<input type="hidden" name="roles" id="roles"><p class="formacts"><button>{{ "Save changes" if editing else "Publish project" }}</button>{% if editing %} <a class="ghost btn" href="/projects/{{ pr.id }}">Cancel</a>{% endif %}</p></form>
+<input type="hidden" name="roles_json" id="roles"><p class="formacts"><button>{{ "Save changes" if editing else "Publish project" }}</button>{% if editing %} <a class="ghost btn" href="/projects/{{ pr.id }}">Cancel</a>{% endif %}</p></form>
+<template id="seatT"><div class="seat-ed"><div class="seat-top"><span class="advtag" hidden>Advisor</span>
+<input class="s-name" placeholder="Role, e.g. Systems engineer" aria-label="Role" maxlength="60"><input class="s-skills" placeholder="Skills for matching, comma-separated" aria-label="Skills">
+<button type="button" class="ghost sm s-del" aria-label="Remove seat">✕</button></div>
+<details class="s-more"><summary>Details: what they'll do, requirements, experience</summary>
+<label>What they'll do</label><textarea class="s-about" rows="2" maxlength="600" placeholder="e.g. Design the storage engine and write-ahead log"></textarea>
+<div class="two"><div><label>Requirements <small class="muted">(must have, one per line)</small></label><textarea class="s-must" rows="3" placeholder="Comfortable with Rust&#10;Has used Git"></textarea></div>
+<div><label>Nice to have <small class="muted">(a plus, one per line)</small></label><textarea class="s-nice" rows="3" placeholder="Knows how B-trees work&#10;Took an OS course"></textarea></div></div>
+<label>Experience <small class="muted">(optional)</small></label><div class="yrs"><input class="s-years" type="number" min="0" max="20" placeholder="0" aria-label="Years"><span>+ years in</span><input class="s-yin" maxlength="40" placeholder="e.g. Rust" aria-label="Experience in"></div>
+</details></div></template>
+<template id="linkT"><div class="link-ed"><select class="l-label" aria-label="Link type">{% for l, h in G.LINK_KINDS %}<option>{{ l }}</option>{% endfor %}</select>
+<input class="l-url" type="text" inputmode="url" autocapitalize="none" spellcheck="false" placeholder="github.com/you/project" aria-label="Link"><label class="chk"><input type="checkbox" class="l-team"><span>Team only</span></label><button type="button" class="ghost sm l-del" aria-label="Remove link">✕</button></div></template>
 <script>
-const rows=document.getElementById("rows");
-function addRow(n="",s="",id="",adv=false){const d=document.createElement("div");d.className="row"+(adv?" adv":"");d.dataset.id=id;d.dataset.adv=adv?"1":"";
-d.innerHTML='<input placeholder="Role, e.g. UI designer" aria-label="Role" maxlength="60"><input placeholder="Skills, comma-separated" aria-label="Skills"><button type="button" class="ghost sm" aria-label="Remove seat">✕</button>';
-d.children[0].value=n;d.children[1].value=s;d.children[2].onclick=()=>d.remove();if(adv){d.children[1].placeholder="Field or expertise, e.g. machine learning";const t=document.createElement("span");t.className="advtag";t.textContent="Advisor";d.prepend(t)}rows.appendChild(d)}
-document.getElementById("add").onclick=()=>addRow();document.getElementById("addadv").onclick=()=>addRow("Advisor (professor)","","",true);
-const seats={{ seats|tojson }};if(seats.length)seats.forEach(x=>addRow(x[0],x[1],x[2]||"",!!x[3]));else addRow();
-const box=document.getElementById("compbox"),sel=document.getElementById("c");
+(()=>{const $=id=>document.getElementById(id),rows=$("rows");
+function addSeat(x={}){const n=$("seatT").content.firstElementChild.cloneNode(true),q=c=>n.querySelector(c);
+ n.dataset.id=x.id||"";n.dataset.adv=x.adv?"1":"";if(x.adv){n.classList.add("adv");q(".advtag").hidden=false;q(".s-skills").placeholder="Field or expertise, e.g. machine learning"}
+ q(".s-name").value=x.name||"";q(".s-skills").value=(x.skills||"").replaceAll(",",", ");q(".s-about").value=x.about||"";q(".s-must").value=x.must||"";q(".s-nice").value=x.nice||"";
+ q(".s-years").value=x.years||"";q(".s-yin").value=x.years_in||"";if(x.about||x.must||x.nice||x.years)q(".s-more").open=true;
+ q(".s-del").onclick=()=>n.remove();rows.appendChild(n);return n}
+$("add").onclick=()=>addSeat().querySelector(".s-name").focus();$("addadv").onclick=()=>addSeat({name:"Advisor (professor)",adv:true});
+const seats={{ seats|tojson }};if(seats.length)seats.forEach(addSeat);else addSeat();
+// links
+const links=$("links");function addLink(x={}){const n=$("linkT").content.firstElementChild.cloneNode(true),q=c=>n.querySelector(c);
+ if(x.label)q(".l-label").value=[...q(".l-label").options].some(o=>o.value===x.label)?x.label:"Other";q(".l-url").value=x.url||"";q(".l-team").checked=!!x.team;
+ q(".l-url").addEventListener("change",e=>{const u=e.target.value.toLowerCase(),s=q(".l-label");if(s.value!=="Other"&&s.value!=="GitHub repo")return;
+  for(const [l,h] of [["Trello board","trello.com"],["Notion","notion."],["Figma","figma.com"],["Google Doc / Drive","google.com"],["GitHub project","github.com/orgs"],["GitHub project","/projects/"],["GitHub repo","github.com"]])if(u.includes(h)){s.value=l;break}});
+ q(".l-del").onclick=()=>n.remove();links.appendChild(n)}
+$("addlink").onclick=()=>addLink();({{ (parse_links(pr.links) if pr else [])|tojson }}).forEach(addLink);
+// tags
+let tags=($("tagsin").value||"").split(",").filter(Boolean).map(t=>{const [n,c]=t.split(":");return{n,c:c||"slate"}});
+let pick="violet";const msg=t=>{$("tagsel").dataset.msg=t||""};
+function drawTags(){$("tagsel").innerHTML="";tags.forEach((t,i)=>{const b=document.createElement("button");b.type="button";b.className="ptag on tg-"+t.c;b.textContent=t.n+" ✕";b.title="Remove";b.onclick=()=>{tags.splice(i,1);drawTags()};$("tagsel").appendChild(b)});
+ document.querySelectorAll("#tagpick .ptag").forEach(b=>b.classList.toggle("on",tags.some(t=>t.n.toLowerCase()===b.dataset.n.toLowerCase())));$("tagsin").value=tags.map(t=>t.n+":"+t.c).join(",")}
+$("tagpick").addEventListener("click",e=>{const b=e.target.closest(".ptag");if(!b)return;const i=tags.findIndex(t=>t.n.toLowerCase()===b.dataset.n.toLowerCase());
+ if(i>=0)tags.splice(i,1);else if(tags.length<6)tags.push({n:b.dataset.n,c:b.dataset.c});drawTags()});
+document.querySelectorAll(".swatches .sw").forEach(b=>b.onclick=()=>{pick=b.dataset.c;document.querySelectorAll(".swatches .sw").forEach(x=>x.classList.toggle("on",x===b))});
+const addCustom=()=>{const n=$("ctname").value.replace(/[,:]/g," ").trim().slice(0,24);if(!n||tags.length>=6||tags.some(t=>t.n.toLowerCase()===n.toLowerCase()))return;tags.push({n,c:pick});$("ctname").value="";drawTags()};
+$("ctadd").onclick=addCustom;$("ctname").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();addCustom()}});drawTags();
+// kind boxes
+const box=$("compbox"),sel=$("c");
 function syncKind(){const k=(document.querySelector("input[name=kind]:checked")||{}).value;box.style.display=k==="Competition"?"":"none";if(k!=="Competition")sel.value="";
- for(const x of ["Startup","Research"]){const b=document.getElementById("box-"+x),on=k===x;b.hidden=!on;b.querySelectorAll("input,select").forEach(e=>e.disabled=!on)}}
+ for(const x of ["Startup","Research"]){const b=$("box-"+x),on=k===x;b.hidden=!on;b.querySelectorAll("input,select,textarea").forEach(e=>e.disabled=!on)}}
 document.querySelectorAll("input[name=kind]").forEach(r=>r.addEventListener("change",syncKind));syncKind();
-document.getElementById("f").onsubmit=e=>{const inp=r=>r.querySelectorAll("input");const v=[...rows.children].filter(r=>inp(r)[0].value.trim());
- if(!v.length&&!{{ 'true' if filled else 'false' }}){e.preventDefault();const m=document.getElementById("seaterr");m.hidden=false;m.scrollIntoView({block:"center"});return}
- document.getElementById("roles").value=v.map(r=>(r.dataset.id?"#"+r.dataset.id+" ":"")+(r.dataset.adv?"@":"")+inp(r)[0].value.trim().replace(/^[@#]+/,"")+": "+inp(r)[1].value.trim()).join("\n")};
+$("f").addEventListener("submit",e=>{const v=[...rows.children].map(n=>{const q=c=>n.querySelector(c).value;return{id:n.dataset.id||null,adv:!!n.dataset.adv,name:q(".s-name").trim(),skills:q(".s-skills"),about:q(".s-about"),must:q(".s-must"),nice:q(".s-nice"),years:q(".s-years"),years_in:q(".s-yin")}}).filter(x=>x.name);
+ if(!v.length&&!{{ 'true' if filled else 'false' }}){e.preventDefault();e.stopImmediatePropagation();const m=$("seaterr");m.hidden=false;m.scrollIntoView({block:"center"});return}
+ $("roles").value=JSON.stringify(v);
+ $("linksin").value=JSON.stringify([...links.children].map(n=>({label:n.querySelector(".l-label").value,url:n.querySelector(".l-url").value.trim(),team:n.querySelector(".l-team").checked})).filter(x=>x.url))},true);
+})();
 </script>{% endblock %}

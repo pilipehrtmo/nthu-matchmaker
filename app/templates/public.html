@@ -2,6 +2,8 @@
 {% if reported %}<p class="box ok" role="status">Thanks. Your report was sent to the admins. They will review it.</p>{% endif %}
 <div class="phead">{{ pic(p, "av xl") }}<div><h1>{{ p|dn }} {{ facbadge(p) }}</h1>{% if p.faculty %}<p class="muted" style="margin:.1rem 0 .6rem">{{ p.faculty }}</p>{% endif %}</div></div><p>{{ p.bio }}</p>{{ pro_links(p) }}<p>{% for t in skills %}<span class="tag">{{ t }}</span>{% endfor %}</p>
 <p>{% if p.verified %}<span class="pill match">✔ Verified by admin</span>{% else %}<span class="pill">Not yet verified</span>{% endif %}</p>
+{% set xp = [("Competitions", p.competitions, "trophy"), ("Projects", p.past_projects, "build"), ("Awards and honours", p.awards, "medal")] %}
+{% if p.competitions or p.past_projects or p.awards %}<div class="xpgrid">{% for label, val, ic in xp if val %}<section class="card xp xp-{{ ic }}"><h3>{{ label }}</h3><ul>{% for l in val.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></section>{% endfor %}</div>{% endif %}
 <h2 class="projh">Projects{% if projects %} <span class="count">{{ projects|length }}</span>{% endif %}</h2>
 {% if projects %}<div class="plist">{% for x in projects %}{% set pr = x.p %}{% set rec = pr.status == "open" and x.open and not (x.days is not none and x.days < 0) %}
 <a class="card prow" href="/projects/{{ pr.id }}"><div class="pr-top"><span class="pr-kind">{{ kind_of(pr) }}{% if pr.category %} · {{ pr.category }}{% endif %}</span><span class="badge {{ 'b-open' if rec else 'b-pending' }}">{{ "Recruiting" if rec else ("Team complete" if not x.open else "Not recruiting") }}</span></div>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% from "_links.html" import pro_links, contact_list %}{% block body %}{% set k = kind_of(pr) %}
 {% if notice == "sent" %}<p class="box ok" role="status">Application sent. You can follow it on your <a href="/activity">Activity</a> page.</p>
+{% elif notice == "edited" %}<p class="box ok" role="status">Application updated.</p>
 {% elif notice == "withdrawn" %}<p class="box" role="status">Application withdrawn. You can apply again while the seat is open.</p>
 {% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>{% endif %}
 <section class="card head"><h1>{{ pr.title }}</h1>
@@ -9,11 +10,15 @@
 {% elif days is not none %}<span class="pill {{ 'warn' if days <= 7 }}">{{ "Join-by date passed" if days < 0 else ("Last day to join" if days == 0 else (days ~ " days left to join")) }}</span>{% endif %}
 {% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% endif %}</div>
 {% if k == "Startup" and pr.tagline %}<p class="ptag">{{ pr.tagline }}</p>{% endif %}
+{% set ptags = parse_tags(pr.tags) %}{% if ptags %}<div class="ptagrow">{% for n, c in ptags %}<span class="ptag tg-{{ c }}">{{ n }}</span>{% endfor %}</div>{% endif %}
 <p style="margin:0;white-space:pre-line">{{ pr.description or ("" if k == "Startup" and (pr.problem or pr.solution) else "No description yet.") }}</p>
+{% set plinks = parse_links(pr.links) %}{% set shown = plinks|rejectattr("team")|list if not insider else plinks %}
+{% if shown %}<div class="plinks">{% for l in shown %}<a class="plink" href="{{ l.url }}" target="_blank" rel="noopener noreferrer"><span class="li li-{{ link_icon(l.url) }}" aria-hidden="true"></span><span><b>{{ l.label }}</b><small>{{ l.url|replace("https://", "")|replace("http://", "")|truncate(42, True, "…") }}</small></span>{% if l.team %}<span class="pill lockpill" title="Only the team sees this link">🔒 Team</span>{% endif %}</a>{% endfor %}</div>{% endif %}
+{% if not insider and plinks|selectattr("team")|list %}<p class="muted fine">{{ plinks|selectattr("team")|list|length }} more link{{ "s" if plinks|selectattr("team")|list|length != 1 }} for team members only.</p>{% endif %}
 {% if user and (is_owner or user.is_admin) %}<div class="acts ownacts">
 {% if is_owner %}<a class="btn ghost sm" href="/projects/{{ pr.id }}/edit">Edit project and seats</a>{% if k == "Startup" %}<a class="btn ghost sm" href="/projects/{{ pr.id }}/onepager" target="_blank" rel="noopener">One-pager (PDF)</a>{% endif %}
 <form method="post" action="/projects/{{ pr.id }}/status"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ 'closed' if pr.status == 'open' else 'open' }}"><button class="ghost sm">{{ "Stop recruiting" if pr.status == "open" else "Start recruiting again" }}</button></form>{% endif %}
-<form method="post" action="/projects/{{ pr.id }}/delete" onsubmit="return confirm('Delete this project and its applications?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="no sm">Delete project</button></form></div>
+<form method="post" action="/projects/{{ pr.id }}/delete" hx-confirm="Delete this project and its applications?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="no sm">Delete project</button></form></div>
 {% if is_owner and days is not none and days < 0 and pr.status == "open" %}<p class="muted" style="margin:.6rem 0 0">The join-by date has passed, so this project is hidden from the home page. Edit it to set a new date.</p>{% endif %}{% endif %}</section>
 {% if k == "Startup" and (pr.problem or pr.audience or pr.solution or pr.progress or pr.metrics) %}<section class="card pitch"><div class="pgrid">
 {% for key, label in [("problem", "The problem"), ("audience", "Who has it"), ("solution", "Our solution")] if pr[key] %}<div><h3>{{ label }}</h3><p>{{ pr[key] }}</p></div>{% endfor %}
@@ -46,6 +51,11 @@
 <header><h3>{{ x.r.name }}{% if x.r.advisor %} <span class="pill advpill">Advisor seat</span>{% endif %}</h3><span class="seattags">{% if x.pct is not none %}<span class="pill match">{{ x.pct }}% match</span>{% endif %}<span class="badge {{ 'b-filled' if x.r.filled else 'b-open' }}">{{ "Filled" if x.r.filled else "Open" }}</span></span></header>
 <div>{% for t in x.r.skills.split(",") if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in mytags }}">{{ t.strip() }}</span>{% endfor %}</div>
 {% if x.why %}<p class="muted" style="margin:.3rem 0">{{ x.why }}</p>{% endif %}
+{% if x.r.about %}<p class="s-about-v">{{ x.r.about }}</p>{% endif %}
+{% if x.r.must or x.r.nice or x.r.years %}<div class="reqs">
+{% if x.r.years %}<span class="pill yrspill">{{ x.r.years }}+ year{{ "s" if x.r.years != 1 }}{% if x.r.years_in %} in {{ x.r.years_in }}{% endif %}</span>{% endif %}
+{% if x.r.must %}<div><p class="req-h must">Requirements</p><ul class="req must">{% for l in x.r.must.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
+{% if x.r.nice %}<div><p class="req-h nice">Nice to have</p><ul class="req nice">{% for l in x.r.nice.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}</div>{% endif %}
 {% set myapp = (x.apps|selectattr("1.id", "equalto", user.id if user else 0)|list|first) if user else none %}
 {% if user and not is_owner and not x.r.filled and accepting and (not myapp or myapp[0].status == "withdrawn") %}<details><summary>{{ "Apply again" if myapp else "Apply for this seat" }}</summary>
 <form method="post" action="/roles/{{ x.r.id }}/apply"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="m{{ x.r.id }}">Why you?</label>
@@ -62,6 +72,7 @@
 {% if a.message %}<p class="app-msg">{{ a.message }}</p>{% else %}<p class="muted app-none">No message.</p>{% endif %}
 {% if is_owner and a.status == "pending" %}<div class="acts"><form method="post" action="/applications/{{ a.id }}/accepted"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Accept</button></form>
 <form method="post" action="/applications/{{ a.id }}/rejected"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Reject</button></form></div>{% endif %}
+{% if user and u.id == user.id and a.status == "pending" %}<details class="sa-edit"><summary>Edit message</summary><form method="post" action="/applications/{{ a.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/projects/{{ pr.id }}"><textarea name="message" rows="3" maxlength="500" aria-label="Your message">{{ a.message }}</textarea><p><button class="sm">Save changes</button></p></form></details>{% endif %}
 {% if user and u.id == user.id and a.status == "pending" %}<form method="post" action="/applications/{{ a.id }}/withdrawn"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Withdraw application</button></form>{% endif %}
 {% if is_owner and a.status == "accepted" %}<p class="app-contact">Contact: {{ contact_list(u) }}</p>{% endif %}</div></div>{% endfor %}</div>{% endif %}
 </article>{% endfor %}</div>
@@ -71,5 +82,5 @@
 <label class="chk"><input type="checkbox" name="public"> Show on the public project page (otherwise only the team sees it)</label><p><button>Post remark</button></p></form>{% endif %}
 {% for r in remarks %}{% set au = rauthors.get(r.author_id) %}<article class="remark"><div class="app-top"><span class="app-who">{% if au %}{{ pic(au, "av sm") }}<a class="app-name" href="/u/{{ au.handle }}">{{ au|dn }}</a>{{ facbadge(au) }}{% else %}[deleted]{% endif %} <small class="muted">{{ r.created|ago }}</small></span>
 <span class="badge {{ 'b-accepted' if r.public else 'b-pending' }}">{{ "Public" if r.public else "Team only" }}</span></div><p class="app-msg">{{ r.body }}</p>
-{% if user and (user.id == r.author_id or user.is_admin) %}<form method="post" action="/remarks/{{ r.id }}/delete" onsubmit="return confirm('Delete this remark?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Delete</button></form>{% endif %}</article>
+{% if user and (user.id == r.author_id or user.is_admin) %}<form method="post" action="/remarks/{{ r.id }}/delete" hx-confirm="Delete this remark?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Delete</button></form>{% endif %}</article>
 {% else %}<p class="muted">No remarks yet.</p>{% endfor %}</section>{% endif %}{% endblock %}

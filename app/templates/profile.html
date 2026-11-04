@@ -18,7 +18,7 @@ document.getElementById("phfile").addEventListener("change",async e=>{const f=e.
  catch(err){m.textContent=err.message}e.target.value=""});
 </script>
 <section class="cvbox"><div><h3>Fill in from your CV</h3>
-<p class="muted">Upload a PDF or Word CV and we fill in your skills, faculty, bio, contacts and links. Check them, then press Save. The file is read once on this server and not stored.</p></div>
+<p class="muted">Upload a PDF or Word CV and we fill in your skills, faculty, bio, competitions, projects, awards, contacts and links. Check them, then press Save. The file is read once on this server and not stored.</p></div>
 <form id="cvform" class="cvpick"><input type="hidden" name="csrf" value="{{ csrf }}">
 <label class="btn ghost" for="cvfile">Choose CV file</label><input id="cvfile" name="file" type="file" accept=".pdf,.docx,.txt" hidden>
 <span id="cvmsg" class="muted" role="status"></span></form></section>
@@ -27,6 +27,10 @@ document.getElementById("phfile").addEventListener("change",async e=>{const f=e.
 <label for="s">Skills, comma-separated</label><input id="s" name="skills" value="{{ user.skills }}" placeholder="figma, python, financial modeling">
 <div class="two"><div><label for="f">Faculty / major</label><input id="f" name="faculty" value="{{ user.faculty }}" placeholder="e.g. Computer Science"></div>
 <div><label for="hr">Hours per week you can give</label><input id="hr" name="hours" type="number" min="1" max="60" value="{{ user.hours }}"></div></div>
+<div class="psec" id="experience"><div class="psec-h"><h2>Experience</h2><span class="pill ok">Public</span></div>
+<p class="muted">One item per line. Your CV can fill these in; check them before saving.</p>
+{% for f, label, ph in [("competitions", "Competitions", "e.g. 3rd Place, Business Plan Competition (2024)"), ("past_projects", "Projects", "e.g. NTHU Matchmaker (2026) — team lead, FastAPI web app"), ("awards", "Awards and honours", "e.g. Gold Medal, National Mathematics Olympiad (2025)")] %}
+<label for="x-{{ f }}">{{ label }}</label><textarea id="x-{{ f }}" name="{{ f }}" rows="3" placeholder="{{ ph }}">{{ user[f] }}</textarea>{% endfor %}</div>
 <div class="psec"><div class="psec-h"><h2>Contact</h2><span class="pill">🔒 Private</span></div>
 <p class="muted">Shown only to your teammates after an application is accepted.</p>
 <div class="two">{% for f, label, ph in CONTACTS %}<div><label for="ct-{{ f }}" class="lk-label">{{ icon(f) }} {{ label }}</label><input id="ct-{{ f }}" name="{{ f }}" value="{{ user[f] }}" placeholder="{{ ph }}" maxlength="{{ 100 if f == 'contact' else 40 }}"></div>{% endfor %}</div></div>
@@ -60,6 +64,11 @@ document.getElementById("phfile").addEventListener("change",async e=>{const f=e.
       let n = set("s", [...have, ...add].join(", ")) + set("f", d.faculty) + set("b", d.bio) + set("ct-contact", d.contact);
       for (const [k, v] of Object.entries(d.contacts || {})) if (document.getElementById("ct-" + k)) n += set("ct-" + k, v);
       for (const [k, v] of Object.entries(d.links || {})) if (document.getElementById("pl-" + k)) n += set("pl-" + k, v);
+      for (const k of ["competitions", "past_projects", "awards"]) {   // add lines that are not there yet
+        const src = d[k === "past_projects" ? "projects" : k] || [], el = document.getElementById("x-" + k); if (!el || !src.length) continue;
+        const have = el.value.split("\n").map(x => x.trim()).filter(Boolean), add = src.filter(x => !have.includes(x));
+        if (add.length) n += set("x-" + k, [...have, ...add].join("\n"));
+      }
       msg.className = n ? "ok" : "muted";
       msg.textContent = n ? `Filled ${n} field${n > 1 ? "s" : ""} (${add.length} new skill${add.length == 1 ? "" : "s"}). Check them, then press Save profile.`
                           : "Nothing new found in this CV. You can fill the fields by hand.";
