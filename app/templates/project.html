@@ -10,7 +10,7 @@
 {% if pr.status == "closed" %}<span class="pill warn">Not recruiting</span>
 {% elif days is not none %}<span class="pill {{ 'warn' if days <= 7 }}">{{ "Join-by date passed" if days < 0 else ("Last day to join" if days == 0 else (days ~ " days left to join")) }}</span>{% endif %}
 {% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% elif pr.event_name %}<span>{{ "for" if k == "Competition" else "with" }} <b>{{ pr.event_name }}</b></span>{% endif %}</div>
-{% if k == "Startup" and pr.tagline %}<p class="ptag">{{ pr.tagline }}</p>{% endif %}
+{% if k == "Startup" and pr.tagline %}<p class="ptagline">{{ pr.tagline }}</p>{% endif %}
 {% set ptags = parse_tags(pr.tags) %}{% if ptags %}<div class="ptagrow">{% for n, c in ptags %}<span class="ptag tg-{{ c }}">{{ keep(n) }}</span>{% endfor %}</div>{% endif %}
 <p style="margin:0;white-space:pre-line">{{ pr.description or ("" if k == "Startup" and (pr.problem or pr.solution) else "No description yet.") }}</p>
 {% set plinks = parse_links(pr.links) %}{% set shown = plinks|rejectattr("team")|list if not insider else plinks %}
@@ -21,42 +21,18 @@
 <form method="post" action="/projects/{{ pr.id }}/status"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ 'closed' if pr.status == 'open' else 'open' }}"><button class="ghost sm">{{ "Stop recruiting" if pr.status == "open" else "Start recruiting again" }}</button></form>{% endif %}
 <form method="post" action="/projects/{{ pr.id }}/delete" hx-confirm="Delete this project and its applications?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="no sm">Delete project</button></form></div>
 {% if is_owner and days is not none and days < 0 and pr.status == "open" %}<p class="muted" style="margin:.6rem 0 0">The join-by date has passed, so this project is hidden from the home page. Edit it to set a new date.</p>{% endif %}{% endif %}</section>
-{% if k == "Startup" and (pr.problem or pr.audience or pr.solution or pr.progress or pr.metrics) %}<section class="card pitch"><div class="pgrid">
-{% for key, label in [("problem", "The problem"), ("audience", "Who has it"), ("solution", "Our solution")] if pr[key] %}<div><h3>{{ label }}</h3><p>{{ pr[key] }}</p></div>{% endfor %}
-{% if pr.progress %}<div><h3>Done so far</h3><ul>{% for l in pr.progress.splitlines() if l.strip() %}<li>{{ l.strip().lstrip("-•* ") }}</li>{% endfor %}</ul></div>{% endif %}</div>
-{% set mr = metric_rows(pr.metrics) %}{% if mr %}<div class="pnums">{% for v, l in mr %}<div><b>{{ v }}</b><span>{{ l }}</span></div>{% endfor %}</div>{% endif %}
-{% if pr.needs %}<p class="pneed"><b>What we need:</b> {{ pr.needs }}</p>{% endif %}
-{% if reveal and not is_owner %}<p class="muted fine"><a href="/projects/{{ pr.id }}/onepager" target="_blank" rel="noopener">Open the one-pager (PDF)</a></p>{% endif %}</section>{% endif %}
 {% if reveal %}<div class="reveal">You're in the team. Contact the lead: {{ contact_list(owner) }}</div>{% endif %}
-
-{% if k == "Startup" and (pr.stage or is_owner) %}<section class="card guide"><h2>Where to take it next</h2>
-{% if pr.stage %}<p class="muted">Suggested steps for the <b>{{ pr.stage }}</b> stage:</p><ol>{% for st in G.STAGE_STEPS[pr.stage] %}<li>{{ st }}</li>{% endfor %}</ol>
-{% elif is_owner %}<p class="muted"><a href="/projects/{{ pr.id }}/edit">Add your stage</a> to get steps that fit where you are.</p>{% endif %}
-</section>
-{% elif k == "Research" %}<section class="card guide"><h2>Where to share this research</h2>
-{% set venues = G.RESEARCH_VENUES.get(pr.category) or G.RESEARCH_VENUES["Other"] %}
-<p class="muted">{% if pr.category %}Well-known places for <b>{{ pr.category }}</b>:{% else %}{% if is_owner %}<a href="/projects/{{ pr.id }}/edit">Pick your field</a> for better suggestions. {% endif %}General places for any field:{% endif %}</p>
-<div class="glinks">{% for t, u, d in venues %}<a class="glink" href="{{ u }}" target="_blank" rel="noopener"><b>{{ t }}&nbsp;↗</b><span>{{ d }}</span></a>{% endfor %}</div>
-<p class="muted fine">Ask your advisor before posting a preprint: some journals and conferences have rules about it.</p></section>{% endif %}
-{% if checks %}<section class="card ready" id="funding"><div class="readyhead"><h2>Funding and incubation readiness</h2><a href="/funding" class="muted">All programs →</a></div>
-<p class="muted">Checked from this team on Matchmaker. Items marked "Check yourself" are rules the site cannot see.</p>
-<div class="rgrid">{% for c in checks %}<article class="rcard {{ 'is-ready' if c.ready }}"><header><a href="{{ c.p.url }}" target="_blank" rel="noopener"><b>{{ c.p.name }}&nbsp;↗</b></a>
-<span class="badge {{ 'b-accepted' if c.ready else 'b-open' }}">{{ "Looks eligible" if c.ready else "Missing something" }}</span></header>
-<p class="muted rmeta">{{ c.p.amount }}<br>{% if c.days is not none and c.days >= 0 %}<b class="due">Deadline in {{ c.days }} day{{ "s" if c.days != 1 }} ({{ c.p.next_deadline }})</b>{% else %}{{ c.p.deadline_note }}{% endif %}</p>
-<ul class="checks">{% for st, text, fix in c.lines %}<li class="c-{{ st }}"><span class="ic" aria-hidden="true">{{ {"ok": "✔", "miss": "✘", "you": "○"}[st] }}</span><span>{{ text }}{% if st == "you" %} <small>Check yourself</small>{% endif %}
-{% if st == "miss" and is_owner and fix in ("seat", "advisor") %} <a href="/projects/{{ pr.id }}/edit">{{ "Add a seat" if fix == "seat" else "Add an advisor seat" }} →</a>{% elif fix == "category" and is_owner %} <a href="/projects/{{ pr.id }}/edit">Pick a category →</a>{% endif %}</span></li>{% endfor %}</ul></article>{% endfor %}</div>
-<p class="muted fine">Rules and dates change every year. Always read the official call before you apply. Applications are sent to the program, not through this site.</p></section>{% endif %}
-
-<h2 style="margin-top:1.4rem">Seats</h2><div class="grid">
+<section class="seatsec" id="seats"><h2>Seats</h2><div class="seatlist">
 {% for x in roles %}<article class="seatcard {{ 'is-filled' if x.r.filled }}">
 <header><h3>{{ x.r.name }}{% if x.r.advisor %} <span class="pill advpill">Advisor seat</span>{% endif %}</h3><span class="seattags">{% if x.pct is not none %}<span class="pill match">{{ x.pct }}% match</span>{% endif %}<span class="badge {{ 'b-filled' if x.r.filled else 'b-open' }}">{{ "Filled" if x.r.filled else "Open" }}</span></span></header>
+{% if x.r.about %}<p class="s-about-v">{{ x.r.about }}</p>{% endif %}
+<details class="sdet"><summary><span class="sd-open">Details</span><span class="sd-close">Hide details</span>{% if x.r.must or x.r.nice or x.r.years %}<small class="muted"> · requirements, skills</small>{% else %}<small class="muted"> · skills</small>{% endif %}</summary>
 <div>{% for t in x.r.skills.split(",") if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in mytags }}">{{ t.strip() }}</span>{% endfor %}</div>
 {% if x.why %}<p class="muted" style="margin:.3rem 0">{{ x.why }}</p>{% endif %}
-{% if x.r.about %}<p class="s-about-v">{{ x.r.about }}</p>{% endif %}
 {% if x.r.must or x.r.nice or x.r.years %}<div class="reqs">
 {% if x.r.years %}<span class="pill yrspill">{{ x.r.years }}+ year{{ "s" if x.r.years != 1 }}{% if x.r.years_in %} in {{ x.r.years_in }}{% endif %}</span>{% endif %}
 {% if x.r.must %}<div><p class="req-h must">Requirements</p><ul class="req must">{% for l in x.r.must.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
-{% if x.r.nice %}<div><p class="req-h nice">Nice to have</p><ul class="req nice">{% for l in x.r.nice.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}</div>{% endif %}
+{% if x.r.nice %}<div><p class="req-h nice">Nice to have</p><ul class="req nice">{% for l in x.r.nice.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}</div>{% endif %}</details>
 {% set myapp = (x.apps|selectattr("1.id", "equalto", user.id if user else 0)|list|first) if user else none %}
 {% if x.r.advisor and user and not is_owner and not x.r.filled and accepting and not user.is_faculty %}<p class="muted fine">Only verified NTHU professors can apply for an advisor seat.</p>
 {% elif user and not is_owner and not x.r.filled and accepting and (not myapp or myapp[0].status == "withdrawn") %}<details><summary>{{ "Apply again" if myapp else "Apply for this seat" }}</summary>
@@ -77,7 +53,34 @@
 {% if user and u.id == user.id and a.status == "pending" %}<details class="sa-edit"><summary>Edit message</summary><form method="post" action="/applications/{{ a.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/projects/{{ pr.id }}"><textarea name="message" rows="3" maxlength="500" aria-label="Your message">{{ a.message }}</textarea><p><button class="sm">Save changes</button></p></form></details>{% endif %}
 {% if user and u.id == user.id and a.status == "pending" %}<form method="post" action="/applications/{{ a.id }}/withdrawn"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Withdraw application</button></form>{% endif %}
 {% if is_owner and a.status == "accepted" %}<p class="app-contact">Contact: {{ contact_list(u) }}</p>{% endif %}</div></div>{% endfor %}</div>{% endif %}
-</article>{% endfor %}</div>
+</article>{% endfor %}</div></section>
+
+{% if k == "Startup" and (pr.problem or pr.audience or pr.solution or pr.progress or pr.metrics) %}<section class="card pitch"><div class="pgrid">
+{% for key, label in [("problem", "The problem"), ("audience", "Who has it"), ("solution", "Our solution")] if pr[key] %}<div><h3>{{ label }}</h3><p>{{ pr[key] }}</p></div>{% endfor %}
+{% if pr.progress %}<div><h3>Done so far</h3><ul>{% for l in pr.progress.splitlines() if l.strip() %}<li>{{ l.strip().lstrip("-•* ") }}</li>{% endfor %}</ul></div>{% endif %}</div>
+{% set mr = metric_rows(pr.metrics) %}{% if mr %}<div class="pnums">{% for v, l in mr %}<div><b>{{ v }}</b><span>{{ l }}</span></div>{% endfor %}</div>{% endif %}
+{% if pr.needs %}<p class="pneed"><b>What we need:</b> {{ pr.needs }}</p>{% endif %}
+{% if reveal and not is_owner %}<p class="muted fine"><a href="/projects/{{ pr.id }}/onepager" target="_blank" rel="noopener">Open the one-pager (PDF)</a></p>{% endif %}</section>{% endif %}
+
+{% if k == "Startup" and (pr.stage or is_owner) %}<section class="card guide"><h2>Where to take it next</h2>
+{% if pr.stage %}<p class="muted">Suggested steps for the <b>{{ pr.stage }}</b> stage:</p><ol>{% for st in G.STAGE_STEPS[pr.stage] %}<li>{{ st }}</li>{% endfor %}</ol>
+{% elif is_owner %}<p class="muted"><a href="/projects/{{ pr.id }}/edit">Add your stage</a> to get steps that fit where you are.</p>{% endif %}
+</section>
+{% elif k == "Research" %}<section class="card guide"><h2>Where to share this research</h2>
+{% set venues = G.RESEARCH_VENUES.get(pr.category) or G.RESEARCH_VENUES["Other"] %}
+<p class="muted">{% if pr.category %}Well-known places for <b>{{ pr.category }}</b>:{% else %}{% if is_owner %}<a href="/projects/{{ pr.id }}/edit">Pick your field</a> for better suggestions. {% endif %}General places for any field:{% endif %}</p>
+<div class="glinks">{% for t, u, d in venues %}<a class="glink" href="{{ u }}" target="_blank" rel="noopener"><b>{{ t }}&nbsp;↗</b><span>{{ d }}</span></a>{% endfor %}</div>
+<p class="muted fine">Ask your advisor before posting a preprint: some journals and conferences have rules about it.</p></section>{% endif %}
+{% if checks %}<section class="card ready" id="funding"><div class="readyhead"><h2>Funding and incubation readiness</h2><a href="/funding" class="muted">All programs →</a></div>
+<p class="muted">{% set nready = checks|selectattr("ready")|list|length %}<b>{{ nready }} of {{ checks|length }}</b> programs look ready for this team. Open a program to see its checks; items marked "Check yourself" are rules the site cannot see.</p>
+<div class="rgrid">{% for c in checks %}<article class="rcard {{ 'is-ready' if c.ready }}"><header><a href="{{ c.p.url }}" target="_blank" rel="noopener"><b>{{ c.p.name }}&nbsp;↗</b></a>
+<span class="badge {{ 'b-accepted' if c.ready else 'b-open' }}">{{ "Looks eligible" if c.ready else "Missing something" }}</span></header>
+<p class="muted rmeta">{{ c.p.amount }}<br>{% if c.days is not none and c.days >= 0 %}<b class="due">Deadline in {{ c.days }} day{{ "s" if c.days != 1 }} ({{ c.p.next_deadline }})</b>{% else %}{{ c.p.deadline_note }}{% endif %}</p>
+<details class="rdet" {{ "open" if not c.ready and is_owner }}><summary>{% set nmiss = c.lines|selectattr(0, "equalto", "miss")|list|length %}<span class="sd-open">Show checks</span><span class="sd-close">Hide checks</span> <small class="muted">· {{ c.lines|length }}{% if nmiss %}, {{ nmiss }} missing{% endif %}</small></summary><ul class="checks">{% for st, text, fix in c.lines %}<li class="c-{{ st }}"><span class="ic" aria-hidden="true">{{ {"ok": "✔", "miss": "✘", "you": "○"}[st] }}</span><span>{{ text }}{% if st == "you" %} <small>Check yourself</small>{% endif %}
+{% if st == "miss" and is_owner and fix in ("seat", "advisor") %} <a href="/projects/{{ pr.id }}/edit">{{ "Add a seat" if fix == "seat" else "Add an advisor seat" }} →</a>{% elif fix == "category" and is_owner %} <a href="/projects/{{ pr.id }}/edit">Pick a category →</a>{% endif %}</span></li>{% endfor %}</ul></details></article>{% endfor %}</div>
+<p class="muted fine">Rules and dates change every year. Always read the official call before you apply. Applications are sent to the program, not through this site.</p></section>{% endif %}
+
+
 {% if remarks or can_remark %}<section class="card remarks" id="remarks"><h2>Advisor remarks</h2>
 {% if can_remark %}<form method="post" action="/projects/{{ pr.id }}/remarks"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="rb">Your remark or opinion</label>
 <textarea id="rb" name="body" rows="4" maxlength="3000" required placeholder="Feedback on the idea, method, next steps or papers to read"></textarea>

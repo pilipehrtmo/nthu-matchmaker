@@ -4,13 +4,15 @@
 <form method="get" class="search" role="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input name="q" value="{{ q }}" placeholder="Try: figma, pitch, python, hackathon" aria-label="Search projects"><button>Search</button></form></section>
 <div class="chips" id="kinds" role="tablist" aria-label="Project type"><button type="button" class="chip {{ 'on' if not kind }}" data-k="">All projects</button>
 {% for k in kinds %}<button type="button" class="chip {{ 'on' if kind == k }}" data-k="{{ k }}">{{ k }}</button>{% endfor %}</div>
+<div class="frow"><details class="fpanel" id="fpanel"><summary class="fbtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Sort and filters<span class="fdot" id="fdot" hidden></span></summary>
 <div class="fbar" id="fbar">
 <label class="fsel"><span>Sort</span><select id="f-sort">{% if user %}<option value="match">Best match for me</option>{% endif %}<option value="deadline">Deadline soonest</option><option value="new">Newest</option><option value="open">Most open seats</option></select></label>
 <label class="fsel"><span>Category</span><select id="f-cat"><option value="">Any</option></select></label>
 <label class="fsel"><span>Tag</span><select id="f-ptag"><option value="">Any tag</option></select></label>
 <label class="fsel"><span>Role needed</span><select id="f-role"><option value="">Any role</option></select></label>
+</div>
+<div class="tagrow" id="f-tags" aria-label="Skills"></div></details>
 <button type="button" class="ghost sm" id="f-clear" hidden>Clear filters</button><span class="fcount muted" id="f-count" aria-live="polite"></span></div>
-<div class="tagrow" id="f-tags" aria-label="Skills"></div>
 <div class="projects" id="plist">{% for r in rows %}{% set filled = r.total - r.roles|length %}<article class="card link pcard {{ 'k-comp' if kind_of(r.p) == 'Competition' }}"
  data-kind="{{ kind_of(r.p) }}" data-cat="{{ r.p.category or (comp_cat.get(r.p.competition_id, '') if r.p.competition_id else '') }}" data-days="{{ r.days if r.days is not none else 99999 }}"
  data-new="{{ r.p.created.timestamp()|int }}" data-score="{{ r.score or 0 }}" data-open="{{ r.roles|length }}"
@@ -21,8 +23,7 @@
 {% set pt = parse_tags(r.p.tags) %}{% if pt %}<div class="ptagrow sm">{% for n, c in pt[:4] %}<span class="ptag tg-{{ c }}">{{ keep(n) }}</span>{% endfor %}{% if pt|length > 4 %}<span class="ptag more">+{{ pt|length - 4 }}</span>{% endif %}</div>{% endif %}
 <div class="pmeta"><span class="powner">{{ pic(r.owner, "av xs") }}<span>{{ r.owner|dn }}</span></span><span class="pdot" aria-hidden="true"></span><span>{{ r.p.hours_per_week }} h/week</span>{% set sn = soon.get(kind_of(r.p)) %}{% if sn %}<span class="soonpill" title="Funding deadline: {{ sn[0] }}">{{ sn[0] }} closes in {{ sn[1] }}d</span>{% endif %}{% if r.days is not none %}<span class="pleft {{ 'soon' if r.days <= 7 }}">{{ "closed" if r.days < 0 else ("last day" if r.days == 0 else (r.days ~ " day" ~ ("s" if r.days != 1 else "") ~ " left")) }}</span>{% endif %}</div>
 {% if r.p.description %}<p class="desc">{{ r.p.description }}</p>{% endif %}
-<div class="seats">{% for s in r.roles %}<span class="seat">{{ s.name }}</span>{% endfor %}</div>
-<div class="fillrow"><div class="bar" aria-hidden="true"><i style="width:{{ (filled / r.total * 100)|int }}%"></i></div><span>{{ filled }} of {{ r.total }} seat{{ "s" if r.total != 1 }} filled</span></div></article>
+<div class="pfoot"><span class="popen" title="{{ r.roles|map(attribute='name')|join(', ') }}"><b>{{ r.roles|length }}</b> open seat{{ "s" if r.roles|length != 1 }}</span><span class="muted">{{ filled }} of {{ r.total }} filled</span></div></article>
 {% endfor %}</div>
 <div class="box" id="f-empty" {{ "hidden" if rows else "" }}>No open seats match these filters. <button type="button" class="linkbtn" id="f-reset">Clear filters</button> or <a href="/projects/new">post a project</a>.</div>
 <h2 style="margin-top:2.2rem" id="comps">Competitions &amp; grants</h2>
@@ -60,7 +61,7 @@ function apply(){const qq=st.q.trim().toLowerCase();let shown=0;
  $$("#kinds .chip").forEach(b=>{b.classList.toggle("on",b.dataset.k===st.k);b.setAttribute("aria-selected",b.dataset.k===st.k)});
  $$("#f-tags .tagchip").forEach(b=>b.classList.toggle("on",st.tags.includes(b.dataset.t)));
  $("#f-sort").value=st.sort;$("#f-ptag").value=st.ptag;$("#f-cat").value=st.cat;$("#f-role").value=st.role;
- const filtered=st.k||st.cat||st.ptag||st.role||st.tags.length||qq;$("#f-clear").hidden=!filtered;
+ const filtered=st.k||st.cat||st.ptag||st.role||st.tags.length||qq;$("#f-clear").hidden=!filtered;$("#fdot").hidden=!(st.cat||st.ptag||st.role||st.tags.length);
  $("#f-count").textContent={% if lang == "zh" %}filtered?`顯示 ${shown}／${cards.length} 個專案`:`${cards.length} 個專案`{% else %}filtered?`Showing ${shown} of ${cards.length}`:`${cards.length} project${cards.length==1?"":"s"}`{% endif %};
  $("#f-empty").hidden=shown>0;
  // competitions
@@ -77,5 +78,5 @@ $("#f-sort").onchange=e=>{st.sort=e.target.value;apply()};$("#f-cat").onchange=e
 const clear=()=>{Object.assign(st,{k:"",cat:"",ptag:"",role:"",tags:[],q:""});q.value="";apply()};$("#f-clear").onclick=clear;$("#f-reset").onclick=clear;
 let tmr;q.addEventListener("input",()=>{clearTimeout(tmr);tmr=setTimeout(()=>{st.q=q.value;apply()},120)});
 form.addEventListener("submit",e=>{e.preventDefault();st.q=q.value;apply();list.scrollIntoView({behavior:"smooth",block:"start"})});
-apply()})();
+apply();if(st.cat||st.ptag||st.role||st.tags.length)$("#fpanel").open=true})();
 </script>{% endblock %}

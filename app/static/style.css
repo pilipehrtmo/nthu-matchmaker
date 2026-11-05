@@ -430,7 +430,7 @@ img.av{display:block}img.av.xs{display:inline-block}
 :root[data-mode=dark] .pmeta{color:#b9acd0}
 
 /* ---------- startup pitch on the project page ---------- */
-.ptag{font-size:1.1rem;color:var(--mut);margin:.2rem 0 .7rem;max-width:60ch}
+.ptagline{font-size:1.1rem;color:var(--mut);margin:.2rem 0 .7rem;max-width:60ch}
 .pitch{margin-top:1rem}.pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem 1.6rem}
 .pitch h3{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:var(--pur);margin:0 0 .3rem}.pitch p{margin:0;white-space:pre-line}.pitch ul{margin:0;padding-left:1.1rem}
 .pnums{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.7rem;margin-top:1rem}
@@ -617,3 +617,38 @@ html.loading{cursor:progress}
 .nlang{display:inline-grid;place-items:center;min-width:2.6rem;height:2.1rem;padding:0 .6rem;border-radius:99px;border:1.5px solid var(--line);color:var(--ink);text-decoration:none;font-weight:700;font-size:.85rem;margin-right:.4rem;white-space:nowrap}
 .nlang:hover{border-color:var(--pur);color:var(--pur)}
 :lang(zh-Hant-TW) .eyebrow,:lang(zh-Hant-TW) .xh,:lang(zh-Hant-TW) .req-h{letter-spacing:.04em}
+
+/* ---------- simpler home (option A): filters folded into one button, short card footer ---------- */
+.frow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:.6rem 1rem;margin:.2rem 0 1rem}
+.frow .fcount{margin-left:auto;align-self:center}
+.fpanel{flex:1 1 100%;order:3}.fpanel[open]{order:3}
+.fbtn{display:inline-flex;align-items:center;gap:.5rem;list-style:none;cursor:pointer;font-weight:600;font-size:.92rem;padding:.55rem 1rem;border:1.5px solid var(--line);border-radius:12px;color:var(--ink);background:var(--card);user-select:none}
+.fbtn::-webkit-details-marker{display:none}.fbtn:hover{border-color:var(--pri)}
+.fbtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+.fpanel[open] .fbtn{background:var(--pri-soft);border-color:var(--pri)}
+.fdot{width:8px;height:8px;border-radius:50%;background:var(--seat)}
+.fpanel .fbar{margin:.8rem 0 .6rem;padding:1rem;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+.fpanel .tagrow{margin:0 0 .4rem}
+.frow{position:relative}.frow>.fpanel{order:0;flex:0 1 auto}.frow>.fpanel[open]{flex:1 1 100%}
+.pfoot{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-top:auto;padding-top:.6rem;border-top:1px solid var(--line);font-size:.86rem;color:var(--mut)}
+.pfoot .popen b{color:var(--ink);font-size:1rem}
+
+/* ---------- simpler project page (option A): seats first, one compact card each, details on demand ---------- */
+.seatsec{margin:1.2rem 0}.seatsec h2{margin:0 0 .7rem}
+.seatlist{display:flex;flex-direction:column;gap:.9rem}
+.seatlist .seatcard{margin:0}
+.seatlist .seatcard .s-about-v{margin:.35rem 0 .2rem}
+.sdet,.rdet{margin:.5rem 0 .2rem}
+.sdet>summary,.rdet>summary{display:inline-flex;align-items:center;gap:.3rem;list-style:none;cursor:pointer;font-weight:600;font-size:.9rem;color:var(--pur);padding:.35rem .8rem;border:1.5px solid var(--line);border-radius:10px}
+.sdet>summary::-webkit-details-marker,.rdet>summary::-webkit-details-marker{display:none}
+.sdet>summary:hover,.rdet>summary:hover{border-color:var(--pri)}
+.sdet>summary::before,.rdet>summary::before{content:"+";font-weight:800}
+.sdet[open]>summary::before,.rdet[open]>summary::before{content:"−"}
+.sdet[open]>summary,.rdet[open]>summary{margin-bottom:.6rem}
+.sdet:not([open]) .sd-close,.rdet:not([open]) .sd-close,.sdet[open] .sd-open,.rdet[open] .sd-open{display:none}
+.rdet .checks{margin-top:.2rem}
+/* the "Apply for this seat" opener looks like a button */
+.seatlist .seatcard>details:not(.sdet)>summary{display:inline-flex;align-items:center;list-style:none;cursor:pointer;background:var(--pri);color:var(--on-pri);font-weight:700;font-size:.92rem;padding:.55rem 1.1rem;border-radius:10px;margin-top:.4rem}
+.seatlist .seatcard>details:not(.sdet)>summary::-webkit-details-marker{display:none}
+.seatlist .seatcard>details:not(.sdet)[open]>summary{background:var(--pri-soft);color:var(--pri-ink);margin-bottom:.6rem}
+.ready .rgrid{align-items:start}
