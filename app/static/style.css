@@ -651,4 +651,4 @@ html.loading{cursor:progress}
 .seatlist .seatcard>details:not(.sdet)>summary{display:inline-flex;align-items:center;list-style:none;cursor:pointer;background:var(--pri);color:var(--on-pri);font-weight:700;font-size:.92rem;padding:.55rem 1.1rem;border-radius:10px;margin-top:.4rem}
 .seatlist .seatcard>details:not(.sdet)>summary::-webkit-details-marker{display:none}
 .seatlist .seatcard>details:not(.sdet)[open]>summary{background:var(--pri-soft);color:var(--pri-ink);margin-bottom:.6rem}
-.ready .rgrid{align-items:start}
+.ready .rgrid{grid-auto-rows:1fr;align-items:stretch}.ready .rcard{display:flex;flex-direction:column;height:100%;box-sizing:border-box}.ready .rcard .rdet{margin-top:auto;padding-top:.4rem}
