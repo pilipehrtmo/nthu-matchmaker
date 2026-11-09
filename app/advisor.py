@@ -259,7 +259,12 @@ def dashboard(req: Request, user=Depends(me), s: Session = Depends(get_session))
         elif a.status == "accepted": oapps[a.opening_id][1] += 1
     seat_apps = s.exec(select(Application, Role, Project).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
                        .where(Application.user_id == user.id, Application.status == "pending")).all()
-    return render(req, "advisor.html", user, projects=projects, prog=prog, reviews=sorted(reviews, key=lambda t: t.last_at or t.created),
+    from datetime import timezone
+    h = datetime.now(timezone(timedelta(hours=8))).hour   # Taiwan time (no daylight saving), whatever the server's clock is set to
+    greet = "Good morning" if 5 <= h < 12 else ("Good afternoon" if 12 <= h < 18 else "Good evening")
+    t = user.title or "Professor"
+    honor = "Professor" if "Professor" in t else t   # an Associate or Assistant Professor is addressed as Professor; never abbreviated
+    return render(req, "advisor.html", user, greet=greet, honor=honor, projects=projects, prog=prog, reviews=sorted(reviews, key=lambda t: t.last_at or t.created),
                   students=len(students), upcoming=upcoming, events=events, names=names, openings=openings, oapps=oapps,
                   pending_lab=sum(v[0] for v in oapps.values()), seat_apps=seat_apps)
 

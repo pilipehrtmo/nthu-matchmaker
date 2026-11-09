@@ -61,7 +61,7 @@
 {% if pr.progress %}<div><h3>Done so far</h3><ul>{% for l in pr.progress.splitlines() if l.strip() %}<li>{{ l.strip().lstrip("-•* ") }}</li>{% endfor %}</ul></div>{% endif %}</div>
 {% set mr = metric_rows(pr.metrics) %}{% if mr %}<div class="pnums">{% for v, l in mr %}<div><b>{{ v }}</b><span>{{ l }}</span></div>{% endfor %}</div>{% endif %}
 {% if pr.needs %}<p class="pneed"><b>What we need:</b> {{ pr.needs }}</p>{% endif %}
-{% if reveal and not is_owner %}<p class="muted fine"><a href="/projects/{{ pr.id }}/onepager" target="_blank" rel="noopener">Open the one-pager (PDF)</a></p>{% endif %}</section>{% endif %}
+{% if reveal and not is_owner %}<p class="muted fine pone"><a href="/projects/{{ pr.id }}/onepager" target="_blank" rel="noopener">Open the one-pager (PDF)</a></p>{% endif %}</section>{% endif %}
 
 {% if k == "Startup" and (pr.stage or is_owner) %}<section class="card guide"><h2>Where to take it next</h2>
 {% if pr.stage %}<p class="muted">Suggested steps for the <b>{{ pr.stage }}</b> stage:</p><ol>{% for st in G.STAGE_STEPS[pr.stage] %}<li>{{ st }}</li>{% endfor %}</ol>

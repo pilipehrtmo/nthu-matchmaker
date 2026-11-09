@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block body %}
-<div class="dhead"><div><p class="eyebrow">{{ user.title or "Professor" }}{% if user.faculty %} · {{ user.faculty }}{% endif %}</p><h1>Advisor dashboard</h1></div>
+<div class="dhead"><div><p class="eyebrow">{{ user.title or "Professor" }}{% if user.faculty %} · {{ user.faculty }}{% endif %}</p><h1>{% if lang == "zh" %}{{ greet }}，{{ user|dn }} {{ honor }}{% else %}{{ greet }}, {{ honor }} {{ user|dn }}{% endif %}</h1><p class="muted dsub">Advisor dashboard</p></div>
 <div class="acts">{% if user.is_faculty %}<a class="btn" href="/openings/new">Post a research position</a>{% endif %}<a class="btn ghost" href="/u/{{ user.handle }}">Your public page</a></div></div>
 {% if not user.is_faculty %}<p class="box">Your professor account is not verified yet, so you cannot supervise projects or post research positions. <a href="/profile#faculty">Check your status</a>.</p>{% endif %}
 
