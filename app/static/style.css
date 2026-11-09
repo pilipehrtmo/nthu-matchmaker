@@ -657,3 +657,8 @@ html.loading{cursor:progress}
 .frow>#f-clear{display:inline-flex;align-items:center;gap:.4rem;margin:0;font-weight:600;font-size:.92rem;line-height:normal;padding:.55rem 1rem;border:1.5px solid var(--line);border-radius:12px;color:var(--ink);background:transparent;box-shadow:none;transform:none}
 .frow>#f-clear:hover{border-color:var(--pri);color:var(--pri)}
 .frow>#f-clear[hidden]{display:none}
+/* scan fixes: phone header overlap, even card headers, same-width profile boxes */
+.bname{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:440px){.na .nlogin{display:none}.na .nlang{margin-right:.2rem}}
+.pcard .ctop{min-height:2.45rem}
+.pwform{max-width:none}
