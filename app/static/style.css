@@ -652,3 +652,8 @@ html.loading{cursor:progress}
 .seatlist .seatcard>details:not(.sdet)>summary::-webkit-details-marker{display:none}
 .seatlist .seatcard>details:not(.sdet)[open]>summary{background:var(--pri-soft);color:var(--pri-ink);margin-bottom:.6rem}
 .ready .rgrid{grid-auto-rows:1fr;align-items:stretch}.ready .rcard{display:flex;flex-direction:column;height:100%;box-sizing:border-box}.ready .rcard .rdet{margin-top:auto;padding-top:.4rem}
+/* filter row: Clear filters matches Sort and filters, same line and height */
+.frow{align-items:center}.frow>.fpanel{margin:0}
+.frow>#f-clear{display:inline-flex;align-items:center;gap:.4rem;margin:0;font-weight:600;font-size:.92rem;line-height:normal;padding:.55rem 1rem;border:1.5px solid var(--line);border-radius:12px;color:var(--ink);background:transparent;box-shadow:none;transform:none}
+.frow>#f-clear:hover{border-color:var(--pri);color:var(--pri)}
+.frow>#f-clear[hidden]{display:none}
