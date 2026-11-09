@@ -1,4 +1,4 @@
-import asyncio, hashlib, re, secrets, time
+import asyncio, hashlib, os, re, secrets, time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -48,6 +48,12 @@ def tr_filter(ctx, s): return keep(_t(s, ctx.get("lang", "en")))   # translate a
 templates.env.filters["tr"] = tr_filter
 def tpl(req): return templates_zh if pick_lang(req) == "zh" else templates
 
+def keep_awake():   # Render's free plan sleeps after 15 min with no visitors; a request to our own public URL every 10 min keeps it up
+    try:
+        import httpx; httpx.get(BASE_URL.rstrip("/") + "/healthz", timeout=20)
+    except Exception as e:
+        print(">>> keep-awake ping failed:", type(e).__name__, flush=True)
+
 def purge_logs():
     with Session(engine) as s:
         s.exec(delete(SignupLog).where(SignupLog.at < datetime.utcnow() - timedelta(days=LOG_RETENTION_DAYS))); s.commit()
@@ -66,7 +72,9 @@ async def lifespan(app):
     if DEMO_DATA:
         from .demo_data import seed_demo; seed_demo(); print(">>> DEMO MODE: sample teams loaded into a separate database. Do not share this server with real users.")
     warm(); sch = BackgroundScheduler()
-    sch.add_job(run_scrapers); sch.add_job(run_scrapers, "cron", hour=3); sch.add_job(purge_logs, "cron", hour=4); sch.start()
+    sch.add_job(run_scrapers); sch.add_job(run_scrapers, "cron", hour=3); sch.add_job(purge_logs, "cron", hour=4)
+    if PUBLIC and os.getenv("KEEP_AWAKE", "1") == "1": sch.add_job(keep_awake, "interval", minutes=10)   # set KEEP_AWAKE=0 on Render to let it sleep again
+    sch.start()
     yield
     sch.shutdown()
 
@@ -132,6 +140,8 @@ async def security_headers(request: Request, call_next):
     if "session" in request.scope and request.session.get("uid") and not request.url.path.startswith(("/static", "/avatar/")):
         h.setdefault("Cache-Control", "private, no-store")   # pages with someone's data are never kept by shared caches
     return resp
+@app.get("/healthz", include_in_schema=False)
+def healthz(): return Response("ok", media_type="text/plain")   # tiny page for the keep-awake ping: no database, no login
 app.add_middleware(SessionMiddleware, secret_key=SECRET, max_age=60 * 60 * 24 * 30, https_only=PUBLIC, same_site="lax")
 if PUBLIC and SECRET == "dev-secret-change-me": raise SystemExit("Set SECRET_KEY before putting the site online.")
 if PUBLIC and not SMTP_HOST: print("WARNING: no SMTP settings, so login emails cannot be sent. Set SMTP_HOST/SMTP_USER/SMTP_PASS/SMTP_FROM.")
