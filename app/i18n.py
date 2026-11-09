@@ -141,6 +141,7 @@ PATTERNS = [   # messages with a number, a name or a wait time inside; groups ar
     (r"^Team has (\d+) of at least (\d+) members$", "團隊有 {0} 人，至少需要 {1} 人"),
     (r"^(\d+) of (\d+) members are students \(at least two thirds needed\)$", "{1} 位成員中有 {0} 位是學生（至少需要三分之二）"),
     (r"^Category fits \((.+)\)$", "類別符合（{0}）"),
+    (r"^due in (\d+) days?$", "{0} 天後到期"),
     (r"^The page answered with error (\d+)\.$", "頁面回應錯誤 {0}。"),
     (r"^Could not open the page \((.+)\)\.$", "無法開啟頁面（{0}）。"),
     (r"^Email found on (.+)$", "在 {0} 找到你的 email"),

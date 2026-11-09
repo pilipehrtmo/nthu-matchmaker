@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% from "_links.html" import pro_links, contact_list %}{% block body %}
+{% if notice == "sent" %}<p class="box ok" role="status">Application sent. You can follow it on your <a href="/activity">Activity</a> page.</p>
+{% elif notice == "edited" %}<p class="box ok" role="status">Application updated.</p>
+{% elif notice == "withdrawn" %}<p class="box" role="status">Application withdrawn. You can apply again while the position is open.</p>
+{% elif notice == "short" %}<p class="err" role="status">Write a short note to the professor (at least 10 characters).</p>
+{% elif notice == "full" %}<p class="err" role="status">All positions are already filled. Add a position first if you want to accept more students.</p>
+{% elif notice == "closed" %}<p class="err" role="status">This position is no longer taking applications.</p>{% endif %}
+<p class="muted fine" style="margin:0 0 .6rem"><a href="/research">← All research positions</a></p>
+<div class="ogrid"><div class="omain">
+<section class="card head"><p class="eyebrow">Undergraduate research position</p><h1>{{ o.title }}</h1>
+<div class="meta"><span class="pill">{{ o.hours }} h/week</span><span class="pill">{{ o.positions }} position{{ "s" if o.positions != 1 }}{% if accepted %} · {{ accepted }} filled{% endif %}</span>
+{% if o.status == "closed" %}<span class="pill warn">Closed</span>{% elif full %}<span class="pill warn">All positions filled</span>{% elif days is not none %}<span class="pill {{ 'warn' if days <= 7 }}">{% if days < 0 %}Deadline passed{% elif days == 0 %}Last day to apply{% else %}Apply within {{ days }} days{% endif %}</span>{% else %}<span class="pill">Open until filled</span>{% endif %}</div>
+<p class="o-desc">{{ o.description }}</p>
+{% if o.skills %}<h3>Skills that help</h3><div>{% for t in o.skills.split(",") if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in mytags }}">{{ keep(t.strip()) }}</span>{% endfor %}</div>{% endif %}
+{% if o.requirements %}<h3>Requirements</h3><ul class="req must">{% for l in o.requirements.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul>{% endif %}
+{% if o.deadline %}<h3>Application deadline</h3><p>{{ o.deadline }}</p>{% endif %}
+<h3>How to apply</h3><p class="o-desc">{{ o.process or "Send a short note below. The professor reads every application and accepts or declines it here. If you are accepted, you both see each other's contact details." }}</p>
+{% if is_owner or (user and user.is_admin) %}<div class="acts ownacts">{% if is_owner %}<a class="btn ghost sm" href="/openings/{{ o.id }}/edit">Edit position</a>
+<form method="post" action="/openings/{{ o.id }}/status"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ 'closed' if o.status == 'open' else 'open' }}"><button class="ghost sm">{{ "Stop taking applications" if o.status == "open" else "Open it again" }}</button></form>{% endif %}
+<form method="post" action="/openings/{{ o.id }}/delete" hx-confirm="Delete this position and its applications?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="no sm">Delete position</button></form></div>{% endif %}
+</section>
+
+{% if is_owner or (user and user.is_admin and apps) %}<section class="card" id="applicants"><h2>Applicants {% if apps %}<span class="count">{{ apps|length }}</span>{% endif %}</h2>
+{% if not apps %}<p class="muted">No applications yet.</p>{% endif %}
+<div class="apps">{% for a, u in apps %}<div class="app">{{ pic(u, "av") }}<div class="app-main">
+<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{% if u.faculty %} <small class="muted">{{ u.faculty }}</small>{% endif %}</span>
+<span class="badge b-{{ a.status }}">{{ {"closed": "Positions filled", "withdrawn": "Withdrawn"}.get(a.status, a.status|capitalize) }}</span></div>
+{% set sk = u.skills.split(",") if u.skills else [] %}{% if sk %}<div>{% for t in sk if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in o.skills.lower().split(',') }}">{{ keep(t.strip()) }}</span>{% endfor %}</div>{% endif %}
+{{ pro_links(u, compact=True) }}
+<p class="app-msg">{{ a.message }}</p><small class="muted">Sent {{ a.at|ago }}</small>
+{% if is_owner and a.status == "pending" %}<div class="acts"><form method="post" action="/opening-apps/{{ a.id }}/accepted"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Accept</button></form>
+<form method="post" action="/opening-apps/{{ a.id }}/rejected"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Decline</button></form></div>{% endif %}
+{% if is_owner and a.status == "accepted" %}<p class="app-contact">Email: <b>{{ u.email }}</b><br>Contact: {{ contact_list(u) }}</p>{% endif %}
+</div></div>{% endfor %}</div></section>{% endif %}
+</div>
+
+<aside class="oside">
+<a class="card oprof" href="/u/{{ prof.handle }}">{{ pic(prof, "av xl") }}<b>{{ prof|dn }}</b><span class="muted">{{ prof.title or "Professor" }}</span>{% if prof.faculty %}<span class="muted">{{ prof.faculty }}</span>{% endif %}{% if prof.lab_name %}<span>{{ prof.lab_name }}</span>{% endif %}<span class="pill fac">✔ Verified NTHU faculty</span></a>
+{% if not is_owner %}<section class="card oapply">
+{% if not user %}<p><a href="/login">Log in</a> to apply.</p>
+{% elif user.role == "faculty" %}<p class="muted">Research positions are for students.</p>
+{% elif mine and mine.status != "withdrawn" %}<h2>Your application</h2><span class="badge b-{{ mine.status }}">{{ {"closed": "Positions filled", "accepted": "Accepted", "pending": "Waiting for the professor"}.get(mine.status, mine.status|capitalize) }}</span>
+<p class="app-msg">{{ mine.message }}</p>
+{% if mine.status == "accepted" %}<p class="reveal">You're in. Contact the professor: <b>{{ prof.email }}</b>{% if prof.line or prof.instagram or prof.discord or prof.contact %}<br>{{ contact_list(prof) }}{% endif %}</p>{% endif %}
+{% if mine.status == "pending" %}<details class="sa-edit"><summary>Edit message</summary><form method="post" action="/opening-apps/{{ mine.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}"><textarea name="message" rows="4" minlength="10" maxlength="1000" aria-label="Your message">{{ mine.message }}</textarea><p><button class="sm">Save changes</button></p></form></details>
+<form method="post" action="/opening-apps/{{ mine.id }}/withdrawn" hx-confirm="Withdraw this application?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm no">Withdraw application</button></form>{% endif %}
+{% elif taking %}<h2>Apply</h2><form method="post" action="/openings/{{ o.id }}/apply"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="om">Note to the professor</label>
+<textarea id="om" name="message" rows="5" minlength="10" maxlength="1000" required placeholder="Your year and department, why this research interests you, and anything you've done that is related"></textarea>
+<p class="muted fine">The professor sees your profile, skills and professional links. If you are accepted, they also see your email and contacts.</p><p><button>Send application</button></p></form>
+{% else %}<p class="muted">This position is not taking applications right now.</p>{% endif %}</section>{% endif %}
+</aside></div>
+{% endblock %}

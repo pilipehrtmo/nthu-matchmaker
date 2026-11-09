@@ -1,6 +1,9 @@
 {% extends "base.html" %}{% block body %}<h1>Activity</h1>
 <p class="muted">Your projects and the applications you sent, in one place.</p>
 {% if request.query_params.get("n") == "edited" %}<p class="box ok" role="status">Application updated.</p>{% elif request.query_params.get("n") == "withdrawn" %}<p class="box" role="status">Application withdrawn.</p>{% endif %}
+{% if user.role == "faculty" %}<p class="box">Feedback requests, the projects you supervise and your research positions are on your <a href="/advisor">advisor dashboard</a>.</p>{% endif %}
+{% if fb %}<h2>Advisor feedback for your team <span class="count">{{ fb|length }}</span></h2>
+<div class="dlist">{% for t in fb %}{% set p = fbp.get(t.project_id) %}<a class="drow" href="/projects/{{ t.project_id }}#t{{ t.id }}"><span class="dmain"><b>{{ t.body|truncate(90, True, "…") }}</b><small class="muted">{{ p.title if p else "" }} · {{ t.category }} · {{ (t.last_at or t.created)|ago }}</small></span><span class="badge b-open">Reply or resolve</span></a>{% endfor %}</div>{% endif %}
 <h2>Your projects</h2>
 {% if not mine %}<p class="card muted">You have not posted a project yet. <a href="/projects/new">Post one</a>.</p>{% endif %}
 <div class="alist">{% for p in mine %}{% set d = days_left(p.deadline) %}<a class="card arow" href="/projects/{{ p.id }}">
@@ -18,4 +21,7 @@
 <textarea name="message" rows="3" maxlength="500" aria-label="Your message">{{ a.message }}</textarea><p class="formacts"><button class="sm">Save changes</button></p></form></details>
 <form method="post" action="/applications/{{ a.id }}/withdrawn" class="sa-wd" hx-confirm="Withdraw this application? You can apply again while the seat is open."><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/activity"><button class="ghost sm no">Withdraw</button></form>{% endif %}
 </article>{% endfor %}</div>
+{% if oapps %}<h2>Research positions you applied for <span class="count">{{ oapps|length }}</span></h2>
+<div class="dlist">{% for a, o in oapps %}{% set pf = profs.get(o.owner_id) %}<a class="drow" href="/openings/{{ o.id }}"><span class="dmain"><b>{{ o.title }}</b><small class="muted">{{ pf|dn }} · sent {{ a.at|ago }}</small></span>
+<span class="badge b-{{ a.status }}">{{ {"closed": "Positions filled", "withdrawn": "Withdrawn", "accepted": "Accepted", "pending": "Waiting"}.get(a.status, a.status|capitalize) }}</span></a>{% endfor %}</div>{% endif %}
 {% endblock %}

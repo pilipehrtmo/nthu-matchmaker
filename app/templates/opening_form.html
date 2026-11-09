@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block body %}
+{% set editing = o and o.id %}<h1>{{ "Edit research position" if editing else "Post a research position" }}</h1>
+<p class="muted">Students who fit apply with a short note. You decide here, and contact details are shared only with the students you accept.</p>
+{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+<form method="post" action="{{ '/openings/' ~ o.id ~ '/edit' if editing else '/openings/new' }}" class="card"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label for="ot">Position title</label><input id="ot" name="title" required maxlength="120" value="{{ o.title if o else '' }}" placeholder="e.g. Undergraduate research assistant: AI and machine learning">
+<label for="od">What the research is and what the student will do</label><textarea id="od" name="description" rows="5" required maxlength="2000" placeholder="The question your lab works on, and the student's tasks in the first months">{{ o.description if o else "" }}</textarea>
+<label for="os">Skills that help <small class="muted">(comma-separated)</small></label><input id="os" name="skills" maxlength="200" value="{{ o.skills.replace(',', ', ') if o else '' }}" placeholder="e.g. python, linear algebra, machine learning">
+<label for="orq">Requirements <small class="muted">(one per line)</small></label><textarea id="orq" name="requirements" rows="3" maxlength="1300" placeholder="Python programming&#10;Basic linear algebra&#10;Interest in machine learning">{{ o.requirements if o else "" }}</textarea>
+<div class="two"><div><label for="oh">Hours per week</label><input id="oh" name="hours" required maxlength="7" value="{{ o.hours if o else '' }}" placeholder="e.g. 8-10"></div>
+<div><label for="op">Number of students</label><input id="op" name="positions" type="number" min="1" max="20" required value="{{ o.positions if o else 1 }}"></div></div>
+<label for="odl">Application deadline <small class="muted">(optional; leave empty to keep it open until filled)</small></label><input id="odl" name="deadline" type="date" value="{{ o.deadline if o else '' }}">
+<label for="opr">How to apply and what happens next <small class="muted">(optional)</small></label><textarea id="opr" name="process" rows="3" maxlength="800" placeholder="e.g. Send a short note. I reply within two weeks, and shortlisted students meet me for a 20-minute chat.">{{ o.process if o else "" }}</textarea>
+<p class="formacts"><button>{{ "Save changes" if editing else "Post position" }}</button>{% if editing %} <a class="btn ghost" href="/openings/{{ o.id }}">Cancel</a>{% endif %}</p></form>
+{% endblock %}

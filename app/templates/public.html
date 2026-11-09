@@ -1,10 +1,17 @@
 {% extends "base.html" %}{% from "_links.html" import pro_links %}{% block body %}
 {% if reported %}<p class="box ok" role="status">Thanks. Your report was sent to the admins. They will review it.</p>{% endif %}
 <div class="phead">{{ pic(p, "av xl") }}<div><h1>{{ p|dn }} {{ facbadge(p) }}</h1>{% if p.faculty %}<p class="muted" style="margin:.1rem 0 .6rem">{{ p.faculty }}</p>{% endif %}</div></div><p>{{ p.bio }}</p>{{ pro_links(p) }}<p>{% for t in skills %}<span class="tag">{{ t }}</span>{% endfor %}</p>
-<p>{% if p.verified %}<span class="pill match">✔ Verified by admin</span>{% else %}<span class="pill">Not yet verified</span>{% endif %}</p>
+{% if p.is_faculty %}<section class="card rprof">{% if research %}<h3>Research interests</h3><div>{% for t in research %}<span class="tag">{{ keep(t) }}</span>{% endfor %}</div>{% endif %}
+{% if p.lab_name or p.lab_url or p.scholar or p.orcid %}<h3>Lab and publications</h3><ul class="rlinks">{% if p.lab_name or p.lab_url %}<li>{% if p.lab_url %}<a href="{{ p.lab_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ p.lab_name or "Lab website" }}&nbsp;↗</a>{% else %}{{ p.lab_name }}{% endif %}</li>{% endif %}
+{% if p.scholar %}<li><a href="{{ p.scholar }}" target="_blank" rel="noopener noreferrer nofollow">{{ "ORCID" if "orcid.org" in p.scholar else "Google Scholar" }}&nbsp;↗</a></li>{% endif %}{% if p.orcid %}<li><a href="{{ p.orcid }}" target="_blank" rel="noopener noreferrer nofollow">ORCID&nbsp;↗</a></li>{% endif %}</ul>{% endif %}
+{% if not research and not (p.lab_name or p.lab_url or p.scholar or p.orcid) %}<p class="muted">{{ "Add your research interests and lab on your profile." if user and user.id == p.id else "No research details added yet." }}</p>{% endif %}</section>
+<h2 class="projh">Open research positions{% if openings %} <span class="count">{{ openings|length }}</span>{% endif %}</h2>
+{% if openings %}<div class="dlist">{% for x in openings %}<a class="drow" href="/openings/{{ x.o.id }}"><span class="dmain"><b>{{ x.o.title }}</b><small class="muted">{{ x.o.hours }} h/week · {{ x.o.positions - x.accepted }} spot{{ "s" if x.o.positions - x.accepted != 1 }} left{% if x.days is not none %} · apply within {{ x.days }} days{% endif %}</small></span><span class="badge b-open">Apply</span></a>{% endfor %}</div>
+{% else %}<p class="muted">{% if user and user.id == p.id %}No open positions. <a href="/openings/new">Post one</a>.{% else %}No open positions right now.{% endif %}</p>{% endif %}
+{% else %}<p>{% if p.verified %}<span class="pill match">✔ Verified by admin</span>{% else %}<span class="pill">Not yet verified</span>{% endif %}</p>{% endif %}
 {% set xp = [("Competitions", p.competitions, "trophy"), ("Projects", p.past_projects, "build"), ("Awards and honours", p.awards, "medal")] %}
 {% if p.competitions or p.past_projects or p.awards %}<div class="xpgrid">{% for label, val, ic in xp if val %}<section class="card xp xp-{{ ic }}"><h3>{{ label }}</h3><ul>{% for l in val.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></section>{% endfor %}</div>{% endif %}
-<h2 class="projh">Projects{% if projects %} <span class="count">{{ projects|length }}</span>{% endif %}</h2>
+<h2 class="projh">{{ "Projects they supervise or lead" if p.is_faculty else "Projects" }}{% if projects %} <span class="count">{{ projects|length }}</span>{% endif %}</h2>
 {% if projects %}<div class="plist">{% for x in projects %}{% set pr = x.p %}{% set rec = pr.status == "open" and x.open and not (x.days is not none and x.days < 0) %}
 <a class="card prow" href="/projects/{{ pr.id }}"><div class="pr-top"><span class="pr-kind">{{ kind_of(pr) }}{% if pr.category %} · {{ pr.category }}{% endif %}</span><span class="badge {{ 'b-open' if rec else 'b-pending' }}">{{ "Recruiting" if rec else ("Team complete" if not x.open else "Not recruiting") }}</span></div>
 <b class="pr-title">{{ pr.title }}</b>

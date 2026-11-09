@@ -31,6 +31,10 @@ class User(SQLModel, table=True):
     faculty_url: str = ""      # NTHU page that lists them
     faculty_note: str = ""     # result of the last automatic check
     title: str = ""            # Professor, Associate Professor, ...
+    research: str = ""         # professors: research interests, comma-separated (public)
+    lab_name: str = ""         # professors: lab or research group name (public)
+    lab_url: str = ""          # professors: lab website (public, https)
+    orcid: str = ""            # professors: ORCID link (public); Google Scholar uses the "scholar" field
     competitions: str = ""    # one per line: competitions they entered (public)
     past_projects: str = ""   # one per line: projects they built (public)
     awards: str = ""          # one per line: awards and honours (public)
@@ -152,13 +156,56 @@ class ScrapeLog(SQLModel, table=True):    # health of each scraper source
     error: str = ""
     at: NaiveDatetime = Field(default_factory=datetime.utcnow)
 
-class Remark(SQLModel, table=True):     # advisor feedback on a project
+FEEDBACK_CATEGORIES = ["Research direction", "Methodology", "Technical", "Literature review", "General"]
+FEEDBACK_PRIORITIES = ["High", "Normal", "Low"]
+
+class Remark(SQLModel, table=True):     # research supervision: a feedback thread on a project, or a reply in one
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="project.id", index=True)
     author_id: int = Field(foreign_key="user.id")
     body: str
-    public: bool = False      # False: only the team, advisors and admins see it
+    public: bool = False      # False: only the team, advisors and admins see it (only advisor feedback can be public)
+    kind: str = "feedback"    # feedback (advisor starts it) / request (team asks for feedback) / reply
+    parent_id: Optional[int] = Field(default=None, index=True)   # the thread a reply belongs to
+    category: str = "General" # one of FEEDBACK_CATEGORIES (threads only)
+    priority: str = "Normal"  # one of FEEDBACK_PRIORITIES (threads only)
+    status: str = "open"      # open / resolved (threads only)
+    resources: str = ""       # suggested papers and links, one per line
+    last_at: NaiveDatetime = Field(default_factory=datetime.utcnow)   # threads: time of the newest message
+    last_by: int = 0          # threads: who wrote the newest message
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class Milestone(SQLModel, table=True):  # research progress: a step the team plans, ticked off when done
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    title: str
+    due: str = ""             # YYYY-MM-DD or empty
+    done: bool = False
+    done_at: Optional[NaiveDatetime] = None
+    created_by: int = 0
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class Opening(SQLModel, table=True):    # a research position a professor offers to undergraduates
+    id: Optional[int] = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="user.id", index=True)
+    title: str
+    description: str = ""
+    skills: str = ""          # comma-separated
+    requirements: str = ""    # one per line
+    hours: str = ""           # e.g. "8-10"
+    positions: int = 1
+    deadline: str = ""        # YYYY-MM-DD or empty
+    process: str = ""         # how to apply and what happens next
+    status: str = "open"      # open / closed
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class OpeningApp(SQLModel, table=True): # a student's application for a research position
+    id: Optional[int] = Field(default=None, primary_key=True)
+    opening_id: int = Field(foreign_key="opening.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    message: str = ""
+    status: str = "pending"   # pending / accepted / rejected / closed (positions filled) / withdrawn
+    at: NaiveDatetime = Field(default_factory=datetime.utcnow)
 
 class Program(SQLModel, table=True):    # funding and incubation programs on /funding, editable by admins
     id: Optional[int] = Field(default=None, primary_key=True)

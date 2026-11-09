@@ -5,7 +5,15 @@
 {% elif user.faculty_status == "rejected" %}<p class="err">An admin could not confirm you as NTHU teaching staff. Contact the admins if this is a mistake.</p>
 {% else %}<p><span class="pill warn">Waiting</span> We could not confirm you automatically yet: {{ user.faculty_note or "not checked yet" }} An admin will check by hand, or you can try another page.</p>
 <form method="post" action="/profile/faculty"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="fp">NTHU page that lists your email</label>
-<input id="fp" name="page" type="url" value="{{ user.faculty_url }}" placeholder="https://….nthu.edu.tw/…"><p><button class="sm">Check again</button></p></form>{% endif %}</section>{% endif %}
+<input id="fp" name="page" type="url" value="{{ user.faculty_url }}" placeholder="https://….nthu.edu.tw/…"><p><button class="sm">Check again</button></p></form>{% endif %}</section>
+<section class="card facbox" id="research"><h3>Research profile</h3><p class="muted">Shown on your public page and in the professor directory, so students can find you.</p>
+{% if request.query_params.get("n") == "research" %}<p class="box ok" role="status">Research profile saved.</p>{% endif %}
+<form method="post" action="/profile/research"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label for="rs">Research interests and expertise <small class="muted">(comma-separated, up to 12)</small></label><input id="rs" name="research" maxlength="600" value="{{ user.research }}" placeholder="e.g. machine learning, environmental sensing, IoT">
+<div class="two"><div><label for="ln">Lab or research group</label><input id="ln" name="lab_name" maxlength="100" value="{{ user.lab_name }}" placeholder="e.g. Intelligent Systems Lab"></div>
+<div><label for="lu">Lab website</label><input id="lu" name="lab_url" maxlength="200" value="{{ user.lab_url }}" placeholder="e.g. lab.cs.nthu.edu.tw"></div></div>
+<label for="oc">ORCID <small class="muted">(Google Scholar goes in Professional links below)</small></label><input id="oc" name="orcid" maxlength="200" value="{{ user.orcid }}" placeholder="0000-0000-0000-0000">
+<p class="formacts"><button class="sm">Save research profile</button> <a href="/advisor">Advisor dashboard →</a></p></form></section>{% endif %}
 <section class="photobox"><span id="phwrap">{{ pic(user, "av xl") }}</span><div><h3>Profile photo</h3><p class="muted">A clear photo of your face helps teammates recognise you. JPG, PNG or WebP, up to 8 MB. We crop it to a square and remove location data.</p>
 <div class="acts"><form id="phform"><input type="hidden" name="csrf" value="{{ csrf }}"><label class="btn ghost sm" for="phfile">{{ "Change photo" if user.avatar_v else "Upload photo" }}</label><input id="phfile" name="file" type="file" accept="image/jpeg,image/png,image/webp" hidden></form>
 {% if user.avatar_v %}<form method="post" action="/profile/photo/delete"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm no">Remove</button></form>{% endif %}<span id="phmsg" class="muted" role="status"></span></div></div></section>

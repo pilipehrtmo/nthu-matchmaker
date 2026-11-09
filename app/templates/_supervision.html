@@ -1,0 +1,54 @@
+{% macro who(uid) %}{% set au = sup.rauthors.get(uid) %}{% if au %}{{ pic(au, "av sm") }}<span class="th-name"><a href="/u/{{ au.handle }}">{{ au|dn }}</a>{% if uid in sup.ppl.advisors %} <span class="th-role adv">Advisor</span>{% elif uid in sup.ppl.team %} <span class="th-role">Team</span>{% endif %}</span>{% else %}<span class="th-name">[deleted]</span>{% endif %}{% endmacro %}
+{% macro resources(text) %}{% set rl = res_lines(text) %}{% if rl %}<div class="th-res"><p class="req-h">Suggested reading and resources</p><ul>{% for label, url in rl %}<li>{% if url %}<a href="{{ url }}" target="_blank" rel="noopener noreferrer nofollow">{{ label }}&nbsp;↗</a>{% else %}{{ label }}{% endif %}</li>{% endfor %}</ul></div>{% endif %}{% endmacro %}
+
+{% macro thread(t) %}<article class="thread {{ 'is-resolved' if t.status == 'resolved' }} {{ 'is-high' if t.priority == 'High' and t.status != 'resolved' }}" id="t{{ t.id }}">
+<header class="th-top"><span class="th-who">{{ who(t.author_id) }}<small class="muted">{{ "asked" if t.kind == "request" else "wrote" }} {{ t.created|ago }}</small></span>
+<span class="th-tags"><span class="pill th-cat">{{ t.category }}</span>{% if t.priority != "Normal" %}<span class="pill th-pri p-{{ t.priority|lower }}">{{ t.priority }} priority</span>{% endif %}
+{% if sup.sv.insider %}<span class="badge {{ 'b-accepted' if t.status == 'resolved' else 'b-open' }}">{{ "Resolved" if t.status == "resolved" else "Open" }}</span>{% endif %}
+{% if t.public %}<span class="pill" title="Shown on the public project page">Public</span>{% endif %}</span></header>
+<p class="th-kind">{{ "Question from the team" if t.kind == "request" else "Feedback" }}</p>
+<p class="th-body">{{ t.body }}</p>{{ resources(t.resources) }}
+{% if sup.sv.insider %}{% set rs = sup.replies.get(t.id, []) %}{% if rs %}<div class="th-replies">{% for x in rs %}<div class="th-reply" id="t{{ x.id }}"><div class="th-top"><span class="th-who">{{ who(x.author_id) }}<small class="muted">{{ x.created|ago }}</small></span>
+{% if user and (user.id == x.author_id or user.is_admin) %}<form method="post" action="/remarks/{{ x.id }}/delete" hx-confirm="Delete this reply?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Delete</button></form>{% endif %}</div>
+<p class="th-body">{{ x.body }}</p>{{ resources(x.resources) }}</div>{% endfor %}</div>{% endif %}
+{% if sup.sv.team or sup.sv.adv %}<div class="th-acts">
+<details class="th-replyf"><summary>Reply</summary><form method="post" action="/threads/{{ t.id }}/reply"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label for="rp{{ t.id }}">Your reply</label><textarea id="rp{{ t.id }}" name="body" rows="3" maxlength="3000" required></textarea>
+{% if sup.sv.adv %}<label for="rr{{ t.id }}">Suggested papers or links <small class="muted">(optional, one per line)</small></label><textarea id="rr{{ t.id }}" name="resources" rows="2" maxlength="3000" placeholder="Title https://…"></textarea>{% endif %}
+<p><button class="sm">Send reply</button></p></form></details>
+<form method="post" action="/threads/{{ t.id }}/status"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ 'open' if t.status == 'resolved' else 'resolved' }}"><button class="ghost sm">{{ "Reopen" if t.status == "resolved" else "Mark as resolved" }}</button></form>
+{% if user and (user.id == t.author_id or user.is_admin) %}<form method="post" action="/remarks/{{ t.id }}/delete" hx-confirm="Delete this conversation and its replies?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Delete</button></form>{% endif %}
+</div>{% endif %}{% endif %}</article>{% endmacro %}
+
+<section class="card sup" id="supervision"><div class="sup-head"><h2>{{ "Research supervision" if sup.sv.insider else "Advisor feedback" }}</h2>
+{% if sup.sv.insider %}<p class="muted fine">Only the team, its advisors and admins see this section. Advisor feedback goes public only when the advisor ticks “Show on the public page”.</p>{% endif %}</div>
+{% if sup.sv.insider %}<div class="sup-grid"><div class="sup-main">
+{% if sup.sv.adv %}<details class="sup-new" {{ "open" if not sup.threads }}><summary>Give feedback</summary><form method="post" action="/projects/{{ pr.id }}/threads"><input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="two"><div><label for="fc">Topic</label><select id="fc" name="category">{% for c in sup.categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+<div><label for="fpp">Priority</label><select id="fpp" name="priority">{% for p in sup.priorities %}<option value="{{ p }}" {{ "selected" if p == "Normal" }}>{{ p }}</option>{% endfor %}</select></div></div>
+<label for="fb">Your feedback</label><textarea id="fb" name="body" rows="4" maxlength="3000" required placeholder="What works, what concerns you, and the next step you suggest"></textarea>
+<label for="fr">Suggested papers or links <small class="muted">(optional, one per line)</small></label><textarea id="fr" name="resources" rows="2" maxlength="3000" placeholder="Title https://…"></textarea>
+<label class="chk"><input type="checkbox" name="public"> Show on the public project page (otherwise only the team sees it)</label><p><button>Post feedback</button></p></form></details>
+{% elif sup.can_ask %}<details class="sup-new" {{ "open" if not sup.threads }}><summary>Ask for feedback</summary><form method="post" action="/projects/{{ pr.id }}/threads"><input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="two"><div><label for="ac">Topic</label><select id="ac" name="category">{% for c in sup.categories %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+<div><label for="ap">Priority</label><select id="ap" name="priority">{% for p in sup.priorities %}<option value="{{ p }}" {{ "selected" if p == "Normal" }}>{{ p }}</option>{% endfor %}</select></div></div>
+<label for="aq">What do you want feedback on?</label><textarea id="aq" name="body" rows="3" maxlength="3000" required placeholder="e.g. Is our sensor placement plan OK? Draft attached in the team links."></textarea><p><button>Send to our advisor</button></p></form></details>
+{% elif sup.sv.team %}<p class="box">You don't have an advisor yet. {% if is_owner %}<a href="/projects/{{ pr.id }}/edit">Add an advisor seat</a> and accept a professor to get feedback here.{% else %}Once the lead accepts a professor on an advisor seat, you can ask for feedback here.{% endif %} You can still plan milestones below.</p>{% endif %}
+{% if sup.open_threads %}<div class="threads">{% for t in sup.open_threads %}{{ thread(t) }}{% endfor %}</div>
+{% elif sup.threads %}<p class="muted">No open conversations. Everything has been resolved.</p>
+{% else %}<p class="muted">No feedback yet.</p>{% endif %}
+{% if sup.done_threads %}<details class="sup-hist"><summary>Feedback history <small class="muted">· {{ sup.done_threads|length }} resolved</small></summary><div class="threads">{% for t in sup.done_threads %}{{ thread(t) }}{% endfor %}</div></details>{% endif %}
+</div>
+<aside class="sup-side" id="milestones"><h3>Milestones</h3>
+{% set total = sup.milestones|length %}{% if total %}<div class="ms-bar" role="img" aria-label="{{ sup.ms_done }} of {{ total }} milestones done"><span style="width:{{ (100 * sup.ms_done / total)|round|int }}%"></span></div>
+<p class="muted fine">{{ sup.ms_done }} of {{ total }} done</p>{% endif %}
+<ul class="ms-list">{% for m in sup.milestones %}<li class="{{ 'is-done' if m.done }}"><form method="post" action="/milestones/{{ m.id }}/toggle"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ms-check" aria-label="{{ 'Mark as not done' if m.done else 'Mark as done' }}: {{ m.title }}" aria-pressed="{{ 'true' if m.done else 'false' }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button></form>
+<span class="ms-t"><span>{{ m.title }}</span>{% if m.due %}<small class="{{ 'warn-t' if not m.done and (days_left(m.due) or 0) < 0 }}">{{ m.due }}{% if not m.done %} · {{ due_text(m.due) }}{% endif %}</small>{% endif %}</span>
+{% if user and (user.id in (m.created_by, pr.owner_id) or user.is_admin) %}<form method="post" action="/milestones/{{ m.id }}/delete" hx-confirm="Delete this milestone?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ms-del" aria-label="Delete milestone: {{ m.title }}">×</button></form>{% endif %}</li>
+{% else %}<li class="muted ms-none">No milestones yet.</li>{% endfor %}</ul>
+{% if sup.sv.team or sup.sv.adv %}<details class="ms-add" {{ "open" if not total }}><summary>Add a milestone</summary><form method="post" action="/projects/{{ pr.id }}/milestones"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label for="mt">Milestone</label><input id="mt" name="title" required maxlength="120" placeholder="e.g. First month of sensor data">
+<label for="md">Due date <small class="muted">(optional)</small></label><input id="md" name="due" type="date"><p><button class="sm">Add milestone</button></p></form></details>{% endif %}
+</aside></div>
+{% else %}<div class="threads">{% for t in sup.threads %}{{ thread(t) }}{% endfor %}</div>{% endif %}
+</section>

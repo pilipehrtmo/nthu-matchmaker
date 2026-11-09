@@ -181,6 +181,8 @@ def render(req, name, user=None, **ctx):
         with Session(engine) as s:
             inbox = len(s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
                                .where(Project.owner_id == user.id, Application.status == "pending")).all())
+            from .advisor import inbox_extra
+            inbox += inbox_extra(s, user)   # advisor feedback waiting for your team, reviews and lab applications waiting for a professor
     return tpl(req).TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, "lang": pick_lang(req), **ctx})
 def go(url): return RedirectResponse(url, status_code=303)
 def kind_of(pr):   # older projects have no kind saved: infer it from the competition link
@@ -499,9 +501,14 @@ def delete_account(req: Request, confirm: str = Form(""), user=Depends(me), s: S
             for r in s.exec(select(Role).where(Role.project_id == pid)):
                 for a in s.exec(select(Application).where(Application.role_id == r.id)): s.delete(a)
                 s.delete(r)
-            s.exec(delete(Remark).where(Remark.project_id == pid)); s.delete(s.get(Project, pid))
+            s.exec(delete(Remark).where(Remark.project_id == pid)); s.exec(delete(Milestone).where(Milestone.project_id == pid)); s.delete(s.get(Project, pid))
         for a in s.exec(select(Application).where(Application.user_id == user.id)): s.delete(a)
+        mine = [r.id for r in s.exec(select(Remark).where(Remark.author_id == user.id, Remark.parent_id == None))]
+        if mine: s.exec(delete(Remark).where(Remark.parent_id.in_(mine)))   # replies inside threads this person started
         s.exec(delete(Remark).where(Remark.author_id == user.id))
+        for o in s.exec(select(Opening).where(Opening.owner_id == user.id)).all():
+            s.exec(delete(OpeningApp).where(OpeningApp.opening_id == o.id)); s.delete(o)
+        s.exec(delete(OpeningApp).where(OpeningApp.user_id == user.id))
         s.exec(delete(Avatar).where(Avatar.user_id == user.id))
         s.exec(delete(SignupLog).where(SignupLog.email == email)); s.delete(user); s.commit(); req.session.clear()
     return go("/")
@@ -522,7 +529,14 @@ def public_profile(req: Request, handle: str, reported: str = "", user=Depends(m
         if r.filled and not r.advisor: size[r.project_id] += 1
         if not r.filled: open_seats[r.project_id] += 1
     projects = [dict(p=pr, role=role, advisor=adv, size=size[pr.id], open=open_seats[pr.id], days=days_left(pr.deadline)) for pr, role, adv in rows]
-    return render(req, "public.html", user, p=p, skills=sorted(tags(p.skills)), reported=bool(reported), projects=projects)
+    openings = []
+    if p.is_faculty:
+        from .advisor import opening_state
+        for o in s.exec(select(Opening).where(Opening.owner_id == p.id, Opening.status == "open").order_by(Opening.created.desc())).all():
+            st = opening_state(s, o)
+            if st["taking"]: openings.append(dict(o=o, **st))
+    return render(req, "public.html", user, p=p, skills=sorted(tags(p.skills)), reported=bool(reported), projects=projects, openings=openings,
+                  research=[t.strip() for t in p.research.split(",") if t.strip()])
 
 # ---------- board ----------
 @app.get("/")
@@ -756,10 +770,10 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     checks = team_info(s, pr)["checks"]
     my_adv = bool(user and any(x["r"].advisor and a.status == "accepted" and u.id == user.id for x in out for a, u in x["apps"]))
     insider = bool(user and (is_owner or user.is_admin or reveal or my_adv))
-    rq = select(Remark).where(Remark.project_id == pid).order_by(Remark.created.desc())
-    remarks = s.exec(rq if insider else rq.where(Remark.public == True)).all()
-    rauthors = {u.id: u for u in s.exec(select(User).where(User.id.in_([r.author_id for r in remarks] or [-1])))}
-    return render(req, "project.html", user, checks=checks, remarks=remarks, rauthors=rauthors, can_remark=my_adv, insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
+    from .advisor import people, supervision, supervised
+    sup = supervision(s, pr, user, people(s, pr))
+    sup["show"] = supervised(pr, [x["r"] for x in out]) and (sup["sv"]["insider"] or bool(sup["threads"]))
+    return render(req, "project.html", user, checks=checks, sup=sup, insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
 
 @app.get("/projects/{pid}/onepager")
@@ -785,7 +799,7 @@ def delete_project(pid: int, user=Depends(me), s: Session = Depends(get_session)
         for r in s.exec(select(Role).where(Role.project_id == pid)).all():
             for a in s.exec(select(Application).where(Application.role_id == r.id)).all(): s.delete(a)
             s.delete(r)
-        s.exec(delete(Remark).where(Remark.project_id == pid)); s.delete(pr); s.commit()
+        s.exec(delete(Remark).where(Remark.project_id == pid)); s.exec(delete(Milestone).where(Milestone.project_id == pid)); s.delete(pr); s.commit()
     return go("/")
 
 @app.post("/roles/{rid}/apply", dependencies=[limited("apply", 60, 3600)])
@@ -837,23 +851,12 @@ def activity(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     aroles = {r.id: r for r in s.exec(select(Role).where(Role.id.in_([a.role_id for a in apps] or [-1])))}
     aprojs = {p.id: p for p in s.exec(select(Project).where(Project.id.in_([r.project_id for r in aroles.values()] or [-1])))}
     sent = [(a, aroles[a.role_id], aprojs[aroles[a.role_id].project_id]) for a in apps if a.role_id in aroles and aroles[a.role_id].project_id in aprojs]
-    return render(req, "activity.html", user, mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left)
-
-@app.post("/projects/{pid}/remarks", dependencies=[limited("remark", 60, 3600)])
-def add_remark(pid: int, body: str = Form(...), public: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
-    if not user: return go("/login")
-    if not s.get(Project, pid): raise HTTPException(404)
-    ok = s.exec(select(Application).join(Role, Role.id == Application.role_id).where(Role.project_id == pid, Role.advisor == True,
-                Application.user_id == user.id, Application.status == "accepted")).first()
-    if ok and body.strip(): s.add(Remark(project_id=pid, author_id=user.id, body=body.strip()[:3000], public=bool(public))); s.commit()
-    return go(f"/projects/{pid}#remarks")
-
-@app.post("/remarks/{rid}/delete")
-def delete_remark(rid: int, user=Depends(me), s: Session = Depends(get_session)):
-    r = s.get(Remark, rid)
-    if not r: raise HTTPException(404)
-    if user and (user.id == r.author_id or user.is_admin): s.delete(r); s.commit()
-    return go(f"/projects/{r.project_id}#remarks")
+    from .advisor import waiting_team
+    oapps = s.exec(select(OpeningApp, Opening).join(Opening, Opening.id == OpeningApp.opening_id).where(OpeningApp.user_id == user.id).order_by(OpeningApp.at.desc())).all()
+    profs = {u.id: u for u in s.exec(select(User).where(User.id.in_({o.owner_id for _, o in oapps} or {-1})))}
+    fb = waiting_team(s, user.id)
+    fbp = {p.id: p for p in s.exec(select(Project).where(Project.id.in_({t.project_id for t in fb} or {-1})))}
+    return render(req, "activity.html", user, mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left, oapps=oapps, profs=profs, fb=fb, fbp=fbp)
 
 @app.get("/funding")
 def funding(req: Request, user=Depends(me), s: Session = Depends(get_session)):
@@ -1079,3 +1082,5 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
         if u and u.faculty_url: run_faculty_check(s, u)
     elif action == "scrape": run_scrapers()
     s.commit(); return go("/admin")
+
+from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)

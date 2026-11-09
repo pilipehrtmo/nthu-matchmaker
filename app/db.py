@@ -12,8 +12,9 @@ else:   # Postgres (e.g. Supabase): small pool, drop dead connections after the 
 NEW_COLS = {"project": [("kind", "VARCHAR DEFAULT ''"), ("category", "VARCHAR DEFAULT ''"), ("stage", "VARCHAR DEFAULT ''"), ("tagline", "VARCHAR DEFAULT ''"), ("problem", "VARCHAR DEFAULT ''"), ("audience", "VARCHAR DEFAULT ''"), ("solution", "VARCHAR DEFAULT ''"), ("progress", "VARCHAR DEFAULT ''"), ("needs", "VARCHAR DEFAULT ''"), ("metrics", "VARCHAR DEFAULT ''"), ("tags", "VARCHAR DEFAULT ''"), ("links", "VARCHAR DEFAULT ''"), ("event_name", "VARCHAR DEFAULT ''")], "post": [("hidden", "BOOLEAN DEFAULT 0")], "comment": [("hidden", "BOOLEAN DEFAULT 0")],
             "report": [("kind", "VARCHAR DEFAULT 'user'"), ("target_id", "INTEGER DEFAULT 0")],
             "competition": [("category", "VARCHAR DEFAULT 'Other'"), ("description", "VARCHAR DEFAULT ''")],
+            "remark": [("kind", "VARCHAR DEFAULT 'feedback'"), ("parent_id", "INTEGER"), ("category", "VARCHAR DEFAULT 'General'"), ("priority", "VARCHAR DEFAULT 'Normal'"), ("status", "VARCHAR DEFAULT 'open'"), ("resources", "VARCHAR DEFAULT ''"), ("last_at", "TIMESTAMP"), ("last_by", "INTEGER DEFAULT 0")],
             "role": [("advisor", "BOOLEAN DEFAULT 0"), ("about", "VARCHAR DEFAULT ''"), ("must", "VARCHAR DEFAULT ''"), ("nice", "VARCHAR DEFAULT ''"), ("years", "INTEGER DEFAULT 0"), ("years_in", "VARCHAR DEFAULT ''")],
-            "user": [("competitions", "VARCHAR DEFAULT ''"), ("past_projects", "VARCHAR DEFAULT ''"), ("awards", "VARCHAR DEFAULT ''"), ("password_hash", "VARCHAR DEFAULT ''"), ("email_verified", "BOOLEAN DEFAULT 1"), ("role", "VARCHAR DEFAULT 'student'"), ("faculty_status", "VARCHAR DEFAULT ''"), ("faculty_url", "VARCHAR DEFAULT ''"), ("faculty_note", "VARCHAR DEFAULT ''"), ("title", "VARCHAR DEFAULT ''"), ("avatar_v", "INTEGER DEFAULT 0"), ("is_faculty", "BOOLEAN DEFAULT 0"), ("verified", "BOOLEAN DEFAULT 0"), ("name", "VARCHAR DEFAULT ''"), ("student_id", "VARCHAR DEFAULT ''"), ("faculty", "VARCHAR DEFAULT ''"), ("hours", "INTEGER DEFAULT 4"), ("line", "VARCHAR DEFAULT ''"), ("instagram", "VARCHAR DEFAULT ''"), ("discord", "VARCHAR DEFAULT ''"), ("linkedin", "VARCHAR DEFAULT ''"), ("github", "VARCHAR DEFAULT ''"), ("website", "VARCHAR DEFAULT ''"), ("behance", "VARCHAR DEFAULT ''"), ("scholar", "VARCHAR DEFAULT ''")]}
+            "user": [("competitions", "VARCHAR DEFAULT ''"), ("past_projects", "VARCHAR DEFAULT ''"), ("awards", "VARCHAR DEFAULT ''"), ("password_hash", "VARCHAR DEFAULT ''"), ("email_verified", "BOOLEAN DEFAULT 1"), ("role", "VARCHAR DEFAULT 'student'"), ("faculty_status", "VARCHAR DEFAULT ''"), ("faculty_url", "VARCHAR DEFAULT ''"), ("faculty_note", "VARCHAR DEFAULT ''"), ("title", "VARCHAR DEFAULT ''"), ("research", "VARCHAR DEFAULT ''"), ("lab_name", "VARCHAR DEFAULT ''"), ("lab_url", "VARCHAR DEFAULT ''"), ("orcid", "VARCHAR DEFAULT ''"), ("avatar_v", "INTEGER DEFAULT 0"), ("is_faculty", "BOOLEAN DEFAULT 0"), ("verified", "BOOLEAN DEFAULT 0"), ("name", "VARCHAR DEFAULT ''"), ("student_id", "VARCHAR DEFAULT ''"), ("faculty", "VARCHAR DEFAULT ''"), ("hours", "INTEGER DEFAULT 4"), ("line", "VARCHAR DEFAULT ''"), ("instagram", "VARCHAR DEFAULT ''"), ("discord", "VARCHAR DEFAULT ''"), ("linkedin", "VARCHAR DEFAULT ''"), ("github", "VARCHAR DEFAULT ''"), ("website", "VARCHAR DEFAULT ''"), ("behance", "VARCHAR DEFAULT ''"), ("scholar", "VARCHAR DEFAULT ''")]}
 def init_db():
     SQLModel.metadata.create_all(engine)
     if DB_URL.startswith("sqlite"):   # tiny migration so old matchmaker.db files keep working
@@ -22,12 +23,14 @@ def init_db():
                 have = {r[1] for r in c.execute(text(f'PRAGMA table_info("{table}")'))}
                 for col, ddl in cols:
                     if col not in have: c.execute(text(f'ALTER TABLE "{table}" ADD COLUMN {col} {ddl}'))
+            c.execute(text('UPDATE remark SET last_at = created, last_by = author_id WHERE last_at IS NULL'))
     else:   # Postgres: same tiny migration, and keep every table closed to Supabase's public API
         with engine.begin() as c:
             for table, cols in NEW_COLS.items():
                 for col, ddl in cols:
                     ddl = ddl.replace("BOOLEAN DEFAULT 0", "BOOLEAN DEFAULT false").replace("BOOLEAN DEFAULT 1", "BOOLEAN DEFAULT true")
                     c.execute(text(f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS {col} {ddl}'))
+            c.execute(text('UPDATE remark SET last_at = created, last_by = author_id WHERE last_at IS NULL'))   # threads made before replies existed
             for t in SQLModel.metadata.sorted_tables:
                 c.execute(text(f'ALTER TABLE public."{t.name}" ENABLE ROW LEVEL SECURITY'))
 def get_session():
