@@ -778,3 +778,4 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
  select:not([multiple]) optgroup option{margin:0 -.75rem;letter-spacing:normal;text-transform:none}
  select:not([multiple]) optgroup+optgroup,select:not([multiple]) option+optgroup{margin-top:.3rem;border-top:1px solid var(--line)}
 }
+.dlist+h2,.dlist+.projh,.alist+h2{margin-top:2.2rem}
