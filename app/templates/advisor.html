@@ -1,6 +1,5 @@
 {% extends "base.html" %}{% block body %}
-{% set ns = namespace(lab=0, od=0) %}{% for o in openings if oapps[o.id][0] %}{% set ns.lab = ns.lab + 1 %}{% endfor %}{% for x in prog if x.overdue %}{% set ns.od = ns.od + 1 %}{% endfor %}
-{% set n_attn = reviews|length + ns.lab + ns.od %}
+{% set n_attn = att.total %}
 <div class="dbhead"><div class="dbhello">
 <p class="dbeye">{{ user.title or "Professor" }}{% if user.faculty %} · {{ user.faculty }}{% endif %} · {% if user.is_faculty %}<span class="dbok">Verified</span>{% else %}<span class="dbwarn">Not verified yet</span>{% endif %}</p>
 <h1>{% if lang == "zh" %}{{ greet }}，<span class="dbname">{{ user|dn }} {{ honor }}</span>{% else %}{{ greet }}, <span class="dbname">{{ honor }} {{ user|dn }}.</span>{% endif %}</h1>
@@ -9,7 +8,7 @@
 {% if not user.is_faculty %}<p class="box">Your professor account is not verified yet, so you cannot supervise projects or post research positions. <a href="/profile#faculty">Check your status</a>.</p>{% endif %}
 
 <section class="dbstats" aria-label="Overview">
-<a class="dbstat {{ 'hot' if reviews }}" href="#attention"><span>Feedback requests</span><b>{{ reviews|length }}</b><small class="{{ 'warn' if high else '' }}">{% if high %}{{ high }} high priority{% elif reviews %}waiting for you{% else %}all caught up{% endif %}</small></a>
+<a class="dbstat {{ 'hot' if reviews or doc_reviews }}" href="#attention"><span>Feedback requests</span><b>{{ reviews|length + doc_reviews|length }}</b><small class="{{ 'warn' if high else '' }}">{% if high %}{{ high }} high priority{% elif reviews or doc_reviews %}waiting for you{% else %}all caught up{% endif %}</small></a>
 <a class="dbstat" href="#projects"><span>Projects you supervise</span><b>{{ prog|length }}</b><small class="{{ 'bad' if overdue else 'good' }}">{% if overdue %}{{ overdue }} overdue milestone{{ "s" if overdue != 1 }}{% elif prog %}on track{% else %}none yet{% endif %}</small></a>
 <a class="dbstat" href="#projects"><span>Active students</span><b>{{ students }}</b><small>Teams: {{ teams }}</small></a>
 <a class="dbstat {{ 'hot' if pending_lab }}" href="#positions"><span>Research applicants</span><b>{{ pending_lab }}</b><small>{{ open_pos }} open position{{ "s" if open_pos != 1 }}</small></a>
@@ -18,6 +17,10 @@
 <div class="dbcols"><div class="dbmain">
 <section class="dbcard" id="attention"><div class="dbcard-h"><h2>Needs your attention</h2><small class="muted">Most urgent first</small></div>
 {% if n_attn %}<div class="dbrows">
+{% for rq, d in doc_reviews %}{% set p = projects.get(d.project_id) %}{% set au = names.get(rq.requested_by) %}<a class="dbrow" href="/docs/{{ d.id }}?v={{ rq.version_id }}">
+<span class="dbic ic-doc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>
+<span class="dbrow-m"><b>Review {{ d.title }} v{{ vnum.get(rq.version_id, "") }}</b><small>{{ p.title if p else "" }}{% if au %} · {{ au|dn }}{% endif %} · asked {{ rq.created|ago }}</small></span>
+<span class="dbtag t-ask">Review</span></a>{% endfor %}
 {% for t in reviews %}{% set p = projects.get(t.project_id) %}{% set au = names.get(t.last_by) or names.get(t.author_id) %}<a class="dbrow" href="/projects/{{ t.project_id }}#t{{ t.id }}">
 <span class="dbic {{ 'ic-high' if t.priority == 'High' else 'ic-ask' }}" aria-hidden="true">{{ "!" if t.priority == "High" else "?" }}</span>
 <span class="dbrow-m"><b>“{{ t.body|truncate(80, True, "…") }}”</b><small>{{ p.title if p else "" }} · {{ t.category }}{% if au %} · {{ au|dn }}{% endif %} · {{ (t.last_at or t.created)|ago }}</small></span>
@@ -26,6 +29,9 @@
 <span class="dbrow-m"><b>{{ oapps[o.id][0] }} new applicant{{ "s" if oapps[o.id][0] != 1 }} for {{ o.title }}</b><small>Research position</small></span><span class="dbtag t-lab">Review</span></a>{% endfor %}
 {% for x in prog if x.overdue %}<a class="dbrow" href="/projects/{{ x.p.id }}#milestones"><span class="dbic ic-high" aria-hidden="true">!</span>
 <span class="dbrow-m"><b>{{ x.overdue }} overdue milestone{{ "s" if x.overdue != 1 }}{% if x.next and x.next.due and (days_left(x.next.due) or 0) < 0 %}: {{ x.next.title }}{% endif %}</b><small>{{ x.p.title }}{% if x.next and x.next.due %} · was due {{ x.next.due }}{% endif %}</small></span><span class="dbtag t-high">Overdue</span></a>{% endfor %}
+{% for t in att.team %}{% set p = fbp.get(t.project_id) %}<a class="dbrow" href="/projects/{{ t.project_id }}#t{{ t.id }}"><span class="dbic ic-ask" aria-hidden="true">?</span>
+<span class="dbrow-m"><b>“{{ t.body|truncate(80, True, "…") }}”</b><small>{{ p.title if p else "" }} · your own project</small></span><span class="dbtag t-ask">Reply</span></a>{% endfor %}
+{% if att.apps %}<a class="dbrow" href="/activity"><span class="dbic ic-lab" aria-hidden="true">{{ att.apps }}</span><span class="dbrow-m"><b>{% if att.apps == 1 %}1 application to your projects{% else %}{{ att.apps }} applications to your projects{% endif %}</b><small>Seats on projects you lead</small></span><span class="dbtag t-lab">Review</span></a>{% endif %}
 </div>{% else %}<p class="muted dbempty">Nothing is waiting for you right now.</p>{% endif %}</section>
 
 <section class="dbcard" id="projects"><div class="dbcard-h"><h2>Projects you supervise</h2></div>

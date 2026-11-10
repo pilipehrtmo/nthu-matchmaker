@@ -73,7 +73,9 @@ async def lifespan(app):
         from .demo_data import seed_demo; seed_demo(); print(">>> DEMO MODE: sample teams loaded into a separate database. Do not share this server with real users.")
     warm(); sch = BackgroundScheduler()
     sch.add_job(run_scrapers); sch.add_job(run_scrapers, "cron", hour=3); sch.add_job(purge_logs, "cron", hour=4)
-    if PUBLIC and os.getenv("KEEP_AWAKE", "1") == "1": sch.add_job(keep_awake, "interval", minutes=10)   # set KEEP_AWAKE=0 on Render to let it sleep again
+    if PUBLIC and os.getenv("KEEP_AWAKE", "1") == "1": sch.add_job(keep_awake, "interval", minutes=10)
+    from .notify import send_digests, send_reminders   # 00:00 UTC = 08:00 Taiwan time
+    sch.add_job(send_reminders, "cron", hour=0, minute=0); sch.add_job(send_digests, "cron", hour=0, minute=5)   # set KEEP_AWAKE=0 on Render to let it sleep again
     sch.start()
     yield
     sch.shutdown()
@@ -176,14 +178,14 @@ def render(req, name, user=None, **ctx):
     if "csrf" not in req.session: req.session["csrf"] = secrets.token_hex(16)
     theme = req.cookies.get("theme", "light")
     if theme not in ("light", "dark", "system"): theme = "light"
-    inbox = 0
+    inbox = bell = 0
     if user:   # applications waiting for this user's decision, shown as a badge on Activity
         with Session(engine) as s:
-            inbox = len(s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
-                               .where(Project.owner_id == user.id, Application.status == "pending")).all())
-            from .advisor import inbox_extra
-            inbox += inbox_extra(s, user)   # advisor feedback waiting for your team, reviews and lab applications waiting for a professor
-    return tpl(req).TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, "lang": pick_lang(req), **ctx})
+            from .advisor import attention
+            inbox = attention(s, user)["total"]   # the same count the dashboard / Activity page shows
+            from .notify import unread
+            bell = unread(s, user.id)
+    return tpl(req).TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, "bell": bell, "lang": pick_lang(req), **ctx})
 def go(url): return RedirectResponse(url, status_code=303)
 def kind_of(pr):   # older projects have no kind saved: infer it from the competition link
     return pr.kind or ("Competition" if pr.competition_id else "Side project")
@@ -490,8 +492,18 @@ def avatar(uid: int, s: Session = Depends(get_session)):
     # the address changes on every upload (?v=), so browsers can keep it for a long time
     return Response(a.data, media_type="image/webp", headers={"Cache-Control": "public, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff"})
 
+FORMER = "former-member@deleted.invalid"
+def former_member(s):
+    """One shared placeholder account that deleted people's kept feedback points to. It can never log in."""
+    u = s.exec(select(User).where(User.email == FORMER)).first()
+    if not u:
+        u = User(email=FORMER, handle="former-member", name="Former member", banned=True, email_verified=False, password_hash="")
+        s.add(u); s.flush()
+    return u
+
 @app.post("/profile/delete")
 def delete_account(req: Request, confirm: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+    from .docs import purge_project_docs, purge_private_docs_of
     if user and confirm.strip() == "DELETE":
         email = user.email
         for p in s.exec(select(Post).where(Post.author_id == user.id)).all(): purge_post(s, p.id)
@@ -501,11 +513,23 @@ def delete_account(req: Request, confirm: str = Form(""), user=Depends(me), s: S
             for r in s.exec(select(Role).where(Role.project_id == pid)):
                 for a in s.exec(select(Application).where(Application.role_id == r.id)): s.delete(a)
                 s.delete(r)
+            purge_project_docs(s, pid)
             s.exec(delete(Remark).where(Remark.project_id == pid)); s.exec(delete(Milestone).where(Milestone.project_id == pid)); s.delete(s.get(Project, pid))
         for a in s.exec(select(Application).where(Application.user_id == user.id)): s.delete(a)
-        mine = [r.id for r in s.exec(select(Remark).where(Remark.author_id == user.id, Remark.parent_id == None))]
-        if mine: s.exec(delete(Remark).where(Remark.parent_id.in_(mine)))   # replies inside threads this person started
-        s.exec(delete(Remark).where(Remark.author_id == user.id))
+        # Feedback, replies and document versions on other people's projects stay, credited to "Former member",
+        # so a team does not lose its advisor's comments or its own files (see the privacy notice).
+        purge_private_docs_of(s, user.id)
+        gone = former_member(s).id
+        for x in s.exec(select(Remark).where(Remark.author_id == user.id)).all(): x.author_id = gone; s.add(x)
+        for x in s.exec(select(Remark).where(Remark.last_by == user.id)).all(): x.last_by = gone; s.add(x)
+        for x in s.exec(select(Remark).where(Remark.resolved_by == user.id)).all(): x.resolved_by = gone; s.add(x)
+        for x in s.exec(select(RemarkEvent).where(RemarkEvent.actor_id == user.id)).all(): x.actor_id = gone; s.add(x)
+        for x in s.exec(select(DocVersion).where(DocVersion.uploaded_by == user.id)).all(): x.uploaded_by = gone; s.add(x)
+        for x in s.exec(select(ResearchDoc).where(ResearchDoc.created_by == user.id)).all(): x.created_by = gone; s.add(x)
+        for x in s.exec(select(ReviewRequest).where(ReviewRequest.requested_by == user.id)).all(): x.requested_by = gone; s.add(x)
+        for x in s.exec(select(ReviewRequest).where(ReviewRequest.done_by == user.id)).all(): x.done_by = gone; s.add(x)
+        for x in s.exec(select(Milestone).where(Milestone.created_by == user.id)).all(): x.created_by = gone; s.add(x)
+        s.exec(delete(Notification).where(Notification.user_id == user.id))
         for o in s.exec(select(Opening).where(Opening.owner_id == user.id)).all():
             s.exec(delete(OpeningApp).where(OpeningApp.opening_id == o.id)); s.delete(o)
         s.exec(delete(OpeningApp).where(OpeningApp.user_id == user.id))
@@ -773,7 +797,10 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     from .advisor import people, supervision, supervised
     sup = supervision(s, pr, user, people(s, pr))
     sup["show"] = supervised(pr, [x["r"] for x in out]) and (sup["sv"]["insider"] or bool(sup["threads"]))
-    return render(req, "project.html", user, checks=checks, sup=sup, insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
+    from .docs import project_docs
+    docsec = project_docs(s, pr, user, people(s, pr)) if user and supervised(pr, [x["r"] for x in out]) else None
+    if docsec and not docsec["rows"] and not docsec["can_upload"]: docsec = None
+    return render(req, "project.html", user, checks=checks, sup=sup, docsec=docsec, err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
 
 @app.get("/projects/{pid}/onepager")
@@ -799,6 +826,8 @@ def delete_project(pid: int, user=Depends(me), s: Session = Depends(get_session)
         for r in s.exec(select(Role).where(Role.project_id == pid)).all():
             for a in s.exec(select(Application).where(Application.role_id == r.id)).all(): s.delete(a)
             s.delete(r)
+        from .docs import purge_project_docs
+        purge_project_docs(s, pid)   # files in storage, versions, review requests, history, notifications
         s.exec(delete(Remark).where(Remark.project_id == pid)); s.exec(delete(Milestone).where(Milestone.project_id == pid)); s.delete(pr); s.commit()
     return go("/")
 
@@ -831,6 +860,11 @@ def decide(aid: int, decision: str, next: str = Form(""), user=Depends(me), s: S
     if decision == "withdrawn" and a.user_id == user.id and a.status == "pending":
         a.status = "withdrawn"; s.commit()
         return go("/activity?n=withdrawn" if next == "/activity" else f"/projects/{pr.id}?n=withdrawn")
+    if user.id == pr.owner_id and a.status == "accepted" and decision == "removed" and a.user_id != user.id:   # the lead removes a member or advisor
+        a.status = "removed"; r.filled = False; s.commit()
+        from .notify import notify
+        notify(s, [a.user_id], "removed", f"You were removed from the {r.name} seat of {pr.title}", f"/projects/{pr.id}", pr.id, user.id)
+        return go(f"/projects/{pr.id}?n=removed#seats")
     if user.id == pr.owner_id and a.status == "pending" and decision in ("accepted", "rejected") and not r.filled:
         a.status = decision
         if decision == "accepted":
@@ -998,7 +1032,14 @@ def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None),
         fac_requests=s.exec(select(User).where(User.faculty_status == "pending")).all(), programs=s.exec(select(Program).order_by(Program.sort)).all(),
         logs=s.exec(select(SignupLog).order_by(SignupLog.at.desc()).limit(100)).all(),
-        review=s.exec(select(Competition).where(Competition.needs_review == True)).all(), **extra_admin(s))
+        review=s.exec(select(Competition).where(Competition.needs_review == True)).all(), storage=storage_info(s), **extra_admin(s))
+
+def storage_info(s):
+    from .docs import site_bytes, SITE_CAP
+    from .storage import backend
+    b = backend()
+    return dict(used=site_bytes(s), cap=SITE_CAP, where=b.name if b else "not connected (uploads are off)",
+                docs=len(s.exec(select(ResearchDoc.id)).all()), versions=len(s.exec(select(DocVersion.id).where(DocVersion.deleted_at == None)).all()))
 
 @app.post("/admin/source")
 def add_source(url: str = Form(...), user=Depends(me), s: Session = Depends(get_session)):
@@ -1084,3 +1125,4 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
     s.commit(); return go("/admin")
 
 from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)
+from . import notify, docs   # notifications and research documents (after advisor: they use its rules)

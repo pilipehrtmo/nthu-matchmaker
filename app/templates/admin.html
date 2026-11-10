@@ -53,6 +53,10 @@
 {% if flash_link %}<div class="box ok" role="status" id="pwlink"><b>One-time password link for {{ flash_link[0] }}</b> (works for 48 hours, once):<br>
 <input readonly value="{{ flash_link[1] }}" onclick="this.select()" style="margin:.5rem 0"><br><button type="button" class="sm" onclick="navigator.clipboard.writeText('{{ flash_link[1] }}');this.textContent='Copied'">Copy link</button>
 <span class="muted fine">Send it to them privately (LINE, Instagram). Anyone with the link can set this account's password.</span></div>{% endif %}
+<section class="sec" id="storage"><h2>Research file storage</h2><div class="card">
+{% set pct = (100 * storage.used / storage.cap)|round(1) if storage.cap else 0 %}<div class="ms-bar" role="img" aria-label="{{ pct }}% of storage used"><span style="width:{{ [pct, 100]|min }}%"></span></div>
+<p>{{ storage.used|mb }} of {{ storage.cap|mb }} used · {{ storage.versions }} file{{ "s" if storage.versions != 1 }} in {{ storage.docs }} document{{ "s" if storage.docs != 1 }}</p>
+<p class="muted fine">Stored in: {{ storage.where }}. Limits: 25 MB per file, 200 MB per project, 10 versions per document. New uploads stop at the cap (STORAGE_CAP_MB), which stays inside Supabase's free 1 GB.</p></div></section>
 <section class="sec" id="users"><h2>Users <span class="count">{{ stats.users }}</span></h2>
 {% if stats.unverified %}<div class="acts" style="margin-bottom:.8rem"><form method="post" action="/admin/verify_all/0"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify all ({{ stats.unverified }})</button></form></div>{% endif %}
 <div class="tblwrap"><table class="tbl"><tr><th>Handle</th><th>Name</th><th>Student ID</th><th>Email</th><th>Status</th><th></th></tr>

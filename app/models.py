@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import NaiveDatetime
-from sqlalchemy import Column, LargeBinary
+from sqlalchemy import Column, LargeBinary, Text, UniqueConstraint
 from sqlmodel import SQLModel, Field
 
 class User(SQLModel, table=True):
@@ -35,6 +35,7 @@ class User(SQLModel, table=True):
     lab_name: str = ""         # professors: lab or research group name (public)
     lab_url: str = ""          # professors: lab website (public, https)
     orcid: str = ""            # professors: ORCID link (public); Google Scholar uses the "scholar" field
+    email_pref: str = "off"    # notification emails: off / daily (one digest a day) / instant
     competitions: str = ""    # one per line: competitions they entered (public)
     past_projects: str = ""   # one per line: projects they built (public)
     awards: str = ""          # one per line: awards and honours (public)
@@ -169,7 +170,15 @@ class Remark(SQLModel, table=True):     # research supervision: a feedback threa
     parent_id: Optional[int] = Field(default=None, index=True)   # the thread a reply belongs to
     category: str = "General" # one of FEEDBACK_CATEGORIES (threads only)
     priority: str = "Normal"  # one of FEEDBACK_PRIORITIES (threads only)
-    status: str = "open"      # open / resolved (threads only)
+    status: str = "open"      # legacy two-value status, kept in step with `state` (open / resolved)
+    state: str = "open"       # feedback: open / in_progress / submitted / resolved / reopened · questions: open / resolved
+    doc_id: Optional[int] = Field(default=None, index=True)       # feedback written on a research document...
+    version_id: Optional[int] = Field(default=None, index=True)   # ...and on this exact version of it
+    anchor: str = ""          # where in the document: a page, section or quoted words
+    fixed_in_version_id: Optional[int] = None                     # the version the team says fixes it
+    resolved_by: int = 0
+    resolved_at: Optional[NaiveDatetime] = None
+    deleted_at: Optional[NaiveDatetime] = None                    # soft delete: the thread and others' replies stay
     resources: str = ""       # suggested papers and links, one per line
     last_at: NaiveDatetime = Field(default_factory=datetime.utcnow)   # threads: time of the newest message
     last_by: int = 0          # threads: who wrote the newest message
@@ -236,3 +245,80 @@ class AuthToken(SQLModel, table=True):  # one-time links: email verification and
     token_hash: str = Field(unique=True, index=True)
     expires: NaiveDatetime
     used: bool = False
+
+
+REMARK_STATES = ["open", "in_progress", "submitted", "resolved", "reopened"]
+
+class RemarkEvent(SQLModel, table=True):     # every status change of a feedback thread: who, when, why, which version
+    id: Optional[int] = Field(default=None, primary_key=True)
+    remark_id: int = Field(index=True)
+    actor_id: int = 0
+    from_state: str = ""
+    to_state: str = ""
+    version_id: Optional[int] = None
+    note: str = ""
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class Notification(SQLModel, table=True):    # the bell: one row per person per event
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    kind: str = ""
+    project_id: Optional[int] = Field(default=None, index=True)
+    link: str = ""            # a page on this site (never a file)
+    text: str = ""
+    read_at: Optional[NaiveDatetime] = None
+    emailed_at: Optional[NaiveDatetime] = None
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+DOC_KINDS = ["Proposal", "Literature review", "Dataset", "Presentation", "Paper", "Other"]
+DOC_VISIBILITY = ["team", "public", "private"]
+
+class ResearchDoc(SQLModel, table=True):     # a research document of a project; its files are DocVersions
+    __tablename__ = "research_doc"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    created_by: int = Field(foreign_key="user.id")
+    title: str
+    kind: str = "Other"
+    visibility: str = "team"  # private (only the uploader) / team (team + advisors) / public (anyone logged in)
+    public_version_id: Optional[int] = None   # the ONE version outsiders may open when public
+    archived: bool = False
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class DocVersion(SQLModel, table=True):      # one uploaded file; never replaced or edited
+    __tablename__ = "doc_version"
+    __table_args__ = (UniqueConstraint("doc_id", "number", name="uq_doc_version_number"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    doc_id: int = Field(foreign_key="research_doc.id", index=True)
+    number: int
+    uploaded_by: int = Field(foreign_key="user.id")
+    storage_key: str
+    filename: str
+    mime: str
+    ext: str = ""
+    size_bytes: int = 0
+    sha256: str = ""
+    note: str = ""            # "What changed"
+    text_excerpt: str = Field(default="", sa_column=Column(Text, default=""))   # extracted text for the compare view
+    superseded: bool = False
+    deleted_at: Optional[NaiveDatetime] = None
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class ReviewRequest(SQLModel, table=True):   # "please review v2", sent to every accepted advisor
+    __tablename__ = "review_request"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    doc_id: int = Field(index=True)
+    version_id: int = Field(index=True)
+    requested_by: int = 0
+    message: str = ""
+    status: str = "waiting"   # waiting / done / withdrawn
+    done_by: int = 0
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+    closed_at: Optional[NaiveDatetime] = None
+
+class VersionAddresses(SQLModel, table=True):  # "v2 addresses remark 14", with the student's note
+    __tablename__ = "version_addresses"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    version_id: int = Field(index=True)
+    remark_id: int = Field(index=True)
+    note: str = ""

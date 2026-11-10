@@ -77,3 +77,12 @@
   setup(document);
   document.addEventListener("htmx:load", e => setup(e.detail.elt.querySelectorAll ? e.detail.elt : document));
 })();
+// research files: say right away when a file is too big, before a 25 MB upload is wasted
+document.addEventListener("change", e => {
+  const f = e.target; if (!f.matches || !f.matches("input[type=file][data-max]")) return;
+  const out = f.form && f.form.querySelector(".fsize"), file = f.files && f.files[0]; if (!out) return;
+  const big = file && file.size > +f.dataset.max;
+  out.hidden = !file; out.classList.toggle("bad", !!big);
+  if (file) out.textContent = big ? (f.dataset.toobig || "This file is over 25 MB. Choose a smaller one.") : file.name + " · " + (file.size / 1048576).toFixed(1) + " MB";
+  f.setCustomValidity(big ? (f.dataset.toobig || "This file is over 25 MB.") : "");
+});

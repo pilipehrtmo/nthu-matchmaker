@@ -1,0 +1,71 @@
+{% extends "base.html" %}{% from "_remarks.html" import thread, new_feedback with context %}{% block body %}
+{% set back = "/docs/" ~ d.id ~ "?v=" ~ cur.id %}{% set team = sup.sv.team %}{% set insider = sup.sv.insider %}
+<p class="crumb"><a href="/projects/{{ pr.id }}#docs">← {{ pr.title }}</a></p>
+{% if notice == "uploaded" %}<p class="box ok" role="status">Document uploaded. {% if d.visibility == "private" %}Only you can see it until you share it with your team.{% else %}Your team and advisors can open it now.{% endif %}</p>
+{% elif notice == "version" %}<p class="box ok" role="status">New version uploaded.{% if addressed.get(cur.id) %} The feedback it addresses is now waiting for your advisor's check.{% endif %}</p>
+{% elif notice == "asked" %}<p class="box ok" role="status">Review requested. Your advisor gets a notification.</p>
+{% elif notice == "visibility" %}<p class="box ok" role="status">Who can see this document was updated.</p>{% endif %}
+{% if err %}<p class="err" role="alert">{{ err }}</p>{% endif %}
+
+<section class="card dochead"><div class="dh-top"><span class="docic ext-{{ cur.ext }}" aria-hidden="true">{{ cur.ext|upper }}</span><div class="dh-t">
+<h1>{{ d.title }}</h1>
+<p class="meta"><span class="pill">{{ d.kind }}</span><span class="pill vis vis-{{ d.visibility }}">{{ VIS_LABEL[d.visibility] }}</span>{% if d.archived %}<span class="pill warn">Archived</span>{% endif %}
+{% if d.visibility == "public" and insider %}<span class="muted fine">Public version: v{{ (vs|selectattr("id", "equalto", d.public_version_id)|first).number if d.public_version_id and (vs|selectattr("id", "equalto", d.public_version_id)|list) else "none" }}</span>{% endif %}</p></div></div>
+<div class="dh-cur"><div><b>Version {{ cur.number }}</b>{% if cur.id == vs[0].id and vs|length > 1 %} <span class="pill ok">Latest</span>{% elif cur.id != vs[0].id %} <span class="pill">Older version</span>{% endif %}
+<small class="muted">{{ cur.filename }} · {{ cur.size_bytes|mb }} · {% set up = names.get(cur.uploaded_by) %}{{ up|dn if up and not up.banned else "Former member" }} · {{ cur.created|ago }}</small>
+{% if cur.note %}<p class="dh-note">{{ cur.note }}</p>{% endif %}</div>
+<div class="dh-acts"><a class="btn" href="/files/{{ cur.id }}" hx-boost="false" download>Download</a>{% if cur.ext == "pdf" %}<a class="btn ghost" href="/files/{{ cur.id }}?inline=1" hx-boost="false" target="_blank" rel="noopener">Open PDF</a>{% endif %}
+{% if insider and vs|length > 1 %}<a class="btn ghost" href="/docs/{{ d.id }}/compare?b={{ cur.id }}">Compare versions</a>{% endif %}</div></div>
+
+{% if insider and d.visibility != "private" %}<div class="dh-review">
+{% if waiting %}{% set wv = vs|selectattr("id", "equalto", waiting.version_id)|first %}<p><span class="badge st st-submitted">Waiting for review</span> v{{ wv.number if wv else "?" }} · asked {{ waiting.created|ago }}{% if waiting.message %} · “{{ waiting.message }}”{% endif %}</p>
+<div class="acts">{% if sup.sv.adv %}<form method="post" action="/reviews/{{ waiting.id }}/done"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Mark review complete</button></form>{% endif %}
+{% if team and user.id in (waiting.requested_by, pr.owner_id) %}<form method="post" action="/reviews/{{ waiting.id }}/withdraw"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Withdraw request</button></form>{% endif %}</div>
+{% elif team and sup.ppl.advisors and not d.archived %}<details><summary>Ask your advisor to review v{{ cur.number }}</summary><form method="post" action="/docs/{{ d.id }}/review"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="version_id" value="{{ cur.id }}">
+<label for="rqm">Message <small class="muted">(optional)</small></label><textarea id="rqm" name="message" rows="2" maxlength="1000" placeholder="e.g. Please look at the methods section first"></textarea><p><button class="sm">Request review</button></p></form></details>
+{% elif team and not sup.ppl.advisors %}<p class="muted fine">Add an advisor to the project to ask for a review.</p>
+{% else %}{% set last = reviews|first %}{% if last %}<p class="muted fine">Last review: v{{ (vs|selectattr("id", "equalto", last.version_id)|first).number if (vs|selectattr("id", "equalto", last.version_id)|list) else "?" }} · {{ {"done": "completed", "withdrawn": "withdrawn"}.get(last.status, last.status) }} {{ (last.closed_at or last.created)|ago }}</p>{% endif %}{% endif %}
+</div>{% elif d.visibility == "private" %}<p class="box fine">This is a private draft: only you can see it. Share it with your team to get feedback or ask for a review.</p>{% endif %}
+</section>
+
+<div class="docgrid"><div class="docmain">
+{% if insider %}<section class="card sup" id="feedback"><div class="sup-head"><h2>Feedback on this document</h2><p class="muted fine">New feedback here is attached to v{{ cur.number }}.</p></div>
+{% if d.visibility != "private" and not d.archived %}{{ new_feedback(pr, cur, back) }}{% endif %}
+{% if sup.open_threads %}<div class="threads">{% for t in sup.open_threads %}{{ thread(t, back) }}{% endfor %}</div>
+{% elif sup.threads %}<p class="muted">All feedback on this document is resolved.</p>{% else %}<p class="muted">No feedback on this document yet.</p>{% endif %}
+{% if sup.done_threads %}<details class="sup-hist"><summary>Resolved <small class="muted">· {{ sup.done_threads|length }}</small></summary><div class="threads">{% for t in sup.done_threads %}{{ thread(t, back) }}{% endfor %}</div></details>{% endif %}
+</section>{% else %}<section class="card"><h2>About this document</h2><p class="muted">The team made this version public. Feedback and earlier versions are visible only to the team and its advisors.</p></section>{% endif %}
+</div>
+
+<aside class="docside">
+<section class="card"><h2>Versions</h2><ol class="vlist">{% for v in vs %}{% set up = names.get(v.uploaded_by) %}<li class="{{ 'on' if v.id == cur.id }}"><a href="/docs/{{ d.id }}?v={{ v.id }}"><b>v{{ v.number }}</b><span>{{ v.note|truncate(70, True, "…") if v.note else v.filename }}</span>
+<small class="muted">{{ up|dn if up and not up.banned else "Former member" }} · {{ v.created|ago }}{% if addressed.get(v.id) %} · addresses {{ addressed[v.id]|length }}{% endif %}{% if d.public_version_id == v.id %} · public{% endif %}</small></a></li>{% endfor %}</ol>
+{% if can_del %}<form method="post" action="/versions/{{ cur.id }}/delete" hx-confirm="Delete v{{ cur.number }}? This removes the file for everyone and cannot be undone."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Delete v{{ cur.number }}</button></form>
+<p class="muted fine">You can delete the newest version you uploaded while it has no review request and no feedback.</p>{% endif %}
+</section>
+
+{% if team and not d.archived and (d.visibility != "private" or user.id == d.created_by) %}<section class="card" id="upload"><h2>Upload a new version</h2>
+{% if not uploads_on %}<p class="muted">File uploads are not switched on for this site yet.</p>
+{% elif vs|length >= max_versions %}<p class="muted">This document has {{ max_versions }} versions, the most allowed. Start a new document for the next stage.</p>
+{% else %}<form method="post" action="/docs/{{ d.id }}/versions" enctype="multipart/form-data" hx-boost="false" class="upform"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label for="vf">File <small class="muted">(PDF, Word, PowerPoint, Excel, CSV, TXT or ZIP · up to 25 MB)</small></label><input id="vf" type="file" name="file" required accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.zip" data-max="26214400" data-toobig="This file is over 25 MB. Choose a smaller one.">
+<label for="vn">What changed?</label><textarea id="vn" name="note" rows="2" maxlength="1000" required placeholder="e.g. Added the pilot results and fixed the references"></textarea>
+{% if fixable %}<fieldset class="addr"><legend>This version addresses <small class="muted">(your advisor is asked to check them)</small></legend>
+{% for t in fixable %}<label class="chk"><input type="checkbox" name="addresses" value="{{ t.id }}"> {{ t.body|truncate(90, True, "…") }}</label>{% endfor %}</fieldset>{% endif %}
+{% if sup.ppl.advisors and d.visibility != "private" %}<label class="chk"><input type="checkbox" name="review" value="1"> Ask our advisor to review this version</label>
+<label for="vm" class="vh">Message for your advisor</label><input id="vm" name="message" maxlength="1000" placeholder="Message for your advisor (optional)">{% endif %}
+<p class="fsize muted fine" hidden></p><p><button>Upload v{{ (vs|map(attribute="number")|max) + 1 }}</button></p></form>{% endif %}
+</section>{% endif %}
+
+{% if manage %}<section class="card" id="sharing"><h2>Who can see it</h2>
+<form method="post" action="/docs/{{ d.id }}/visibility"><input type="hidden" name="csrf" value="{{ csrf }}">
+<fieldset class="visopts"><legend class="vh">Visibility</legend>
+{% if user.id == d.created_by %}<label class="chk"><input type="radio" name="to" value="private" {{ "checked" if d.visibility == "private" }}> <span><b>Only me</b><small>A draft nobody else can open</small></span></label>{% endif %}
+<label class="chk"><input type="radio" name="to" value="team" {{ "checked" if d.visibility == "team" }}> <span><b>Team and advisors</b><small>Everyone on the project and its advisors</small></span></label>
+<label class="chk"><input type="radio" name="to" value="public" {{ "checked" if d.visibility == "public" }}> <span><b>Public</b><small>Also any logged-in user, but only the version you choose</small></span></label></fieldset>
+<label for="pv">Public version</label><select id="pv" name="public_version_id">{% for v in vs %}<option value="{{ v.id }}" {{ "selected" if v.id == (d.public_version_id or cur.id) }}>v{{ v.number }}</option>{% endfor %}</select>
+<p><button class="ghost sm">Save</button></p></form>
+<form method="post" action="/docs/{{ d.id }}/archive"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">{{ "Restore from archive" if d.archived else "Archive this document" }}</button></form>
+</section>{% endif %}
+</aside></div>
+{% endblock %}

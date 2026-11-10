@@ -1,0 +1,19 @@
+<section class="card docs" id="docs"><div class="sup-head"><h2>Research documents</h2>
+{% if docsec.can_upload %}<p class="muted fine">Proposals, papers, slides and datasets, with every version kept. Only the team and its advisors see them unless you make one version public.</p>{% endif %}</div>
+{% if docsec.rows %}<ul class="doclist">{% for x in docsec.rows %}<li><a href="/docs/{{ x.d.id }}{{ '?v=' ~ x.v.id if not sup.sv.insider else '' }}"><span class="docic ext-{{ x.v.ext }}" aria-hidden="true">{{ x.v.ext|upper }}</span>
+<span class="dl-m"><b>{{ x.d.title }}</b><small>{{ x.d.kind }} · v{{ x.v.number }}{% if x.n > 1 and sup.sv.insider %} of {{ x.n }}{% endif %} · {{ x.v.created|ago }}{% if x.d.archived %} · archived{% endif %}</small></span>
+<span class="dl-tags">{% if x.waiting %}<span class="badge st st-submitted">Review requested</span>{% endif %}{% if x.open %}<span class="badge st st-open">Open feedback: {{ x.open }}</span>{% endif %}{% if sup.sv.insider or x.d.visibility == "private" %}<span class="pill vis vis-{{ x.d.visibility }}">{{ VIS_LABEL[x.d.visibility] }}</span>{% endif %}</span></a></li>{% endfor %}</ul>
+{% elif docsec.can_upload %}<p class="muted">{% if kind_of(pr) == "Research" %}Upload your proposal so your advisor can review it and track each revision.{% else %}No documents yet.{% endif %}</p>{% endif %}
+{% if docsec.can_upload %}{% if not docsec.uploads_on %}<p class="muted fine">File uploads are not switched on for this site yet.</p>
+{% else %}<details class="sup-new" {{ "open" if not docsec.rows or request.query_params.get("err") }}><summary>Add a document</summary>
+<form method="post" action="/projects/{{ pr.id }}/docs" enctype="multipart/form-data" hx-boost="false" class="upform"><input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="two"><div><label for="dt">Title</label><input id="dt" name="title" required maxlength="120" placeholder="e.g. Research proposal"></div>
+<div><label for="dk">Type</label><select id="dk" name="kind">{% for k in docsec.kinds %}<option value="{{ k }}">{{ k }}</option>{% endfor %}</select></div></div>
+<label for="df">File <small class="muted">(PDF, Word, PowerPoint, Excel, CSV, TXT or ZIP · up to 25 MB)</small></label><input id="df" type="file" name="file" required accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.zip" data-max="26214400" data-toobig="This file is over 25 MB. Choose a smaller one.">
+<label for="dn">Note <small class="muted">(optional)</small></label><input id="dn" name="note" maxlength="1000" placeholder="e.g. First draft for our advisor">
+<fieldset class="visopts"><legend>Who can see it</legend>
+<label class="chk"><input type="radio" name="visibility" value="team" checked> <span><b>Team and advisors</b></span></label>
+<label class="chk"><input type="radio" name="visibility" value="private"> <span><b>Only me</b><small>A private draft; share it later</small></span></label></fieldset>
+<p class="muted fine">To make a version public, open the document after uploading. Storage used: {{ docsec.used|mb }} of 200 MB.</p>
+<p class="fsize muted fine" hidden></p><p><button>Upload</button></p></form></details>{% endif %}{% endif %}
+</section>

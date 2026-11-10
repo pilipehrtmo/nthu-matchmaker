@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block body %}
+<p class="crumb"><a href="/docs/{{ d.id }}">← {{ d.title }}</a></p>
+<section class="card narrow confirm"><h1>{% if to == "public" %}Make v{{ pv.number }} public?{% else %}Share with your team?{% endif %}</h1>
+{% if to == "public" %}<p>Anyone with an NTHU Matchmaker account will be able to open and download <b>{{ d.title }} v{{ pv.number }}</b> ({{ pv.filename }}).</p>
+<ul class="fine"><li>Only this version becomes public. Other versions and all team feedback stay private.</li><li>Check it has no personal data, unpublished results or anything your advisor has not agreed to share.</li><li>You can make it private to the team again later, but people may already have downloaded it.</li></ul>
+{% else %}<p>{{ n_team }} people on <b>{{ pr.title }}</b> (the team and its advisors) will be able to open every version of <b>{{ d.title }}</b>.</p>
+<p class="fine muted">Once your advisor has written feedback on it, it can no longer go back to “Only me”.</p>{% endif %}
+<form method="post" action="/docs/{{ d.id }}/visibility" class="acts"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="to" value="{{ to }}"><input type="hidden" name="confirm" value="yes">
+{% if pv %}<input type="hidden" name="public_version_id" value="{{ pv.id }}">{% endif %}<button>{{ "Yes, make it public" if to == "public" else "Yes, share it" }}</button><a class="btn ghost" href="/docs/{{ d.id }}">Cancel</a></form></section>
+{% endblock %}

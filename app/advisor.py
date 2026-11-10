@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from fastapi import Request, Depends, Form, HTTPException
 from sqlmodel import Session, select, delete
 from .db import get_session, engine
-from .models import (User, Project, Role, Application, Remark, Milestone, Opening, OpeningApp,
+from .models import (User, Project, Role, Application, Remark, RemarkEvent, DocVersion, Milestone, Opening, OpeningApp,
                      FEEDBACK_CATEGORIES, FEEDBACK_PRIORITIES)
 from .main import app, render, me, go, limited, days_left, tags, kind_of, templates
 from .links import LinkError
@@ -74,24 +74,38 @@ def hours_ok(v):
 
 
 # ---------- research supervision on the project page ----------
+STATE_LABEL = {"open": "Open", "in_progress": "In progress", "submitted": "Submitted for review", "resolved": "Resolved", "reopened": "Reopened"}
+templates.env.globals["STATE_LABEL"] = STATE_LABEL
+
+def is_done(t): return t.state == "resolved"
+
 def supervision(s, pr, user, ppl):
-    """Threads, replies and milestones the viewer may see."""
+    """Threads, replies, history and milestones the viewer may see."""
+    from .docs import doc_versions_for, visible_version
     r = roles_of(user, ppl)
     q = select(Remark).where(Remark.project_id == pr.id, Remark.parent_id == None)
-    if not r["insider"]: q = q.where(Remark.public == True, Remark.kind == "feedback")
+    if not r["insider"]: q = q.where(Remark.public == True, Remark.kind == "feedback", Remark.deleted_at == None)
     threads = s.exec(q).all()
-    rank = {p: i for i, p in enumerate(FEEDBACK_PRIORITIES)}
-    threads.sort(key=lambda t: (t.status == "resolved", rank.get(t.priority, 1), -(t.last_at or t.created).timestamp()))
+    if not r["insider"]:   # public feedback written on a version outsiders cannot open stays hidden
+        threads = [t for t in threads if not t.version_id or visible_version(s, user, t.version_id)]
     replies = defaultdict(list)
     if r["insider"] and threads:
         for x in s.exec(select(Remark).where(Remark.parent_id.in_([t.id for t in threads])).order_by(Remark.created)).all():
             replies[x.parent_id].append(x)
-    ids = {t.author_id for t in threads} | {x.author_id for xs in replies.values() for x in xs}
+    threads = [t for t in threads if not t.deleted_at or any(not x.deleted_at for x in replies[t.id])]   # a deleted thread stays only for others' replies
+    rank = {p: i for i, p in enumerate(FEEDBACK_PRIORITIES)}
+    threads.sort(key=lambda t: (is_done(t), rank.get(t.priority, 1), -(t.last_at or t.created).timestamp()))
+    events = defaultdict(list)
+    if r["insider"] and threads:
+        for e in s.exec(select(RemarkEvent).where(RemarkEvent.remark_id.in_([t.id for t in threads])).order_by(RemarkEvent.created)).all():
+            events[e.remark_id].append(e)
+    ids = {t.author_id for t in threads} | {x.author_id for xs in replies.values() for x in xs} | {e.actor_id for es in events.values() for e in es}
     authors = {u.id: u for u in s.exec(select(User).where(User.id.in_(ids or {-1})))}
     ms = s.exec(select(Milestone).where(Milestone.project_id == pr.id)).all() if r["insider"] else []
     ms.sort(key=lambda m: (m.done, m.due or "9999", m.id))
-    return dict(threads=threads, replies=replies, rauthors=authors, milestones=ms, sv=r, ppl=ppl,
-                open_threads=[t for t in threads if t.status != "resolved"], done_threads=[t for t in threads if t.status == "resolved"],
+    vinfo, choices = doc_versions_for(s, pr, user) if r["insider"] else ({}, [])
+    return dict(threads=threads, replies=replies, events=events, rauthors=authors, milestones=ms, sv=r, ppl=ppl, vinfo=vinfo, version_choices=choices,
+                open_threads=[t for t in threads if not is_done(t)], done_threads=[t for t in threads if is_done(t)],
                 ms_done=len([m for m in ms if m.done]), can_ask=r["team"] and bool(ppl["advisors"]),
                 categories=FEEDBACK_CATEGORIES, priorities=FEEDBACK_PRIORITIES)
 
@@ -102,57 +116,130 @@ def _thread_for(s, tid, user):
     if not t: raise HTTPException(404)
     pr = s.get(Project, t.project_id)
     if not pr: raise HTTPException(404)
-    return t, pr, roles_of(user, people(s, pr))
+    ppl = people(s, pr)
+    return t, pr, roles_of(user, ppl), ppl
+
+def thread_link(t): return f"/projects/{t.project_id}#t{t.id}"
+
+def short(text, n=60):
+    text = re.sub(r"\s+", " ", text or "").strip()
+    return text if len(text) <= n else text[:n - 1].rstrip() + "…"
+
+def submitter_of(s, t):
+    e = s.exec(select(RemarkEvent).where(RemarkEvent.remark_id == t.id, RemarkEvent.to_state == "submitted").order_by(RemarkEvent.created.desc())).first()
+    return e.actor_id if e else 0
+
+def can_move(s, t, user, r, to, pr):
+    """The one rule book for status changes. Feedback: only advisors resolve or reopen. Questions: the team closes them."""
+    frm = t.state
+    if t.deleted_at or to == frm: return False
+    if t.kind == "request":
+        return to in ("resolved", "open") and (r["team"] or r["adv"])
+    if to == "in_progress":
+        if frm in ("open", "reopened"): return r["team"]
+        if frm == "submitted": return r["team"] and user.id in (submitter_of(s, t), pr.owner_id)   # withdraw before the professor looks
+        return False
+    if to == "submitted": return r["team"] and frm in ("open", "in_progress", "reopened")
+    if to == "resolved": return r["adv"]
+    if to == "reopened": return r["adv"] and frm in ("submitted", "resolved")
+    return False
+
+def move_state(s, t, user, to, note="", version_id=None, pr=None, ppl=None, notify_people=True):
+    """Change a thread's state and record it. The caller has already checked can_move."""
+    from .notify import notify
+    frm = t.state; now = datetime.utcnow()
+    t.state = to; t.status = "resolved" if to == "resolved" else "open"; t.last_at = now
+    if to == "resolved": t.resolved_by, t.resolved_at = user.id, now
+    if to == "submitted" and version_id: t.fixed_in_version_id = version_id
+    s.add(t); s.add(RemarkEvent(remark_id=t.id, actor_id=user.id, from_state=frm, to_state=to, version_id=version_id, note=note[:1000])); s.commit()
+    if not notify_people: return
+    pr = pr or s.get(Project, t.project_id); ppl = ppl or people(s, pr); name = user.name or user.handle; what = short(t.body, 50)
+    if t.kind == "request": return
+    if to == "submitted": notify(s, ppl["advisors"], "remark_submitted", f"{name} marked “{what}” as fixed and asks you to check it", thread_link(t), pr.id, user.id)
+    elif to == "resolved": notify(s, ppl["team"], "remark_resolved", f"Feedback confirmed resolved: “{what}”", thread_link(t), pr.id, user.id)
+    elif to == "reopened": notify(s, ppl["team"] | {submitter_of(s, t)}, "remark_reopened", f"Feedback reopened: “{what}” · {short(note, 80)}", thread_link(t), pr.id, user.id)
 
 @app.post("/projects/{pid}/threads", dependencies=[limited("thread", 40, 3600)])
-def new_thread(pid: int, body: str = Form(""), category: str = Form("General"), priority: str = Form("Normal"),
-               resources: str = Form(""), public: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+def new_thread(pid: int, body: str = Form(""), category: str = Form("General"), priority: str = Form("Normal"), resources: str = Form(""),
+               public: str = Form(""), version_id: str = Form(""), anchor: str = Form(""), next: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+    from .notify import notify
+    from .docs import version_of_project, visible_version
     if not user: return go("/login")
     pr = s.get(Project, pid)
     if not pr: raise HTTPException(404)
     ppl = people(s, pr); r = roles_of(user, ppl)
     body = body.strip()[:3000]
-    if not body or not (r["adv"] or (r["team"] and ppl["advisors"])): return go(f"/projects/{pid}#supervision")
+    back = next if re.fullmatch(r"/docs/\d+(\?v=\d+)?", next) else f"/projects/{pid}#supervision"
+    if not body or not (r["adv"] or (r["team"] and ppl["advisors"])): return go(back)
+    v = version_of_project(s, pr, version_id, user) if version_id else None   # feedback written on a document version
+    pub = bool(public) and r["adv"]
+    if pub and v and not visible_version(s, None, v.id, any_logged_in=True): pub = False   # never public feedback on a non-public version
     t = Remark(project_id=pid, author_id=user.id, body=body, kind="feedback" if r["adv"] else "request",
                category=category if category in FEEDBACK_CATEGORIES else "General",
                priority=priority if priority in FEEDBACK_PRIORITIES else "Normal",
-               resources=clean_lines(resources) if r["adv"] else "", public=bool(public) and r["adv"],
-               last_by=user.id)
-    s.add(t); s.commit()
-    return go(f"/projects/{pid}#t{t.id}")
+               resources=clean_lines(resources) if r["adv"] else "", public=pub, last_by=user.id,
+               doc_id=v.doc_id if v else None, version_id=v.id if v else None, anchor=re.sub(r"\s+", " ", anchor).strip()[:120] if v else "")
+    s.add(t); s.commit(); s.refresh(t)
+    name = user.name or user.handle
+    if r["adv"]: notify(s, ppl["team"], "feedback", f"New feedback from {name} ({t.category}{', high priority' if t.priority == 'High' else ''}): “{short(body, 50)}”", thread_link(t), pid, user.id)
+    else: notify(s, ppl["advisors"], "request", f"{name} asked for your feedback: “{short(body, 60)}”", thread_link(t), pid, user.id)
+    return go(back if back.startswith("/docs/") else thread_link(t))
 
 @app.post("/threads/{tid}/reply", dependencies=[limited("reply", 80, 3600)])
-def reply_thread(tid: int, body: str = Form(""), resources: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+def reply_thread(tid: int, body: str = Form(""), resources: str = Form(""), next: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+    from .notify import notify
     if not user: return go("/login")
-    t, pr, r = _thread_for(s, tid, user)
+    t, pr, r, ppl = _thread_for(s, tid, user)
     body = body.strip()[:3000]
-    if body and (r["team"] or r["adv"]):
+    if body and (r["team"] or r["adv"]) and not (t.deleted_at and t.kind == "request"):
         s.add(Remark(project_id=pr.id, author_id=user.id, body=body, kind="reply", parent_id=t.id,
                      resources=clean_lines(resources) if r["adv"] else ""))
-        t.last_at, t.last_by, t.status = datetime.utcnow(), user.id, "open"   # a new message reopens the conversation
+        t.last_at, t.last_by = datetime.utcnow(), user.id   # a reply no longer changes the status
         s.add(t); s.commit()
-    return go(f"/projects/{pr.id}#t{t.id}")
+        others = {x.author_id for x in s.exec(select(Remark).where(Remark.parent_id == t.id)).all()} | {t.author_id}
+        others |= ppl["team"] if r["adv"] else ppl["advisors"]
+        notify(s, others & (ppl["team"] | ppl["advisors"]), "reply", f"{user.name or user.handle} replied on “{short(t.body, 50)}”", thread_link(t), pr.id, user.id)
+    return go(next + f"#t{t.id}" if re.fullmatch(r"/docs/\d+(\?v=\d+)?", next) else thread_link(t))
 
-@app.post("/threads/{tid}/status")
+@app.post("/threads/{tid}/state", dependencies=[limited("tstate", 120, 3600)])
+def thread_state(tid: int, to: str = Form(...), note: str = Form(""), version_id: str = Form(""), next: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+    from .docs import version_of_project
+    if not user: return go("/login")
+    t, pr, r, ppl = _thread_for(s, tid, user)
+    note = note.strip()[:1000]
+    back = next + f"#t{t.id}" if re.fullmatch(r"/docs/\d+(\?v=\d+)?", next) else thread_link(t)
+    if to == "reopened" and not note: return go(back)                       # a reopen needs a reason
+    if to == "submitted" and t.kind == "feedback" and not note: return go(back)   # say what changed
+    v = version_of_project(s, pr, version_id, user) if version_id else None
+    if can_move(s, t, user, r, to, pr):
+        move_state(s, t, user, to, note, v.id if v else None, pr, ppl)
+        if v and to == "submitted":
+            from .models import VersionAddresses
+            if not s.exec(select(VersionAddresses).where(VersionAddresses.version_id == v.id, VersionAddresses.remark_id == t.id)).first():
+                s.add(VersionAddresses(version_id=v.id, remark_id=t.id, note=note)); s.commit()
+    return go(back)
+
+@app.post("/threads/{tid}/status")   # old two-button form (kept so open pages from before the upgrade still work)
 def thread_status(tid: int, status: str = Form(...), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
-    t, pr, r = _thread_for(s, tid, user)
-    if status in ("open", "resolved") and (r["team"] or r["adv"]): t.status = status; s.add(t); s.commit()
-    return go(f"/projects/{pr.id}#t{t.id}")
+    t, pr, r, ppl = _thread_for(s, tid, user)
+    to = "resolved" if status == "resolved" else ("open" if t.kind == "request" else "reopened")
+    if can_move(s, t, user, r, to, pr) and (to != "reopened"): move_state(s, t, user, to, "", None, pr, ppl)
+    return go(thread_link(t))
 
 @app.post("/remarks/{rid}/delete")
-def delete_remark(rid: int, user=Depends(me), s: Session = Depends(get_session)):
+def delete_remark(rid: int, next: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+    """Soft delete: the words become [deleted]; the thread, its history and other people's replies stay."""
     x = s.get(Remark, rid)
     if not x: raise HTTPException(404)
-    if user and (user.id == x.author_id or user.is_admin):
-        if x.parent_id is None: s.exec(delete(Remark).where(Remark.parent_id == x.id))
+    if user and (user.id == x.author_id or user.is_admin) and not x.deleted_at:
+        x.deleted_at = datetime.utcnow(); s.add(x); s.commit()
         parent = s.get(Remark, x.parent_id) if x.parent_id else None
-        s.delete(x); s.commit()
         if parent:   # the thread's newest message may have changed
-            last = s.exec(select(Remark).where(Remark.parent_id == parent.id).order_by(Remark.created.desc())).first()
+            last = s.exec(select(Remark).where(Remark.parent_id == parent.id, Remark.deleted_at == None).order_by(Remark.created.desc())).first()
             parent.last_at, parent.last_by = (last.created, last.author_id) if last else (parent.created, parent.author_id)
             s.add(parent); s.commit()
-    return go(f"/projects/{x.project_id}#supervision")
+    return go(next if re.fullmatch(r"/docs/\d+(\?v=\d+)?", next) else f"/projects/{x.project_id}#supervision")
 
 @app.post("/projects/{pid}/milestones", dependencies=[limited("milestone", 60, 3600)])
 def add_milestone(pid: int, title: str = Form(""), due: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
@@ -187,46 +274,73 @@ def advised(s, uid):
     return s.exec(select(Project, Role.name).join(Role, Role.project_id == Project.id).join(Application, Application.role_id == Role.id)
                   .where(Application.user_id == uid, Application.status == "accepted", Role.advisor == True)).all()
 
-def waiting_reviews(s, uid, pids=None):
-    """Open threads where the team wrote last: they are waiting for this professor."""
-    pids = pids if pids is not None else [p.id for p, _ in advised(s, uid)]
-    if not pids: return []
+def _advisors_by_project(s, pids):
     advs = defaultdict(set)
     for pid, a in s.exec(select(Role.project_id, Application.user_id).join(Application, Application.role_id == Role.id)
                          .where(Role.project_id.in_(pids), Role.advisor == True, Application.status == "accepted")).all():
         advs[pid].add(a)
-    ts = s.exec(select(Remark).where(Remark.project_id.in_(pids), Remark.parent_id == None, Remark.status == "open")).all()
-    return [t for t in ts if t.last_by not in advs[t.project_id]]
+    return advs
+
+def waiting_reviews(s, uid, pids=None):
+    """Threads waiting for the professor: feedback marked as fixed, and conversations where the team wrote last."""
+    pids = pids if pids is not None else [p.id for p, _ in advised(s, uid)]
+    if not pids: return []
+    advs = _advisors_by_project(s, pids)
+    ts = s.exec(select(Remark).where(Remark.project_id.in_(pids), Remark.parent_id == None, Remark.deleted_at == None, Remark.state != "resolved")).all()
+    return [t for t in ts if (t.kind == "feedback" and t.state == "submitted") or t.last_by not in advs[t.project_id]]
 
 def waiting_team(s, uid):
-    """Open threads on this user's team projects where an advisor wrote last."""
+    """Threads on this user's team projects that the team should act on: new or reopened feedback, and answered questions."""
     owned = [p for p in s.exec(select(Project.id).where(Project.owner_id == uid)).all()]
     joined = [p for p in s.exec(select(Role.project_id).join(Application, Application.role_id == Role.id)
                                 .where(Application.user_id == uid, Application.status == "accepted", Role.advisor == False)).all()]
     pids = list(set(owned) | set(joined))
     if not pids: return []
-    advs = defaultdict(set)
-    for pid, a in s.exec(select(Role.project_id, Application.user_id).join(Application, Application.role_id == Role.id)
-                         .where(Role.project_id.in_(pids), Role.advisor == True, Application.status == "accepted")).all():
-        advs[pid].add(a)
-    ts = s.exec(select(Remark).where(Remark.project_id.in_(pids), Remark.parent_id == None, Remark.status == "open")).all()
-    return [t for t in ts if t.last_by in advs[t.project_id]]
+    advs = _advisors_by_project(s, pids)
+    ts = s.exec(select(Remark).where(Remark.project_id.in_(pids), Remark.parent_id == None, Remark.deleted_at == None, Remark.state != "resolved")).all()
+    out = []
+    for t in ts:
+        if t.kind == "feedback" and (t.state in ("open", "reopened") or (t.state == "in_progress" and t.last_by in advs[t.project_id])): out.append(t)
+        elif t.kind == "request" and t.last_by in advs[t.project_id]: out.append(t)
+    return out
 
-def inbox_extra(s, user):
-    """Things waiting for this user besides project applications (added to the Activity badge)."""
-    n = len(waiting_team(s, user.id))
+def waiting_doc_reviews(s, pids):
+    """Documents a team asked its advisors to review, still waiting."""
+    from .models import ResearchDoc, ReviewRequest
+    if not pids: return []
+    return s.exec(select(ReviewRequest, ResearchDoc).join(ResearchDoc, ResearchDoc.id == ReviewRequest.doc_id)
+                  .where(ResearchDoc.project_id.in_(pids), ResearchDoc.visibility != "private", ReviewRequest.status == "waiting")
+                  .order_by(ReviewRequest.created)).all()
+
+def attention(s, user):
+    """Everything waiting for this person. The badge in the top bar and the dashboard both use THIS count, so they always agree."""
+    a = dict(team=waiting_team(s, user.id), reviews=[], docs=[], lab=[], overdue=[])
+    a["apps"] = len(s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
+                           .where(Project.owner_id == user.id, Application.status == "pending")).all())
     if user.role == "faculty":
-        n += len(waiting_reviews(s, user.id))
-        mine = [o.id for o in s.exec(select(Opening).where(Opening.owner_id == user.id)).all()]
-        if mine: n += len(s.exec(select(OpeningApp.id).where(OpeningApp.opening_id.in_(mine), OpeningApp.status == "pending")).all())
-    return n
+        pids = [p.id for p, _ in advised(s, user.id)]
+        a["reviews"] = waiting_reviews(s, user.id, pids)
+        a["docs"] = waiting_doc_reviews(s, pids)
+        mine = s.exec(select(Opening).where(Opening.owner_id == user.id)).all()
+        pend = defaultdict(int)
+        for x in s.exec(select(OpeningApp).where(OpeningApp.opening_id.in_([o.id for o in mine] or [-1]), OpeningApp.status == "pending")).all(): pend[x.opening_id] += 1
+        a["lab"] = [(o, pend[o.id]) for o in mine if pend[o.id]]
+        for pid in pids:
+            late = [m for m in s.exec(select(Milestone).where(Milestone.project_id == pid, Milestone.done == False)).all() if m.due and (days_left(m.due) or 0) < 0]
+            if late: a["overdue"].append(pid)
+    a["total"] = len(a["team"]) + a["apps"] + len(a["reviews"]) + len(a["docs"]) + len(a["lab"]) + len(a["overdue"])
+    return a
+
+def inbox_extra(s, user):   # kept for older callers
+    a = attention(s, user); return a["total"] - a["apps"]
 
 @app.get("/advisor")
 def dashboard(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if user.role != "faculty": return go("/research")
     rows = advised(s, user.id); pids = [p.id for p, _ in rows]
-    reviews = waiting_reviews(s, user.id, pids)
+    att = attention(s, user)
+    reviews = att["reviews"]; doc_reviews = att["docs"]
     projects = {p.id: p for p, _ in rows}
     # team of each project
     team = defaultdict(set)
@@ -247,15 +361,15 @@ def dashboard(req: Request, user=Depends(me), s: Session = Depends(get_session))
         stamps = [t.created for t in threads if t.project_id == p.id] + [m.done_at or m.created for m in pm]
         prog.append(dict(p=p, seat=seat, students=len(team[p.id]), done=len([m for m in pm if m.done]), total=len(pm),
                          next=nxt[0] if nxt else None, overdue=len([m for m in nxt if m.due and (days_left(m.due) or 0) < 0]),
-                         open=len([t for t in threads if t.project_id == p.id and t.parent_id is None and t.status == "open"]),
-                         waiting=len([t for t in reviews if t.project_id == p.id]),
+                         open=len([t for t in threads if t.project_id == p.id and t.parent_id is None and t.state != "resolved" and not t.deleted_at]),
+                         waiting=len([t for t in reviews if t.project_id == p.id]) + len([1 for rq, d in doc_reviews if d.project_id == p.id]),
                          people=[names[u] for u in sorted(team[p.id], key=lambda u: u != p.owner_id) if u in names],
                          last=max(stamps) if stamps else None))
     prog.sort(key=lambda x: (-x["waiting"], -x["overdue"], -(x["last"].timestamp() if x["last"] else 0)))
     upcoming = sorted([m for m in ms if not m.done and m.due and (days_left(m.due) is not None) and days_left(m.due) <= 30],
                       key=lambda m: m.due)[:8]
     # recent activity: messages from the teams and milestones they finished
-    events = [("msg", t.created, t) for t in threads if t.author_id != user.id]
+    events = [("msg", t.created, t) for t in threads if t.author_id != user.id and not t.deleted_at]
     events += [("done", m.done_at, m) for m in ms if m.done and m.done_at]
     events = sorted(events, key=lambda e: e[1], reverse=True)[:10]
     openings = s.exec(select(Opening).where(Opening.owner_id == user.id).order_by(Opening.created.desc())).all()
@@ -276,7 +390,9 @@ def dashboard(req: Request, user=Depends(me), s: Session = Depends(get_session))
     return render(req, "advisor.html", user, greet=greet, honor=honor, projects=projects, prog=prog, reviews=reviews, open_pos=open_pos,
                   high=len([t for t in reviews if t.priority == "High"]), overdue=sum(x["overdue"] for x in prog), teams=len([x for x in prog if x["people"]]),
                   students=len(students), upcoming=upcoming, events=events, names=names, openings=openings, oapps=oapps,
-                  pending_lab=sum(v[0] for v in oapps.values()), seat_apps=seat_apps)
+                  pending_lab=sum(v[0] for v in oapps.values()), seat_apps=seat_apps, att=att, doc_reviews=doc_reviews,
+                  vnum={v.id: v.number for v in s.exec(select(DocVersion).where(DocVersion.id.in_([rq.version_id for rq, _ in doc_reviews] or [-1]))).all()},
+                  fbp={p.id: p for p in s.exec(select(Project).where(Project.id.in_({t.project_id for t in att["team"]} or {-1})))})
 
 
 # ---------- professor directory and research positions ----------

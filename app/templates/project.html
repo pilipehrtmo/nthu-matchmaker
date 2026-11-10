@@ -3,7 +3,9 @@
 {% elif notice == "edited" %}<p class="box ok" role="status">Application updated.</p>
 {% elif notice == "facultyonly" %}<p class="box" role="status">Only verified NTHU professors can apply for an advisor seat.</p>
 {% elif notice == "withdrawn" %}<p class="box" role="status">Application withdrawn. You can apply again while the seat is open.</p>
-{% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>{% endif %}
+{% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>
+{% elif notice == "removed" %}<p class="box" role="status">Removed from the seat. The seat is open again.</p>{% endif %}
+{% if err %}<p class="err" role="alert">{{ err }}</p>{% endif %}
 <section class="card head"><h1>{{ pr.title }}</h1>
 <div class="meta"><span class="pill kindpill">{{ k }}</span>{% if pr.category %}<span class="pill">{{ pr.category }}</span>{% endif %}{% if pr.stage %}<span class="pill">Stage: {{ pr.stage }}</span>{% endif %}
 <span class="byline">{{ pic(owner, "av xs") }}<span>by <a href="/u/{{ owner.handle }}">{{ owner|dn }}</a></span>{% if owner.verified %}<span class="pill ok">✔ verified</span>{% endif %}</span><span>{{ pr.hours_per_week }} h/week</span>
@@ -52,8 +54,10 @@
 <form method="post" action="/applications/{{ a.id }}/rejected"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Reject</button></form></div>{% endif %}
 {% if user and u.id == user.id and a.status == "pending" %}<details class="sa-edit"><summary>Edit message</summary><form method="post" action="/applications/{{ a.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/projects/{{ pr.id }}"><textarea name="message" rows="3" maxlength="500" aria-label="Your message">{{ a.message }}</textarea><p><button class="sm">Save changes</button></p></form></details>{% endif %}
 {% if user and u.id == user.id and a.status == "pending" %}<form method="post" action="/applications/{{ a.id }}/withdrawn"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Withdraw application</button></form>{% endif %}
-{% if is_owner and a.status == "accepted" %}<p class="app-contact">Contact: {{ contact_list(u) }}</p>{% endif %}</div></div>{% endfor %}</div>{% endif %}
+{% if is_owner and a.status == "accepted" %}<p class="app-contact">Contact: {{ contact_list(u) }}</p>
+{% if u.id != user.id %}<form method="post" action="/applications/{{ a.id }}/removed" hx-confirm="Remove {{ u|dn }} from this seat? They lose access to the team's feedback and documents, and the seat opens again."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Remove from the {{ "advisor seat" if x.r.advisor else "team" }}</button></form>{% endif %}{% endif %}</div></div>{% endfor %}</div>{% endif %}
 </article>{% endfor %}</div></section>
+{% if docsec %}{% include "_docs.html" %}{% endif %}
 {% if sup.show %}{% include "_supervision.html" %}{% endif %}
 
 {% if k == "Startup" and (pr.problem or pr.audience or pr.solution or pr.progress or pr.metrics) %}<section class="card pitch"><div class="pgrid">

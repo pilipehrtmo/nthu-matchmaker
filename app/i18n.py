@@ -148,6 +148,30 @@ PATTERNS = [   # messages with a number, a name or a wait time inside; groups ar
     (r"^(.+): that doesn't look like a link\.$", "{0}：這看起來不像連結。"),
     (r"^(.+): please use a link on (.+)\.$", "{0}：請使用 {1} 上的連結。"),
 ]
+PATTERNS += [   # research review & documents: notifications and upload messages
+    (r"^New feedback from (.+) \((.+), high priority\): (“.*”)$", "{0} 給了新回饋（{1}，高優先）：{2}"),
+    (r"^New feedback from (.+) \((.+)\): (“.*”)$", "{0} 給了新回饋（{1}）：{2}"),
+    (r"^(.+) asked for your feedback: (“.*”)$", "{0} 請你給回饋：{1}"),
+    (r"^(.+) replied on (“.*”)$", "{0} 回覆了 {1}"),
+    (r"^(.+) marked (“.*”) as fixed and asks you to check it$", "{0} 將 {1} 標記為已修正，請你確認"),
+    (r"^Feedback confirmed resolved: (“.*”)$", "回饋已確認解決：{0}"),
+    (r"^Feedback reopened: (“.*”) · (.*)$", "回饋被重新開啟：{0} · {1}"),
+    (r"^(.+) added a document: (.+)$", "{0} 新增了文件：{1}"),
+    (r"^(.+) v(\d+) uploaded by (.+) · addresses (\d+) remarks?$", "{0} v{1} 由 {2} 上傳 · 處理了 {3} 則回饋"),
+    (r"^(.+) v(\d+) uploaded by (.+)$", "{0} v{1} 由 {2} 上傳"),
+    (r"^(.+) asked you to review (.+) v(\d+)$", "{0} 請你審閱 {1} v{2}"),
+    (r"^(.+) finished reviewing (.+) v(\d*)$", "{0} 已審閱完 {1} v{2}"),
+    (r"^You were removed from the (.+) seat of (.+)$", "你已被移出「{1}」的 {0} 職位"),
+    (r"^Still waiting: review of (.+) v(\d+)$", "仍在等待：審閱 {0} v{1}"),
+    (r"^Still waiting: a remark marked as fixed needs your check$", "仍在等待：有一則標記為已修正的回饋需要你確認"),
+    (r"^Still open: reopened feedback is waiting for your team$", "仍未解決：重新開啟的回饋正在等你的團隊"),
+    (r"^A document can have at most (\d+) versions\. Start a new document for the next stage\.$", "每份文件最多 {0} 個版本。下一階段請建立新文件。"),
+    (r"^This is not a real \.(\w+) file\. Save it again from Word, PowerPoint or Excel\.$", "這不是真正的 .{0} 檔案。請用 Word、PowerPoint 或 Excel 重新儲存。"),
+    (r"^The ZIP contains a file type that is not allowed \((.+)\)\. Remove it and try again\.$", "ZIP 內含不接受的檔案類型（{0}）。請移除後再試。"),
+    (r"^This is not a plain \.(\w+) file\.$", "這不是一般的 .{0} 檔案。"),
+    (r"^This \.(\w+) file is not readable text\. Save it as UTF-8 and try again\.$", "這個 .{0} 檔案無法讀成文字。請存成 UTF-8 後再試。"),
+    (r"^(\d+) things are waiting for you\. Everything else is on track\.$", "有 {0} 件事等你處理，其他都很順利。"),
+]
 PATTERNS = [(re.compile(a), b) for a, b in PATTERNS]
 def t(s, lang: str = "en"):
     if lang != "zh" or not s or not isinstance(s, str) or isinstance(s, Keep): return s
