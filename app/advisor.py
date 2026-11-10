@@ -63,6 +63,11 @@ def due_text(d):
     return "overdue" if n < 0 else ("due today" if n == 0 else f"due in {n} day{'s' if n != 1 else ''}")
 templates.env.globals["due_text"] = due_text
 templates.env.globals["days_left"] = days_left
+MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+def day_box(d):   # "2026-11-30" -> ("30", "NOV") for the date boxes on the dashboard
+    try: y, m, dd = d.split("-"); return str(int(dd)), MONTHS[int(m) - 1]
+    except (ValueError, IndexError, AttributeError): return "", ""
+templates.env.globals["day_box"] = day_box
 
 def hours_ok(v):
     return bool(re.fullmatch(r"\d{1,2}(\s*[-–]\s*\d{1,2})?", v))
@@ -244,6 +249,7 @@ def dashboard(req: Request, user=Depends(me), s: Session = Depends(get_session))
                          next=nxt[0] if nxt else None, overdue=len([m for m in nxt if m.due and (days_left(m.due) or 0) < 0]),
                          open=len([t for t in threads if t.project_id == p.id and t.parent_id is None and t.status == "open"]),
                          waiting=len([t for t in reviews if t.project_id == p.id]),
+                         people=[names[u] for u in sorted(team[p.id], key=lambda u: u != p.owner_id) if u in names],
                          last=max(stamps) if stamps else None))
     prog.sort(key=lambda x: (-x["waiting"], -x["overdue"], -(x["last"].timestamp() if x["last"] else 0)))
     upcoming = sorted([m for m in ms if not m.done and m.due and (days_left(m.due) is not None) and days_left(m.due) <= 30],
@@ -264,7 +270,11 @@ def dashboard(req: Request, user=Depends(me), s: Session = Depends(get_session))
     greet = "Good morning" if 5 <= h < 12 else ("Good afternoon" if 12 <= h < 18 else "Good evening")
     t = user.title or "Professor"
     honor = "Professor" if "Professor" in t else t   # an Associate or Assistant Professor is addressed as Professor; never abbreviated
-    return render(req, "advisor.html", user, greet=greet, honor=honor, projects=projects, prog=prog, reviews=sorted(reviews, key=lambda t: t.last_at or t.created),
+    rank = {p: i for i, p in enumerate(FEEDBACK_PRIORITIES)}
+    reviews = sorted(reviews, key=lambda t: (rank.get(t.priority, 1), t.last_at or t.created))   # high priority first, then the longest waiting
+    open_pos = len([o for o in openings if opening_state(s, o)["taking"]])
+    return render(req, "advisor.html", user, greet=greet, honor=honor, projects=projects, prog=prog, reviews=reviews, open_pos=open_pos,
+                  high=len([t for t in reviews if t.priority == "High"]), overdue=sum(x["overdue"] for x in prog), teams=len([x for x in prog if x["people"]]),
                   students=len(students), upcoming=upcoming, events=events, names=names, openings=openings, oapps=oapps,
                   pending_lab=sum(v[0] for v in oapps.values()), seat_apps=seat_apps)
 
