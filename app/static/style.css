@@ -930,3 +930,8 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .recs{margin:.4rem 0 1rem}.recs h2{font-size:1.15rem;margin:0}.reclist{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.6rem;margin-top:.5rem}
 .rec{display:flex;flex-direction:column;gap:.25rem;padding:.75rem .9rem;border:1.5px solid var(--line);border-radius:12px;text-decoration:none;color:var(--ink);background:var(--card)}.rec:hover{border-color:var(--pur)}.rec small{color:var(--mut)}.rec .pill{align-self:flex-start}
 .addr-i{margin:.35rem 0 .6rem}.addr-i input[type=text],.addr-i input:not([type]){margin:.2rem 0 0 1.6rem;width:calc(100% - 1.6rem);padding:.4rem .6rem;font-size:.9rem}
+/* competition cards: both buttons the same size, on one line at the bottom of every card */
+.card.comp .comp-acts{margin-top:auto;padding-top:.8rem;display:grid;grid-template-columns:1fr 1fr;gap:.5rem;align-items:stretch}
+.card.comp .comp-acts .btn{margin:0;align-self:stretch;display:flex;align-items:center;justify-content:center;text-align:center;min-height:2.6rem;padding:.45rem .6rem;border:1.5px solid var(--pri);box-sizing:border-box;white-space:nowrap}
+.card.comp .comp-acts .btn.ghost{border-color:var(--pur)}
+.card.comp .comp-acts .btn:only-child{grid-column:1/-1}
