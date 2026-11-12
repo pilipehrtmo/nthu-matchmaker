@@ -240,6 +240,11 @@ class Program(SQLModel, table=True):    # funding and incubation programs on /fu
     sort: int = 0
     active: bool = True
     verified_at: Optional[NaiveDatetime] = None   # when an admin last checked it against the official call
+    checked_at: Optional[NaiveDatetime] = None    # when the daily check last opened the official page
+    check_status: str = ""    # "" / ok / changed / unreachable
+    check_note: str = ""
+    page_hash: str = ""       # to notice when the official page changes
+    deadline_source: str = "" # "" / auto (read from the official page) / admin (typed by an admin; the check never overwrites it)
 
 class Avatar(SQLModel, table=True):     # profile photo: a small square WebP, kept in the database so it survives redeploys
     user_id: int = Field(foreign_key="user.id", primary_key=True)

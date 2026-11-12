@@ -1408,6 +1408,12 @@
     "Programs that fund or coach NTHU student startups and research. Each startup or research project page checks your team against them. Competitions are on the": "資助或輔導清大學生新創與研究的計畫。每個新創或研究專案頁面都會依這些計畫檢查你的團隊。比賽請見",
     "Choose a file": "選擇檔案",
     "or drop it here": "或拖曳到這裡",
-    "No file chosen": "尚未選擇檔案"
+    "No file chosen": "尚未選擇檔案",
+    "Couldn't open the official page on": "無法開啟官方頁面：",
+    ". Check it there.": "。請直接到官網確認。",
+    "Checked automatically": "已自動檢查",
+    "· deadline read from the official page": "· 截止日期取自官方頁面",
+    "Not checked yet": "尚未檢查",
+    "· verified by an admin": "· 已由管理員確認"
   }
 }

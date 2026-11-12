@@ -18,7 +18,9 @@
 <p><b>What you get:</b> {{ p.amount }}</p><p><b>Who:</b> {{ p.who }}</p>
 {% if p.min_members or p.needs_advisor %}<p class="fine"><b>Requirements we know of:</b>{% if p.min_members %} team of at least {{ p.min_members }}{% endif %}{% if p.min_members and p.needs_advisor %},{% endif %}{% if p.needs_advisor %} a professor as advisor{% endif %}</p>{% endif %}
 <p class="{{ 'due' if ps[0] in ('open', 'closing') }}">{% if ps[2] is not none and ps[2] >= 0 %}<b>Deadline in {{ ps[2] }} day{{ "s" if ps[2] != 1 }}</b> ({{ p.next_deadline }}){% elif ps[0] == "past" %}Deadline was {{ p.next_deadline }}. {{ p.deadline_note }}{% else %}{{ p.deadline_note or "No date announced yet." }}{% endif %}</p>
-<p class="muted fine">Last verified: {% if p.verified_at %}{{ p.verified_at.strftime("%Y-%m-%d") }}{% else %}not verified yet{% endif %}</p>
+<p class="muted fine pcheck">{% if p.check_status == "unreachable" %}<span class="warn-txt">Couldn't open the official page on {{ p.checked_at.strftime("%Y-%m-%d") }}. Check it there.</span>
+{% elif p.checked_at %}Checked automatically {{ p.checked_at.strftime("%Y-%m-%d") }}{% if p.deadline_source == "auto" and p.next_deadline %} · deadline read from the official page{% endif %}
+{% else %}Not checked yet{% endif %}{% if p.verified_at %} · verified by an admin {{ p.verified_at.strftime("%Y-%m-%d") }}{% endif %}</p>
 {% if user and p.id in track %}<form method="post" action="/save/program/{{ p.id }}/track" class="trackf"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="tr{{ p.id }}">Your progress</label>
 <select id="tr{{ p.id }}" name="status" onchange="this.form.requestSubmit()">{% for v, l in TRACK %}{% if v %}<option value="{{ v }}" {{ "selected" if v == track[p.id] or (not track[p.id] and v == "planning") }}>{{ l }}</option>{% endif %}{% endfor %}<option value="">Stop tracking</option></select><noscript><button class="sm">Save</button></noscript></form>{% endif %}
 {% if user and user.is_admin %}<form method="post" action="/admin/verify/program/{{ p.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Mark verified today (admin)</button></form>{% endif %}

@@ -78,7 +78,10 @@ async def lifespan(app):
     from .notify import send_digests, send_reminders   # 00:00 UTC = 08:00 Taiwan time
     sch.add_job(send_reminders, "cron", hour=0, minute=0); sch.add_job(send_digests, "cron", hour=0, minute=5)
     from .opps import send_deadline_reminders
-    sch.add_job(send_deadline_reminders, "cron", hour=0, minute=2)   # set KEEP_AWAKE=0 on Render to let it sleep again
+    sch.add_job(send_deadline_reminders, "cron", hour=0, minute=2)
+    from . import fundscan   # opens every funding program's official page: daily at 09:00 Taiwan time, and once soon after start
+    sch.add_job(fundscan.run, "cron", hour=1, minute=0)
+    sch.add_job(fundscan.run, "date", run_date=datetime.now() + timedelta(minutes=2))   # set KEEP_AWAKE=0 on Render to let it sleep again
     sch.start()
     yield
     sch.shutdown()
@@ -1130,6 +1133,8 @@ async def save_program(req: Request, user=Depends(me), s: Session = Depends(get_
         if not f.get("name"): return go("/admin#programs")
         p = Program(key="custom-" + secrets.token_hex(4), name="", sort=99); s.add(p)
     if f.get("next_deadline") and days_left(f["next_deadline"]) is None: f["next_deadline"] = ""
+    if "next_deadline" in f and f["next_deadline"] != (p.next_deadline or ""):
+        p.deadline_source = "admin" if f["next_deadline"] else ""   # a date typed by an admin wins over the daily check
     for k in ("name", "org", "url", "amount", "who", "next_deadline", "deadline_note"):
         if k in f and (f[k] or k in ("next_deadline", "deadline_note")): setattr(p, k, f[k][:300])
     if f.get("for_kind") in ("Startup", "Research", "Any"): p.for_kind = f["for_kind"]

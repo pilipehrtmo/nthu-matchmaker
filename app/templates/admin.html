@@ -38,7 +38,8 @@
 
 <section class="sec" id="programs"><h2>Funding programs</h2>
 <p class="muted">Shown on /funding and in each startup or research project's readiness check. When a call is announced, set its deadline (YYYY-MM-DD) so the countdown appears.</p>
-{% for p in programs %}<details class="card" style="margin:.6rem 0"><summary><b>{{ p.name }}</b> <span class="muted">· {{ p.for_kind }} · {{ p.next_deadline or "no date" }}{% if not p.active %} · hidden{% endif %}</span></summary>
+{% for p in programs %}<details class="card" style="margin:.6rem 0"><summary><b>{{ p.name }}</b> <span class="muted">· {{ p.for_kind }} · {{ p.next_deadline or "no date" }}{% if p.deadline_source %} ({{ "from the official page" if p.deadline_source == "auto" else "typed by an admin" }}){% endif %}{% if not p.active %} · hidden{% endif %}{% if p.check_status == "unreachable" %} · <span class="warn-txt">page unreachable</span>{% elif p.check_status == "changed" %} · <span class="warn-txt">page changed</span>{% endif %}</span></summary>
+{% if p.checked_at %}<p class="muted fine">Daily check {{ p.checked_at.strftime("%Y-%m-%d %H:%M") }} UTC: {{ p.check_note }} Clearing the date below lets the daily check fill it again.</p>{% endif %}
 <form method="post" action="/admin/program"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="id" value="{{ p.id }}">
 <div class="two"><div><label>Next deadline</label><input type="date" name="next_deadline" value="{{ p.next_deadline }}"></div><div><label>Note when there is no date</label><input name="deadline_note" value="{{ p.deadline_note }}"></div></div>
 <div class="two"><div><label>Link</label><input name="url" type="url" value="{{ p.url }}"></div><div><label>Amount</label><input name="amount" value="{{ p.amount }}"></div></div>
