@@ -10,6 +10,7 @@
 <fieldset><legend class="vh">Notification emails</legend>
 <label class="chk"><input type="radio" name="pref" value="off" {{ "checked" if user.email_pref not in ("daily", "instant") }}> <span><b>Off</b><small>Only on this site</small></span></label>
 <label class="chk"><input type="radio" name="pref" value="daily" {{ "checked" if user.email_pref == "daily" }}> <span><b>Daily summary</b><small>One email at 8:00 (Taiwan time) when something is new</small></span></label>
+<label class="chk"><input type="radio" name="pref" value="important" {{ "checked" if user.email_pref == "important" }}> <span><b>Important right away, the rest daily</b><small>Review requests, reopened feedback, team changes and deadlines by email at once; everything else in the 8:00 summary</small></span></label>
 <label class="chk"><input type="radio" name="pref" value="instant" {{ "checked" if user.email_pref == "instant" }}> <span><b>Right away</b><small>An email for each notification</small></span></label></fieldset>
 {% if not emails_on %}<p class="muted fine">Email is not set up on this server yet, so nothing is sent for now. Your choice is saved for when it is.</p>{% endif %}
 <p><button class="ghost sm">Save</button></p></form></section>

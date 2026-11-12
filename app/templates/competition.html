@@ -5,11 +5,15 @@
 {% if c.description %}<p class="lead">{{ c.description }}</p>{% endif %}
 <dl class="cfacts"><div><dt>Dates</dt><dd>{{ c.deadline or "Date not confirmed" }}</dd></div>
 <div><dt>Status</dt><dd>{% if st[0] == "past" %}This event has ended.{% elif st[0] == "unknown" %}We don't have a confirmed date. Check the official site.{% elif st[0] == "closing" %}Ends in {{ st[2] }} days.{% else %}{{ st[2] }} days to go.{% endif %}</dd></div>
-<div><dt>Listed from</dt><dd>{{ "Added by an admin" if c.source == "admin" else (c.source or "Unknown") }}{% if c.needs_review %} · not checked by an admin yet{% endif %}</dd></div></dl>
+<div><dt>Listed from</dt><dd>{{ "Added by an admin" if c.source == "admin" else (c.source or "Unknown") }}{% if c.needs_review %} · not checked by an admin yet{% endif %}</dd></div>
+<div><dt>Last verified</dt><dd>{% if c.verified_at %}{{ c.verified_at.strftime("%Y-%m-%d") }}{% else %}Not verified yet{% endif %}</dd></div></dl>
 <p class="muted fine">Eligibility, requirements and the exact timeline are on the official site. We only show what we could confirm, so read the rules there before you register.</p>
 <div class="acts"><a class="btn" href="{{ c.url }}" target="_blank" rel="noopener">Official site&nbsp;↗</a>
 {% if st[0] != "past" %}<a class="btn ghost" href="/projects/new?comp={{ c.id }}">Start a team</a>{% endif %}
 {% if user %}<form method="post" action="/save/competition/{{ c.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/competitions/{{ c.id }}"><button class="ghost" aria-pressed="{{ 'true' if saved else 'false' }}">{{ "Saved ✓" if saved else "Save" }}</button></form>{% endif %}</div>
+{% if user and saved %}<form method="post" action="/save/competition/{{ c.id }}/track" class="trackf"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="trk">Your progress</label>
+<select id="trk" name="status" onchange="this.form.requestSubmit()">{% for v, l in TRACK %}<option value="{{ v }}" {{ "selected" if v == track }}>{{ l }}</option>{% endfor %}</select><noscript><button class="sm">Save</button></noscript></form>{% endif %}
+{% if user and user.is_admin %}<form method="post" action="/admin/verify/competition/{{ c.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Mark verified today (admin)</button></form>{% endif %}
 {% if mine %}<p class="box">You already lead a team for this: {% for p in mine %}<a href="/projects/{{ p.id }}">{{ p.title }}</a>{{ ", " if not loop.last }}{% endfor %}.</p>{% endif %}
 </section>
 <section class="card"><h2>Teams looking for members</h2>

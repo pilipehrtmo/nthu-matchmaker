@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% block body %}<h1>New post</h1>
 {% if error %}<p class="err">{{ error }}</p>{% endif %}
 <form method="post" class="card"><input type="hidden" name="csrf" value="{{ csrf }}">
+{% if pr %}<input type="hidden" name="project_id" value="{{ pr.id }}"><p class="box fine">About the project <a href="/projects/{{ pr.id }}">{{ pr.title }}</a>. This discussion is public to logged-in users.</p>{% endif %}
 <label for="tp">Topic</label><select id="tp" name="topic">{% for t in topics %}<option value="{{ t }}" {{ "selected" if t == sel }}>{{ t }}</option>{% endfor %}</select>
 <label for="ti">Title</label><input id="ti" name="title" required maxlength="150" placeholder="A clear question or idea">
 <label for="bo">Details (optional)</label><textarea id="bo" name="body" rows="6" maxlength="3000"></textarea>

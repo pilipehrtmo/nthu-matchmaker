@@ -14,7 +14,8 @@ from .main import app, render, me, go, limited, templates
 from .mail import send_mail, email_enabled
 from .config import BASE_URL
 
-EMAIL_PREFS = ["off", "daily", "instant"]
+EMAIL_PREFS = ["off", "daily", "important", "instant"]
+IMPORTANT = {"review_request", "remark_submitted", "remark_reopened", "removed", "app_decision", "deadline"}   # "important": these right away, the rest in the daily summary
 MERGE = timedelta(minutes=10)
 
 
@@ -29,8 +30,9 @@ def notify(s, user_ids, kind, text, link, project_id=None, actor=None, instant_o
         s.add(n); sent.append(uid)
     s.commit()
     if instant_ok and sent:
-        for u in s.exec(select(User).where(User.id.in_(sent), User.email_pref == "instant", User.banned == False)).all():
-            _mail_later(u.email, "NTHU Matchmaker: " + text[:80], f"{text}\n\nOpen it: {BASE_URL}{link}\n\nYou get these emails because notifications are set to \"Instant\" on your profile.")
+        prefs = ["instant", "important"] if kind in IMPORTANT else ["instant"]
+        for u in s.exec(select(User).where(User.id.in_(sent), User.email_pref.in_(prefs), User.banned == False)).all():
+            _mail_later(u.email, "NTHU Matchmaker: " + text[:80], f"{text}\n\nOpen it: {BASE_URL}{link}\n\nYou get these emails because of your notification email setting on your profile.")
             for n in s.exec(select(Notification).where(Notification.user_id == u.id, Notification.link == link, Notification.emailed_at == None)).all():
                 n.emailed_at = now; s.add(n)
         s.commit()
@@ -79,7 +81,7 @@ def send_digests():
     """Once a day: one email per person with 'daily' set, listing unread notifications not emailed yet."""
     if not email_enabled(): return
     with Session(engine) as s:
-        for u in s.exec(select(User).where(User.email_pref == "daily", User.banned == False)).all():
+        for u in s.exec(select(User).where(User.email_pref.in_(["daily", "important"]), User.banned == False)).all():
             ns = s.exec(select(Notification).where(Notification.user_id == u.id, Notification.read_at == None, Notification.emailed_at == None)
                         .order_by(Notification.created.desc()).limit(30)).all()
             if not ns: continue

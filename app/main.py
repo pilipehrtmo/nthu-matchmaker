@@ -76,7 +76,9 @@ async def lifespan(app):
     sch.add_job(run_scrapers); sch.add_job(run_scrapers, "cron", hour=3); sch.add_job(purge_logs, "cron", hour=4)
     if PUBLIC and os.getenv("KEEP_AWAKE", "1") == "1": sch.add_job(keep_awake, "interval", minutes=10)
     from .notify import send_digests, send_reminders   # 00:00 UTC = 08:00 Taiwan time
-    sch.add_job(send_reminders, "cron", hour=0, minute=0); sch.add_job(send_digests, "cron", hour=0, minute=5)   # set KEEP_AWAKE=0 on Render to let it sleep again
+    sch.add_job(send_reminders, "cron", hour=0, minute=0); sch.add_job(send_digests, "cron", hour=0, minute=5)
+    from .opps import send_deadline_reminders
+    sch.add_job(send_deadline_reminders, "cron", hour=0, minute=2)   # set KEEP_AWAKE=0 on Render to let it sleep again
     sch.start()
     yield
     sch.shutdown()
@@ -117,7 +119,7 @@ def limited(name: str, n: int, secs: int):
     return Depends(dep)
 
 if SECRET == "dev-secret-change-me": print("WARNING: set SECRET_KEY before real use.")
-app = FastAPI(lifespan=lifespan, dependencies=[Depends(csrf_check)])
+app = FastAPI(lifespan=lifespan, dependencies=[Depends(csrf_check)], docs_url=None, redoc_url=None, openapi_url=None)   # no public API explorer
 # At most 10 pages are built at once; the rest wait in line without holding a thread.
 # The database pool has 12 connections, so a page never waits for one (no pile-up when a whole class logs in).
 SLOTS = asyncio.Semaphore(10)
@@ -324,6 +326,7 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     u = User(email=email, name=name, student_id=sid, handle=slugify(s, name), is_admin=email in ADMIN_EMAILS, password_hash=hash_password(password))
     u.lang = pick_lang(req)
     if role == "faculty": u.role, u.faculty, u.faculty_url, u.title, u.faculty_status = "faculty", dept, page, title if title in TITLES else "", "pending"
+    else: u.faculty = dept   # department or major, shown on the profile and used by the Department filter
     s.add(u); s.add(SignupLog(email=email, ip="-", allowed=True)); s.commit(); s.refresh(u)
     note(f"signup:{ip_of(req)}")
     if role == "faculty": run_faculty_check(s, u)
@@ -590,9 +593,15 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         # filtering and sorting happen in the browser (instant, no reload); the page holds every open project
         owner = owners.get(pr.owner_id)
         # no match score on your own project
-        best = max((match_pct(user, r, pr, owner) for r in roles), default=0) if user and user.id != pr.owner_id else None
-        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, total=len(allr), days=days))
+        best, reason = None, ""
+        if user and user.id != pr.owner_id:
+            scored = [(match_pct(user, r, pr, owner), r) for r in roles if not r.advisor or user.is_faculty]
+            if scored:
+                best, br = max(scored, key=lambda x: x[0]); reason = f"{br.name}: {why(user, br, best)}"
+        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, total=len(allr), days=days, reason=reason))
     rows.sort(key=lambda r: -(r["score"] or 0))
+    # Recommended: only from real overlap between this person's skills and a seat's skills (no score shown without data)
+    recs = [r for r in rows if r["score"] and r["score"] >= 40 and r["reason"] and "Shares:" in r["reason"]][:3] if user and user.skills.strip() else []
     soon = {}   # nearest program deadline within 30 days, per project kind
     for prog in s.exec(select(Program).where(Program.active == True)).all():
         d = days_left(prog.next_deadline)
@@ -602,8 +611,9 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
     from .opps import comp_status, saved_ids
     rank = {"closing": 0, "open": 1, "unknown": 2, "past": 3}
     comps = sorted(allc[:300], key=lambda c: (rank[comp_status(c)[0]], comp_status(c)[2] if comp_status(c)[2] is not None else 9999, -c.id))
-    return render(req, "board.html", user, rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
+    return render(req, "board.html", user, recs=recs, depts=sorted({(r["owner"].faculty or "").strip() for r in rows if r["owner"] and (r["owner"].faculty or "").strip()}), rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
 
+RESEARCH_PLAN = [("objectives", 800), ("methodology", 800), ("outcomes", 600)]
 PITCH_FIELDS = [("tagline", 140), ("problem", 600), ("audience", 400), ("solution", 600), ("progress", 600), ("needs", 300), ("metrics", 200)]
 def metric_rows(text):   # "12 | stall owners interviewed" -> ("12", "stall owners interviewed"), at most 3
     rows = [tuple(x.strip() for x in line.split("|", 1)) for line in text.splitlines() if "|" in line]
@@ -725,6 +735,7 @@ def read_project_form(form, pr=None):
                stage=f["stage"] if kind == "Startup" and f["stage"] in [n for n, _ in guide.STARTUP_STAGES] else "",
                competition_id=int(f["competition_id"]) if f["competition_id"].isdigit() and kind == "Competition" else None, event_name=event)
     for k, _ in PITCH_FIELDS: out[k] = pitch[k] if kind == "Startup" else ""
+    for k, n in RESEARCH_PLAN: out[k] = str(form.get(k, "")).replace("\r", "").strip()[:n] if kind == "Research" else ""
     out["tags"] = tags_str(form.get("tags", ""))
     out["links"] = json.dumps(parse_links(str(form.get("links_json", ""))), ensure_ascii=False)
     return out, seats, err
@@ -829,7 +840,8 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     docsec = project_docs(s, pr, user, people(s, pr)) if user and supervised(pr, [x["r"] for x in out]) else None
     if docsec and not docsec["rows"] and not docsec["can_upload"]: docsec = None
     from .opps import saved_ids
-    return render(req, "project.html", user, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
+    talks = s.exec(select(Post).where(Post.project_id == pid, Post.hidden == False).order_by(Post.created.desc()).limit(5)).all() if user else []
+    return render(req, "project.html", user, talks=talks, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
 
 @app.get("/projects/{pid}/onepager")
@@ -925,13 +937,10 @@ def activity(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     fb = waiting_team(s, user.id)
     fbp = {p.id: p for p in s.exec(select(Project).where(Project.id.in_({t.project_id for t in fb} or {-1})))}
     from .opps import saved_for
-    return render(req, "activity.html", user, saved=saved_for(s, user), mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left, oapps=oapps, profs=profs, fb=fb, fbp=fbp)
+    feed = s.exec(select(Notification).where(Notification.user_id == user.id).order_by(Notification.created.desc()).limit(8)).all()
+    return render(req, "activity.html", user, feed=feed, saved=saved_for(s, user), mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left, oapps=oapps, profs=profs, fb=fb, fbp=fbp)
 
-@app.get("/funding")
-def funding(req: Request, user=Depends(me), s: Session = Depends(get_session)):
-    progs = s.exec(select(Program).where(Program.active == True).order_by(Program.sort)).all()
-    mine = s.exec(select(Project).where(Project.owner_id == user.id, Project.kind.in_(["Startup", "Research"]))).all() if user else []
-    return render(req, "funding.html", user, progs=progs, mine=mine, days_left=days_left)
+# /funding lives in opps.py (programs + competitions, saved items, tracking)
 
 @app.post("/report/{uid}", dependencies=[limited("report", 10, 3600)])
 def report(uid: int, reason: str = Form(...), user=Depends(me), s: Session = Depends(get_session)):
@@ -960,10 +969,16 @@ def purge_post(s, pid):
     if p: s.delete(p)
 
 @app.get("/discuss")
-def discuss(req: Request, topic: str = "", sort: str = "hot", user=Depends(me), s: Session = Depends(get_session)):
+def discuss(req: Request, topic: str = "", sort: str = "hot", q: str = "", show: str = "", user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
+    qtext = " ".join(q.split())[:80]
     q = select(Post)
     if topic: q = q.where(Post.topic == topic)
+    for w in qtext.split()[:6]:   # every word must appear in the title or the text (parameterised, no SQL built from input)
+        like = "%" + w.replace("%", "").replace("_", "") + "%"
+        q = q.where((Post.title.ilike(like)) | (Post.body.ilike(like)))
+    if show == "mine": q = q.where(Post.author_id == user.id)
+    elif show == "projects": q = q.where(Post.project_id != None)
     if not user.is_admin: q = q.where(Post.hidden == False)
     posts = s.exec(q).all(); ids = [p.id for p in posts]
     tot, mine = votes_for(s, "post", ids, user); cc = defaultdict(int)
@@ -974,19 +989,23 @@ def discuss(req: Request, topic: str = "", sort: str = "hot", user=Depends(me), 
     key = {"new": lambda p: p.created, "top": lambda p: tot[p.id]}.get(sort, hot)
     posts.sort(key=key, reverse=True)
     authors = {u.id: u for u in s.exec(select(User).where(User.id.in_([p.author_id for p in posts] or [0]))).all()}
-    return render(req, "discuss.html", user, posts=posts[:100], tot=tot, mine=mine, cc=cc, authors=authors, topic=topic, sort=sort, topics=TOPICS)
+    projs = {p.id: p for p in s.exec(select(Project).where(Project.id.in_({p.project_id for p in posts if p.project_id} or {-1}))).all()}
+    return render(req, "discuss.html", user, posts=posts[:100], tot=tot, mine=mine, cc=cc, authors=authors, topic=topic, sort=sort, topics=TOPICS, q=qtext, show=show, projs=projs)
 
 @app.get("/discuss/new")
-def new_post(req: Request, topic: str = "", user=Depends(me)):
-    return render(req, "newpost.html", user, topics=TOPICS, sel=topic) if user else go("/login")
+def new_post(req: Request, topic: str = "", project: str = "", user=Depends(me), s: Session = Depends(get_session)):
+    if not user: return go("/login")
+    pr = s.get(Project, int(project)) if project.isdigit() else None
+    return render(req, "newpost.html", user, topics=TOPICS, sel=topic, pr=pr)
 
 @app.post("/discuss/new", dependencies=[limited("post", 20, 3600)])
-def create_post(req: Request, title: str = Form(...), body: str = Form(""), topic: str = Form("General"), user=Depends(me), s: Session = Depends(get_session)):
+def create_post(req: Request, title: str = Form(...), body: str = Form(""), topic: str = Form("General"), project_id: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if not title.strip(): return go("/discuss/new")
+    pr = s.get(Project, int(project_id)) if project_id.isdigit() else None   # project pages are public, so a public discussion about one is fine
     if len(re.findall(r"https?://", title + body)) > 2:
         return render(req, "newpost.html", user, topics=TOPICS, sel=topic, error="Posts can contain at most 2 links.")
-    p = Post(author_id=user.id, title=title.strip()[:150], body=body.strip()[:3000], topic=topic if topic in TOPICS else "General")
+    p = Post(author_id=user.id, title=title.strip()[:150], body=body.strip()[:3000], topic=topic if topic in TOPICS else "General", project_id=pr.id if pr else None)
     s.add(p); s.commit(); s.refresh(p); return go(f"/discuss/{p.id}")
 
 @app.get("/discuss/{pid}")
@@ -1004,15 +1023,22 @@ def thread(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_se
     walk(None, 0)
     ids = {p.author_id} | {c.author_id for c in cs}
     authors = {u.id: u for u in s.exec(select(User).where(User.id.in_(list(ids)))).all()}
-    return render(req, "thread.html", user, p=p, flat=flat, ptot=ptot, pmine=pmine, ctot=ctot, cmine=cmine, authors=authors, ncom=len(cs))
+    return render(req, "thread.html", user, p=p, flat=flat, ptot=ptot, pmine=pmine, ctot=ctot, cmine=cmine, authors=authors, ncom=len(cs),
+                  about=s.get(Project, p.project_id) if p.project_id else None)
 
 @app.post("/discuss/{pid}/comment", dependencies=[limited("comment", 60, 3600)])
 def add_comment(pid: int, body: str = Form(...), parent_id: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if len(re.findall(r"https?://", body)) > 2: raise HTTPException(400, "Comments can contain at most 2 links.")
     par = s.get(Comment, int(parent_id)) if parent_id.isdigit() else None
-    if body.strip() and s.get(Post, pid):
-        s.add(Comment(post_id=pid, author_id=user.id, parent_id=par.id if par and par.post_id == pid else None, body=body.strip()[:2000])); s.commit()
+    post = s.get(Post, pid)
+    if body.strip() and post and (not post.hidden or user.is_admin):
+        par = par if par and par.post_id == pid else None
+        s.add(Comment(post_id=pid, author_id=user.id, parent_id=par.id if par else None, body=body.strip()[:2000])); s.commit()
+        from .notify import notify   # the post's author and the person replied to (never yourself; merged within 10 minutes)
+        name = user.name or user.handle
+        if par: notify(s, [par.author_id], "discuss_reply", f"{name} replied to your comment on “{post.title[:60]}”", f"/discuss/{pid}", None, user.id)
+        notify(s, [post.author_id] if not par or par.author_id != post.author_id else [], "discuss_comment", f"{name} commented on your post “{post.title[:60]}”", f"/discuss/{pid}", None, user.id)
     return go(f"/discuss/{pid}")
 
 @app.post("/vote/{kind}/{oid}", dependencies=[limited("vote", 300, 3600)])

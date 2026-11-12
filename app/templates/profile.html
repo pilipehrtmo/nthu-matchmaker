@@ -50,7 +50,7 @@ document.getElementById("phfile").addEventListener("change",async e=>{const f=e.
 <h2 style="margin-top:2rem" id="email">Notification emails</h2>{% if request.query_params.get("n") == "saved" %}<p class="box ok" role="status">Email setting saved.</p>{% endif %}
 <form method="post" action="/profile/notifications" class="card emailpref"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/profile">
 <p class="muted fine">New feedback, review requests and replies always show under the bell. Choose whether they also come by email to {{ user.email }}.</p>
-<div class="kinds themes">{% for v, l in [("off", "Off"), ("daily", "Daily summary (8:00)"), ("instant", "Right away")] %}<label class="kind"><input type="radio" name="pref" value="{{ v }}" {{ 'checked' if (user.email_pref or 'off') == v }}><span>{{ l }}</span></label>{% endfor %}</div>
+<div class="kinds themes">{% for v, l in [("off", "Off"), ("daily", "Daily summary (8:00)"), ("important", "Important right away"), ("instant", "Right away")] %}<label class="kind"><input type="radio" name="pref" value="{{ v }}" {{ 'checked' if (user.email_pref or 'off') == v }}><span>{{ l }}</span></label>{% endfor %}</div>
 <p><button class="sm">Save</button></p></form>
 <h2 style="margin-top:2rem" id="password">{{ "Change password" if user.password_hash else "Set a password" }}</h2>
 {% if pw_ok %}<p class="box ok" role="status">Password saved.</p>{% endif %}{% if pw_error %}<p class="err" role="alert">{{ pw_error }}</p>{% endif %}

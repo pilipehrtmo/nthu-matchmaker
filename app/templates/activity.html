@@ -4,6 +4,8 @@
 {% if user.role == "faculty" %}<p class="box">Feedback requests, the projects you supervise and your research positions are on your <a href="/advisor">advisor dashboard</a>.</p>{% endif %}
 {% if fb %}<h2>Advisor feedback for your team <span class="count">{{ fb|length }}</span></h2>
 <div class="dlist">{% for t in fb %}{% set p = fbp.get(t.project_id) %}<a class="drow" href="/projects/{{ t.project_id }}#t{{ t.id }}"><span class="dmain"><b>{{ t.body|truncate(90, True, "…") }}</b><small class="muted">{{ p.title if p else "" }} · {{ t.category }} · {{ (t.last_at or t.created)|ago }}</small></span><span class="badge b-open">Reply or resolve</span></a>{% endfor %}</div>{% endif %}
+{% if feed %}<h2>Recent activity <a class="fine" href="/notifications">See all</a></h2>
+<ul class="nlist afeed">{% for n in feed %}<li class="{{ 'unread' if not n.read_at }}"><a href="/notifications/{{ n.id }}/go"><span class="ndot" aria-hidden="true"></span><span class="ntext">{{ n.text }}</span><small class="muted">{{ n.created|ago }}</small></a></li>{% endfor %}</ul>{% endif %}
 <h2>Your projects</h2>
 {% if not mine %}<p class="card muted">You have not posted a project yet. <a href="/projects/new">Post one</a>.</p>{% endif %}
 <div class="alist">{% for p in mine %}{% set d = days_left(p.deadline) %}<a class="card arow" href="/projects/{{ p.id }}">
@@ -25,7 +27,8 @@
 <div class="dlist">{% for a, o in oapps %}{% set pf = profs.get(o.owner_id) %}<a class="drow" href="/openings/{{ o.id }}"><span class="dmain"><b>{{ o.title }}</b><small class="muted">{{ pf|dn }} · sent {{ a.at|ago }}</small></span>
 <span class="badge b-{{ a.status }}">{{ {"closed": "Positions filled", "withdrawn": "Withdrawn", "accepted": "Accepted", "pending": "Waiting"}.get(a.status, a.status|capitalize) }}</span></a>{% endfor %}</div>{% endif %}
 <h2 id="saved">Saved {% if saved %}<span class="count">{{ saved|length }}</span>{% endif %}</h2>
-{% if saved %}<div class="dlist">{% for k, x in saved %}{% if k == "competition" %}{% set cst = comp_status(x) %}<a class="drow" href="/competitions/{{ x.id }}"><span class="dmain"><b>{{ x.title }}</b><small class="muted">Competition · {{ x.category }} · {{ x.deadline or "Date not confirmed" }}</small></span><span class="badge cst cst-{{ cst[0] }}">{{ cst[1] }}</span></a>
+{% if saved %}<div class="dlist">{% for k, x, tst in saved %}{% if k == "program" %}{% set pst = prog_status(x) %}<a class="drow" href="/funding#p{{ x.id }}"><span class="dmain"><b>{{ x.name }}</b><small class="muted">Funding program · {{ x.org }}{% if tst %} · {{ dict(TRACK)[tst] }}{% endif %}</small></span><span class="badge cst cst-{{ pst[0] }}">{{ pst[1] }}</span></a>
+{% elif k == "competition" %}{% set cst = comp_status(x) %}<a class="drow" href="/competitions/{{ x.id }}"><span class="dmain"><b>{{ x.title }}</b><small class="muted">Competition · {{ x.category }} · {{ x.deadline or "Date not confirmed" }}{% if tst %} · {{ dict(TRACK)[tst] }}{% endif %}</small></span><span class="badge cst cst-{{ cst[0] }}">{{ cst[1] }}</span></a>
 {% else %}<a class="drow" href="/projects/{{ x.id }}"><span class="dmain"><b>{{ x.title }}</b><small class="muted">{{ kind_of(x) }}</small></span><span class="badge {{ 'b-open' if x.status == 'open' else 'b-closed' }}">{{ "Recruiting" if x.status == "open" else "Not recruiting" }}</span></a>{% endif %}{% endfor %}</div>
 {% else %}<p class="muted">Nothing saved yet. Use Save on a competition or project to keep it here.</p>{% endif %}
 {% endblock %}

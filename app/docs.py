@@ -211,9 +211,10 @@ async def new_version(did: int, req: Request, note: str = Form(""), review: str 
         try: t = s.get(Remark, int(raw))
         except (TypeError, ValueError): continue
         if not t or t.doc_id != d.id or t.parent_id or t.kind != "feedback": continue
-        s.add(VersionAddresses(version_id=v.id, remark_id=t.id, note=note)); s.commit()
+        how = str(form.get(f"note_{t.id}", "")).strip()[:500] or note   # each remark can have its own explanation
+        s.add(VersionAddresses(version_id=v.id, remark_id=t.id, note=how)); s.commit()
         if can_move(s, t, user, r, "submitted", pr):
-            move_state(s, t, user, "submitted", f"Addressed in v{v.number}: {note}", v.id, pr, ppl, notify_people=False); fixed.append(t)
+            move_state(s, t, user, "submitted", f"Addressed in v{v.number}: {how}", v.id, pr, ppl, notify_people=False); fixed.append(t)
     if d.visibility != "private":
         what = f" · addresses {len(fixed)} remark{'s' if len(fixed) != 1 else ''}" if fixed else ""
         # linked to the document (its newest version opens first), so several uploads in a row merge into one notification
@@ -411,6 +412,9 @@ def purge_project_docs(s, pid):
     if ids:
         for e in s.exec(select(RemarkEvent).where(RemarkEvent.remark_id.in_(ids))).all(): s.delete(e)
     for n in s.exec(select(Notification).where(Notification.project_id == pid)).all(): s.delete(n)
+    from .models import Post, SavedItem
+    for p in s.exec(select(Post).where(Post.project_id == pid)).all(): p.project_id = None; s.add(p)   # the discussion stays, without the link
+    for x in s.exec(select(SavedItem).where(SavedItem.kind == "project", SavedItem.item_id == pid)).all(): s.delete(x)
     s.flush()
 
 def purge_private_docs_of(s, uid):

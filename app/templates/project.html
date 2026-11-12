@@ -58,8 +58,13 @@
 {% if u.id != user.id %}<form method="post" action="/applications/{{ a.id }}/removed" hx-confirm="Remove {{ u|dn }} from this seat? They lose access to the team's feedback and documents, and the seat opens again."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Remove from the {{ "advisor seat" if x.r.advisor else "team" }}</button></form>{% endif %}{% endif %}</div></div>{% endfor %}</div>{% endif %}
 </article>{% endfor %}</div></section>
 {% if docsec %}{% include "_docs.html" %}{% endif %}
+{% if user %}<section class="card ptalk" id="discuss"><div class="sup-head"><h2>Discussions about this project</h2><a class="btn ghost sm" href="/discuss/new?project={{ pr.id }}">Start a discussion</a></div>
+{% if talks %}<ul class="doclist">{% for t in talks %}<li><a href="/discuss/{{ t.id }}"><span class="dl-m"><b>{{ t.title }}</b><small>{{ t.topic }} · {{ t.created|ago }}</small></span></a></li>{% endfor %}</ul>
+{% else %}<p class="muted fine">No public discussion yet. Questions for the team are welcome here; anything private belongs in a message to the lead.</p>{% endif %}</section>{% endif %}
 {% if sup.show %}{% include "_supervision.html" %}{% endif %}
 
+{% if k == "Research" and (pr.objectives or pr.methodology or pr.outcomes) %}<section class="card pitch rplan"><div class="pgrid">
+{% for key, label in [("objectives", "Research objectives"), ("methodology", "Methodology"), ("outcomes", "Expected outcomes")] if pr[key] %}<div><h3>{{ label }}</h3><p style="white-space:pre-line">{{ pr[key] }}</p></div>{% endfor %}</div></section>{% endif %}
 {% if k == "Startup" and (pr.problem or pr.audience or pr.solution or pr.progress or pr.metrics) %}<section class="card pitch"><div class="pgrid">
 {% for key, label in [("problem", "The problem"), ("audience", "Who has it"), ("solution", "Our solution")] if pr[key] %}<div><h3>{{ label }}</h3><p>{{ pr[key] }}</p></div>{% endfor %}
 {% if pr.progress %}<div><h3>Done so far</h3><ul>{% for l in pr.progress.splitlines() if l.strip() %}<li>{{ l.strip().lstrip("-•* ") }}</li>{% endfor %}</ul></div>{% endif %}</div>

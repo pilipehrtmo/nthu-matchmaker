@@ -1,10 +1,43 @@
 {% extends "base.html" %}{% block body %}<h1>Funding &amp; incubation</h1>
-<p class="muted">Programs that fund or coach NTHU student startups and research. Each startup or research project page checks your team against them.</p>
+<p class="muted">Programs that fund or coach NTHU student startups and research, and competitions to enter. Each startup or research project page checks your team against these programs.</p>
 {% if mine %}<div class="box"><b>Your projects:</b> {% for p in mine %}<a href="/projects/{{ p.id }}#funding">{{ p.title }}</a>{{ ", " if not loop.last }}{% endfor %}. Open one to see what is missing.</div>
 {% elif user %}<p class="box">Post a <a href="/projects/new?kind=Startup">startup</a> or <a href="/projects/new?kind=Research">research</a> project to get a readiness check against these programs.</p>{% endif %}
-{% for kind, label in [("Startup", "For startups"), ("Research", "For research"), ("Any", "For any project")] %}{% set ps = progs|selectattr("for_kind", "equalto", kind)|list %}
-{% if ps %}<h2>{{ label }}</h2><div class="rgrid">{% for p in ps %}{% set d = days_left(p.next_deadline) %}<article class="card fprog">
+
+<section class="card fsearch" aria-label="Find a program"><label class="csearch"><span class="vh">Search programs</span><input id="g-q" type="search" placeholder="Search programs" autocomplete="off"></label>
+<div class="crow"><label class="cfsel"><span>For</span><select id="g-for"><option value="">All</option><option value="Startup">Startups</option><option value="Research">Research</option><option value="Any">Any project</option></select></label>
+<label class="cfsel"><span>Deadline</span><select id="g-st"><option value="">Any</option><option value="open">Open</option><option value="closing">Closing soon</option><option value="unknown">Date not announced</option><option value="past">Deadline passed</option>{% if user %}<option value="saved">Saved</option>{% endif %}</select></label>
+<label class="cfsel"><span>Eligibility</span><select id="g-el"><option value="">Any</option><option value="noadv">No advisor needed</option><option value="adv">Needs a professor advisor</option><option value="solo">Open to one person</option></select></label>
+{% if fields %}<label class="cfsel"><span>Field</span><select id="g-field"><option value="">Any</option>{% for f in fields %}<option value="{{ f }}">{{ f }}</option>{% endfor %}</select></label>{% endif %}
+<span class="muted fine" id="g-count" aria-live="polite"></span></div></section>
+
+<div class="rgrid" id="glist">{% for p in progs %}{% set ps = prog_status(p) %}<article class="card fprog st-c-{{ ps[0] }}" id="p{{ p.id }}" data-for="{{ p.for_kind }}" data-st="{{ ps[0] }}" data-adv="{{ 1 if p.needs_advisor else 0 }}" data-min="{{ p.min_members }}"
+ data-fields="{{ p.categories|lower }}" data-saved="{{ 1 if p.id in track else 0 }}" data-text="{{ (p.name ~ ' ' ~ p.org ~ ' ' ~ p.who ~ ' ' ~ p.amount ~ ' ' ~ p.categories)|lower }}">
+<div class="comp-top"><span class="ctags"><span class="pill cat">{{ {"Startup": "For startups", "Research": "For research", "Any": "For any project"}.get(p.for_kind, p.for_kind) }}</span><span class="badge cst cst-{{ ps[0] }}">{{ ps[1] }}</span></span>
+{% if user %}<form method="post" action="/save/program/{{ p.id }}" class="savef"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/funding#p{{ p.id }}"><button class="savebtn" aria-pressed="{{ 'true' if p.id in track else 'false' }}" aria-label="Save {{ p.name }}" title="Save"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button></form>{% endif %}</div>
 <a href="{{ p.url }}" target="_blank" rel="noopener"><b>{{ p.name }}&nbsp;↗</b></a><small class="muted">{{ p.org }}</small>
 <p><b>What you get:</b> {{ p.amount }}</p><p><b>Who:</b> {{ p.who }}</p>
-<p class="{{ 'due' if d is not none and d >= 0 }}">{% if d is not none and d >= 0 %}<b>Deadline in {{ d }} day{{ "s" if d != 1 }}</b> ({{ p.next_deadline }}){% else %}{{ p.deadline_note }}{% endif %}</p></article>{% endfor %}</div>{% endif %}{% endfor %}
-<p class="muted fine">Rules, amounts and dates change every year. Always read the official call before you apply. Applications are sent to each program, not through this site.</p>{% endblock %}
+{% if p.min_members or p.needs_advisor %}<p class="fine"><b>Requirements we know of:</b>{% if p.min_members %} team of at least {{ p.min_members }}{% endif %}{% if p.min_members and p.needs_advisor %},{% endif %}{% if p.needs_advisor %} a professor as advisor{% endif %}</p>{% endif %}
+<p class="{{ 'due' if ps[0] in ('open', 'closing') }}">{% if ps[2] is not none and ps[2] >= 0 %}<b>Deadline in {{ ps[2] }} day{{ "s" if ps[2] != 1 }}</b> ({{ p.next_deadline }}){% elif ps[0] == "past" %}Deadline was {{ p.next_deadline }}. {{ p.deadline_note }}{% else %}{{ p.deadline_note or "No date announced yet." }}{% endif %}</p>
+<p class="muted fine">Last verified: {% if p.verified_at %}{{ p.verified_at.strftime("%Y-%m-%d") }}{% else %}not verified yet{% endif %}</p>
+{% if user and p.id in track %}<form method="post" action="/save/program/{{ p.id }}/track" class="trackf"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="tr{{ p.id }}">Your progress</label>
+<select id="tr{{ p.id }}" name="status" onchange="this.form.requestSubmit()">{% for v, l in TRACK %}{% if v %}<option value="{{ v }}" {{ "selected" if v == track[p.id] or (not track[p.id] and v == "planning") }}>{{ l }}</option>{% endif %}{% endfor %}<option value="">Stop tracking</option></select><noscript><button class="sm">Save</button></noscript></form>{% endif %}
+{% if user and user.is_admin %}<form method="post" action="/admin/verify/program/{{ p.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Mark verified today (admin)</button></form>{% endif %}
+</article>{% endfor %}</div>
+<p class="box" id="g-empty" hidden>No program matches these filters.</p>
+<p class="muted fine">Rules, amounts and dates change every year. Always read the official call before you apply. Applications are sent to each program, not through this site. Saved programs remind you 7 days and 1 day before a known deadline.</p>
+
+{% include "_comps.html" %}
+<script>
+(()=>{const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],cards=$$("#glist .fprog"),f={q:"",for:"",st:"",el:"",field:""};
+function go(){const qq=f.q.trim().toLowerCase();let n=0;
+ for(const c of cards){const d=c.dataset;
+  const ok=(!f.for||d.for===f.for)&&(!f.st||(f.st==="saved"?d.saved==="1":d.st===f.st))&&(!f.el||(f.el==="adv"?d.adv==="1":f.el==="noadv"?d.adv==="0":(+d.min)<=1))
+   &&(!f.field||d.fields.split(",").map(x=>x.trim()).includes(f.field.toLowerCase()))&&(!qq||qq.split(/\s+/).every(w=>d.text.includes(w)));
+  c.hidden=!ok;n+=ok}
+ $("#g-count").textContent={% if lang == "zh" %}`${n} 個計畫`{% else %}`${n} program${n==1?"":"s"}`{% endif %};$("#g-empty").hidden=n>0}
+let t;$("#g-q").addEventListener("input",e=>{clearTimeout(t);t=setTimeout(()=>{f.q=e.target.value;go()},120)});
+for(const [id,k] of [["g-for","for"],["g-st","st"],["g-el","el"],["g-field","field"]]){const el=$("#"+id);if(el)el.onchange=e=>{f[k]=e.target.value;go()}}
+$("#glist").addEventListener("submit",async e=>{const fm=e.target.closest(".savef");if(!fm)return;e.preventDefault();
+ try{const r=await fetch(fm.action,{method:"POST",body:new FormData(fm),headers:{"x-fetch":"1"}});if(!r.ok)throw 0;location.reload()}catch(_){fm.submit()}});
+go()})();
+</script>{% endblock %}

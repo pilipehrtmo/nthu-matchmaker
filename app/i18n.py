@@ -1,4 +1,4 @@
-"""English / 简体中文 (Simplified Chinese) for the interface.
+"""English / 繁體中文 (Traditional Chinese, Taiwan) for the interface.
 
 Templates are written in English. For Chinese, each template's *source* is translated once when it is loaded:
 the plain text between tags, a few attributes (placeholder, title, aria-label...), user-facing strings in
@@ -10,7 +10,7 @@ Messages built in Python (errors, notices) go through t() at render time.
 import json, os, re
 from jinja2 import FileSystemLoader
 
-LANGS = {"en": "English", "zh": "简体中文"}
+LANGS = {"en": "English", "zh": "繁體中文"}
 _HERE = os.path.dirname(__file__)
 ZH: dict = json.load(open(os.path.join(_HERE, "zh.json"), encoding="utf-8")) if os.path.exists(os.path.join(_HERE, "zh.json")) else {}
 
@@ -128,59 +128,65 @@ class ZhLoader(FileSystemLoader):
 
 # ---------- run time: messages made in Python ----------
 PATTERNS = [   # messages with a number, a name or a wait time inside; groups are translated too
-    (r"^(\d+)d ago$", "{0} 天前"), (r"^(\d+)h ago$", "{0} 小时前"), (r"^(\d+)m ago$", "{0} 分钟前"),
-    (r"^about a minute$", "大约一分钟"), (r"^about (\d+) minutes$", "大约 {0} 分钟"),
-    (r"^You did that a lot in a short time\. Please wait (.+) and try again\.$", "你在短时间内操作太多次了。请等{0}后再试。"),
-    (r"^Too many wrong passwords\. Please wait (.+), or use Forgot password\.$", "密码错误太多次。请等{0}，或使用「忘记密码」。"),
-    (r"^Many accounts were just created from this network\. Please wait (.+) and try again\.$", "这个网络刚刚创建了很多帐号。请等{0}后再试。"),
-    (r"^We already sent 3 links this hour\. Please wait (.+), and check your spam folder\.$", "这一小时内已经寄了 3 次链接。请等{0}，也请检查垃圾信件匣。"),
-    (r"^Too many reset emails\. Please wait (.+)\.$", "重设密码信寄太多次了。请等{0}。"),
-    (r"^We sent a link to (\S+)\. Open it to finish signing up\. Check your spam folder too\.$", "我们已寄链接到 {0}。打开链接即可完成注册，也请检查垃圾信件匣。"),
-    (r"^We sent a link to (\S+)\. Open it to finish signing up\. It can take a minute, and may land in spam\.$", "我们已寄链接到 {0}。打开链接即可完成注册。可能要等一分钟，也可能被分到垃圾信件匣。"),
-    (r"^A new link is on its way to (.+)\.$", "新的链接已寄到 {0}。"),
-    (r"^Team has (\d+) of at least (\d+) members$", "团队有 {0} 人，至少需要 {1} 人"),
-    (r"^(\d+) of (\d+) members are students \(at least two thirds needed\)$", "{1} 位成员中有 {0} 位是学生（至少需要三分之二）"),
-    (r"^Category fits \((.+)\)$", "类别符合（{0}）"),
-    (r"^due in (\d+) days?$", "{0} 天后到期"), (r"^Due in (\d+) days?$", "{0} 天后到期"),
-    (r"^The page answered with error (\d+)\.$", "页面回应错误 {0}。"),
-    (r"^Could not open the page \((.+)\)\.$", "无法打开页面（{0}）。"),
+    (r"^(\d+)d ago$", "{0} 天前"), (r"^(\d+)h ago$", "{0} 小時前"), (r"^(\d+)m ago$", "{0} 分鐘前"),
+    (r"^about a minute$", "大約一分鐘"), (r"^about (\d+) minutes$", "大約 {0} 分鐘"),
+    (r"^You did that a lot in a short time\. Please wait (.+) and try again\.$", "你在短時間內操作太多次了。請等{0}後再試。"),
+    (r"^Too many wrong passwords\. Please wait (.+), or use Forgot password\.$", "密碼錯誤太多次。請等{0}，或使用「忘記密碼」。"),
+    (r"^Many accounts were just created from this network\. Please wait (.+) and try again\.$", "這個網路剛剛建立了很多帳號。請等{0}後再試。"),
+    (r"^We already sent 3 links this hour\. Please wait (.+), and check your spam folder\.$", "這一小時內已經寄了 3 次連結。請等{0}，也請檢查垃圾信件匣。"),
+    (r"^Too many reset emails\. Please wait (.+)\.$", "重設密碼信寄太多次了。請等{0}。"),
+    (r"^We sent a link to (\S+)\. Open it to finish signing up\. Check your spam folder too\.$", "我們已寄連結到 {0}。打開連結即可完成註冊，也請檢查垃圾信件匣。"),
+    (r"^We sent a link to (\S+)\. Open it to finish signing up\. It can take a minute, and may land in spam\.$", "我們已寄連結到 {0}。打開連結即可完成註冊。可能要等一分鐘，也可能被分到垃圾信件匣。"),
+    (r"^A new link is on its way to (.+)\.$", "新的連結已寄到 {0}。"),
+    (r"^Team has (\d+) of at least (\d+) members$", "團隊有 {0} 人，至少需要 {1} 人"),
+    (r"^(\d+) of (\d+) members are students \(at least two thirds needed\)$", "{1} 位成員中有 {0} 位是學生（至少需要三分之二）"),
+    (r"^Category fits \((.+)\)$", "類別符合（{0}）"),
+    (r"^due in (\d+) days?$", "{0} 天後到期"), (r"^Due in (\d+) days?$", "{0} 天後到期"),
+    (r"^The page answered with error (\d+)\.$", "頁面回應錯誤 {0}。"),
+    (r"^Could not open the page \((.+)\)\.$", "無法開啟頁面（{0}）。"),
     (r"^Email found on (.+)$", "在 {0} 找到你的 email"),
-    (r"^(.+): that doesn't look like a link\.$", "{0}：这看起来不像链接。"),
-    (r"^(.+): please use a link on (.+)\.$", "{0}：请使用 {1} 上的链接。"),
+    (r"^(.+): that doesn't look like a link\.$", "{0}：這看起來不像連結。"),
+    (r"^(.+): please use a link on (.+)\.$", "{0}：請使用 {1} 上的連結。"),
 ]
 PATTERNS += [   # research review & documents: notifications and upload messages
-    (r"^New feedback from (.+) \((.+), high priority\): (“.*”)$", "{0} 给了新回馈（{1}，高优先）：{2}"),
-    (r"^New feedback from (.+) \((.+)\): (“.*”)$", "{0} 给了新回馈（{1}）：{2}"),
-    (r"^(.+) asked for your feedback: (“.*”)$", "{0} 请你给回馈：{1}"),
-    (r"^(.+) replied on (“.*”)$", "{0} 回复了 {1}"),
-    (r"^(.+) marked (“.*”) as fixed and asks you to check it$", "{0} 将 {1} 标记为已修正，请你确认"),
-    (r"^Feedback confirmed resolved: (“.*”)$", "回馈已确认解决：{0}"),
-    (r"^Feedback reopened: (“.*”) · (.*)$", "回馈被重新打开：{0} · {1}"),
-    (r"^(.+) added a document: (.+)$", "{0} 添加了文档：{1}"),
-    (r"^(.+) v(\d+) uploaded by (.+) · addresses (\d+) remarks?$", "{0} v{1} 由 {2} 上传 · 处理了 {3} 则回馈"),
-    (r"^(.+) v(\d+) uploaded by (.+)$", "{0} v{1} 由 {2} 上传"),
-    (r"^(.+) asked you to review (.+) v(\d+)$", "{0} 请你审阅 {1} v{2}"),
-    (r"^(.+) finished reviewing (.+) v(\d*)$", "{0} 已审阅完 {1} v{2}"),
-    (r"^You were removed from the (.+) seat of (.+)$", "你已被移出「{1}」的 {0} 职位"),
-    (r"^Still waiting: review of (.+) v(\d+)$", "仍在等待：审阅 {0} v{1}"),
-    (r"^Still waiting: a remark marked as fixed needs your check$", "仍在等待：有一则标记为已修正的回馈需要你确认"),
-    (r"^Still open: reopened feedback is waiting for your team$", "仍未解决：重新打开的回馈正在等你的团队"),
-    (r"^A document can have at most (\d+) versions\. Start a new document for the next stage\.$", "每份文档最多 {0} 个版本。下一阶段请创建新文档。"),
-    (r"^This is not a real \.(\w+) file\. Save it again from Word, PowerPoint or Excel\.$", "这不是真正的 .{0} 文件。请用 Word、PowerPoint 或 Excel 重新保存。"),
-    (r"^The ZIP contains a file type that is not allowed \((.+)\)\. Remove it and try again\.$", "ZIP 内含不接受的文件类型（{0}）。请移除后再试。"),
-    (r"^This is not a plain \.(\w+) file\.$", "这不是一般的 .{0} 文件。"),
-    (r"^This \.(\w+) file is not readable text\. Save it as UTF-8 and try again\.$", "这个 .{0} 文件无法读成文本。请存成 UTF-8 后再试。"),
-    (r"^(\d+) things are waiting for you\. Everything else is on track\.$", "有 {0} 件事等你处理，其他都很顺利。"),
+    (r"^New feedback from (.+) \((.+), high priority\): (“.*”)$", "{0} 給了新回饋（{1}，高優先）：{2}"),
+    (r"^New feedback from (.+) \((.+)\): (“.*”)$", "{0} 給了新回饋（{1}）：{2}"),
+    (r"^(.+) asked for your feedback: (“.*”)$", "{0} 請你給回饋：{1}"),
+    (r"^(.+) replied on (“.*”)$", "{0} 回覆了 {1}"),
+    (r"^(.+) marked (“.*”) as fixed and asks you to check it$", "{0} 將 {1} 標記為已修正，請你確認"),
+    (r"^Feedback confirmed resolved: (“.*”)$", "回饋已確認解決：{0}"),
+    (r"^Feedback reopened: (“.*”) · (.*)$", "回饋被重新開啟：{0} · {1}"),
+    (r"^(.+) added a document: (.+)$", "{0} 新增了文件：{1}"),
+    (r"^(.+) v(\d+) uploaded by (.+) · addresses (\d+) remarks?$", "{0} v{1} 由 {2} 上傳 · 處理了 {3} 則回饋"),
+    (r"^(.+) v(\d+) uploaded by (.+)$", "{0} v{1} 由 {2} 上傳"),
+    (r"^(.+) asked you to review (.+) v(\d+)$", "{0} 請你審閱 {1} v{2}"),
+    (r"^(.+) finished reviewing (.+) v(\d*)$", "{0} 已審閱完 {1} v{2}"),
+    (r"^You were removed from the (.+) seat of (.+)$", "你已被移出「{1}」的 {0} 職位"),
+    (r"^Still waiting: review of (.+) v(\d+)$", "仍在等待：審閱 {0} v{1}"),
+    (r"^Still waiting: a remark marked as fixed needs your check$", "仍在等待：有一則標記為已修正的回饋需要你確認"),
+    (r"^Still open: reopened feedback is waiting for your team$", "仍未解決：重新開啟的回饋正在等你的團隊"),
+    (r"^A document can have at most (\d+) versions\. Start a new document for the next stage\.$", "每份文件最多 {0} 個版本。下一階段請建立新文件。"),
+    (r"^This is not a real \.(\w+) file\. Save it again from Word, PowerPoint or Excel\.$", "這不是真正的 .{0} 檔案。請用 Word、PowerPoint 或 Excel 重新儲存。"),
+    (r"^The ZIP contains a file type that is not allowed \((.+)\)\. Remove it and try again\.$", "ZIP 內含不接受的檔案類型（{0}）。請移除後再試。"),
+    (r"^This is not a plain \.(\w+) file\.$", "這不是一般的 .{0} 檔案。"),
+    (r"^This \.(\w+) file is not readable text\. Save it as UTF-8 and try again\.$", "這個 .{0} 檔案無法讀成文字。請存成 UTF-8 後再試。"),
+    (r"^(\d+) things are waiting for you\. Everything else is on track\.$", "有 {0} 件事等你處理，其他都很順利。"),
 ]
 PATTERNS += [
-    (r"^(.+) applied for the (.+) seat on (.+)$", "{0} 申请了「{2}」的 {1} 职位"),
-    (r"^You joined (.+) as (.+)$", "你已加入「{0}」，担任 {1}"),
-    (r"^Your application was not accepted for (.+)$", "你对「{0}」的申请未被接受"),
-    (r"^(.+) applied for (.+)$", "{0} 申请了 {1}"),
-    (r"^You were accepted for (.+)$", "你已被「{0}」录取"),
-    (r"^You already lead a team for this competition: (.+)\. Open it, or press Publish again to make a second team\.$", "你已为这个比赛带领一个团队：{0}。可以打开它，或再按一次发布来建立第二个团队。"),
-    (r"^Project published, but the document was not uploaded: (.+)$", "项目已发布，但文档未上传：{0}"),
-    (r"^(\d+) competitions?$", "{0} 个比赛"),
+    (r"^(.+) applied for the (.+) seat on (.+)$", "{0} 申請了「{2}」的 {1} 職位"),
+    (r"^You joined (.+) as (.+)$", "你已加入「{0}」，擔任 {1}"),
+    (r"^Your application was not accepted for (.+)$", "你對「{0}」的申請未被接受"),
+    (r"^(.+) applied for (.+)$", "{0} 申請了 {1}"),
+    (r"^You were accepted for (.+)$", "你已被「{0}」錄取"),
+    (r"^You already lead a team for this competition: (.+)\. Open it, or press Publish again to make a second team\.$", "你已為這個比賽帶領一個團隊：{0}。可以開啟它，或再按一次釋出來建立第二個團隊。"),
+    (r"^Project published, but the document was not uploaded: (.+)$", "專案已釋出，但文件未上傳：{0}"),
+    (r"^(\d+) competitions?$", "{0} 個比賽"),
+]
+PATTERNS += [
+    (r"^(.+) replied to your comment on (“.*”)$", "{0} 回覆了你在 {1} 的留言"),
+    (r"^(.+) commented on your post (“.*”)$", "{0} 在你的貼文 {1} 留言"),
+    (r"^(.+): (\d+) days? left$", "{0}：還剩 {1} 天"),
+    (r"^(\d+) programs?$", "{0} 個計畫"),
 ]
 PATTERNS = [(re.compile(a), b) for a, b in PATTERNS]
 def t(s, lang: str = "en"):

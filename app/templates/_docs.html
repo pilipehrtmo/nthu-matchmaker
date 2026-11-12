@@ -1,7 +1,7 @@
 <section class="card docs" id="docs"><div class="sup-head"><h2>Research documents</h2>
 {% if docsec.can_upload %}<p class="muted fine">Proposals, papers, slides and datasets, with every version kept. Only the team and its advisors see them unless you make one version public.</p>{% endif %}</div>
 {% if docsec.rows %}<ul class="doclist">{% for x in docsec.rows %}<li><a href="/docs/{{ x.d.id }}{{ '?v=' ~ x.v.id if not sup.sv.insider else '' }}"><span class="docic ext-{{ x.v.ext }}" aria-hidden="true">{{ x.v.ext|upper }}</span>
-<span class="dl-m"><b>{{ x.d.title }}</b><small>{{ x.d.kind }} · v{{ x.v.number }}{% if x.n > 1 and sup.sv.insider %} of {{ x.n }}{% endif %} · {{ x.v.created|ago }}{% if x.d.archived %} · archived{% endif %}</small></span>
+<span class="dl-m"><b>{{ x.d.title }}</b><small>{{ x.d.kind }} · v{{ x.v.number }}{% if x.n > 1 and sup.sv.insider %} · {{ x.n }} versions kept{% endif %} · {{ x.v.created|ago }}{% if x.d.archived %} · archived{% endif %}</small></span>
 <span class="dl-tags">{% if x.waiting %}<span class="badge st st-submitted">Review requested</span>{% endif %}{% if x.open %}<span class="badge st st-open">Open feedback: {{ x.open }}</span>{% endif %}{% if sup.sv.insider or x.d.visibility == "private" %}<span class="pill vis vis-{{ x.d.visibility }}">{{ VIS_LABEL[x.d.visibility] }}</span>{% endif %}</span></a></li>{% endfor %}</ul>
 {% elif docsec.can_upload %}<p class="muted">{% if kind_of(pr) == "Research" %}Upload your proposal so your advisor can review it and track each revision.{% else %}No documents yet.{% endif %}</p>{% endif %}
 {% if docsec.can_upload %}{% if not docsec.uploads_on %}<p class="muted fine">File uploads are not switched on for this site yet.</p>

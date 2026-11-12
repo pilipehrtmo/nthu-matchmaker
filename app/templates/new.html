@@ -40,6 +40,9 @@
 
 <div class="xbox" id="box-Research" hidden><p class="xh">About your research</p>
 <label for="rf">Field</label><select id="rf" name="category" data-for="Research"><option value="">Pick a field</option>{% for c in G.RESEARCH_FIELDS %}<option value="{{ c }}" {{ "selected" if pr and pr.kind == "Research" and pr.category == c }}>{{ c }}</option>{% endfor %}</select>
+<label for="ro">Research objectives <small class="muted">(optional)</small></label><textarea id="ro" name="objectives" rows="3" maxlength="800" placeholder="The question you want to answer, and what you hope to show">{{ pr.objectives if pr else '' }}</textarea>
+<label for="rm">Methodology <small class="muted">(optional)</small></label><textarea id="rm" name="methodology" rows="3" maxlength="800" placeholder="How you will collect and analyse data: surveys, experiments, sensors, models…">{{ pr.methodology if pr else '' }}</textarea>
+<label for="rx">Expected outcomes <small class="muted">(optional)</small></label><textarea id="rx" name="outcomes" rows="2" maxlength="600" placeholder="A paper, a dataset, a prototype, a poster at a student conference…">{{ pr.outcomes if pr else '' }}</textarea>
 <p class="muted">Your project page will suggest well-known places to publish or share work in this field, and the NSTC undergraduate research grant.</p>
 {% if not editing and uploads_on %}<details class="firstdoc"><summary>Add your first document now <small class="muted">(optional)</small></summary>
 <p class="muted fine">A proposal or literature review you already have. Every later version is kept, and your advisor can review it once they join.</p>

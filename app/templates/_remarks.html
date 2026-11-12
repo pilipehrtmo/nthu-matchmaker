@@ -8,7 +8,7 @@
 <article class="thread st-{{ st }} {{ 'is-resolved' if st == 'resolved' }} {{ 'is-high' if t.priority == 'High' and st != 'resolved' }}" id="t{{ t.id }}">
 <header class="th-top"><span class="th-who">{{ who(t.author_id) }}<small class="muted">{{ "asked" if q else "wrote" }} {{ t.created|ago }}</small></span>
 <span class="th-tags"><span class="pill th-cat">{{ t.category }}</span>{% if t.priority != "Normal" %}<span class="pill th-pri p-{{ t.priority|lower }}">{{ t.priority }} priority</span>{% endif %}
-{% if sup.sv.insider %}{% if q %}<span class="badge st st-{{ 'resolved' if st == 'resolved' else 'open' }}">{{ "Closed" if st == "resolved" else "Waiting for an answer" }}</span>{% else %}<span class="badge st st-{{ st }}">{{ STATE_LABEL.get(st, st) }}</span>{% endif %}{% endif %}
+{% if sup.sv.insider %}{% if q %}{% set answered = st != "resolved" and t.last_by in sup.ppl.advisors %}<span class="badge st st-{{ 'resolved' if st == 'resolved' else ('in_progress' if answered else 'open') }}">{% if st == "resolved" %}Closed{% elif answered %}Answered{% else %}Waiting for an answer{% endif %}</span>{% else %}<span class="badge st st-{{ st }}">{{ STATE_LABEL.get(st, st) }}</span>{% endif %}{% endif %}
 {% if t.public %}<span class="pill" title="Shown on the public project page">Public</span>{% endif %}</span></header>
 <p class="th-kind">{{ "Question from the team" if q else "Feedback" }}{% if t.version_id and sup.vinfo.get(t.version_id) %} · on {{ vlabel(t.version_id) }}{% if t.anchor %} <span class="th-anchor">({{ t.anchor }})</span>{% endif %}{% endif %}</p>
 {% if t.deleted_at %}<p class="th-body muted">[deleted]</p>{% else %}<p class="th-body">{{ t.body }}</p>{{ resources(t.resources) }}{% endif %}

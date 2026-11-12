@@ -10,7 +10,10 @@
 <div class="two"><div><label for="n">Full name</label><input id="n" name="name" autocomplete="name" required value="{{ f.get('name', '') }}"></div>
 <div class="r-student"><label for="s">Student ID</label><input id="s" name="student_id" maxlength="12" value="{{ f.get('sid', '') }}"></div>
 <div class="r-faculty" hidden><label for="ti">Title</label><select id="ti" name="title">{% for t in titles %}<option value="{{ t }}" {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}</select></div></div>
-<div class="r-faculty" hidden><label for="dp">Department</label><input id="dp" name="dept" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science">
+<label for="dp" id="dplabel">Department or major</label><input id="dp" name="dept" list="colleges" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science" autocomplete="organization-title">
+<datalist id="colleges">{% for c in G.NTHU_COLLEGES %}<option value="{{ c }}">{% endfor %}</datalist>
+<p class="muted fine r-student">Shown on your profile and used to filter projects by department. You can change it later.</p>
+<div class="r-faculty" hidden>
 <label for="pg">Link to an NTHU page that lists you with this email</label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
 <p class="muted fine">For example your department's faculty page or your lab page on nthu.edu.tw. We open it and look for your email to confirm you are NTHU teaching staff. If we cannot find it, an admin checks it by hand; until then your account works but has no Faculty badge.</p></div>
 <div class="two"><div><label for="pw">Password</label><input id="pw" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="pwh"></div>
@@ -21,7 +24,7 @@
 </div>
 <script>
 (()=>{const sync=()=>{const fac=document.querySelector("input[name=role]:checked").value==="faculty";
- document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>{e.hidden=fac;e.querySelector("input").required=!fac});document.getElementById("dp").required=fac;document.getElementById("pg").required=fac;
+ document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>{e.hidden=fac;e.querySelector("input").required=!fac});document.getElementById("dp").required=fac;document.getElementById("dplabel").textContent=fac?"Department":"Department or major (optional)";document.getElementById("pg").required=fac;
  document.getElementById("ehint").hidden=!fac;document.getElementById("elabel").textContent=fac?"NTHU staff email":"Email"};
  document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})();
 </script>{% endblock %}

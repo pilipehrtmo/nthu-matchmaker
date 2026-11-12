@@ -64,6 +64,10 @@ RESEARCH_VENUES = {
 }
 RESEARCH_FIELDS = list(RESEARCH_VENUES)
 
+# NTHU colleges, offered as suggestions for the "department or major" field (people can type their own)
+NTHU_COLLEGES = ["College of Science", "College of Engineering", "College of Nuclear Science", "College of Humanities and Social Sciences",
+                 "College of Life Sciences and Medicine", "College of Electrical Engineering and Computer Science", "College of Technology Management",
+                 "College of Education", "College of Arts", "College of Semiconductor Research", "Tsing Hua College (interdisciplinary)"]
 NSTC_GRANT = ("NSTC Undergraduate Research Grant (大專學生研究計畫)", "https://www.nstc.gov.tw/",
               "For undergraduates in year 2 or above with a professor as advisor: NT$6,000 a month for 8 months (July to February), "
               "plus up to NT$20,000 for materials. Applications are usually due in February through your school's research office.")

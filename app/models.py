@@ -63,6 +63,7 @@ class Competition(SQLModel, table=True):
     needs_review: bool = True
     category: str = "Other"
     description: str = ""
+    verified_at: Optional[NaiveDatetime] = None   # when an admin last checked it against the official site
 
 PROJECT_KINDS = ["Competition", "Startup", "Research", "Side project", "Club or event", "Other"]
 
@@ -79,6 +80,9 @@ class Project(SQLModel, table=True):
     problem: str = ""
     audience: str = ""    # who has the problem
     solution: str = ""
+    objectives: str = ""  # Research only: research objectives, methodology and expected outcomes
+    methodology: str = ""
+    outcomes: str = ""
     progress: str = ""    # what the team has done so far, one item per line
     needs: str = ""       # what the team needs (people, help)
     metrics: str = ""     # up to 3 lines "12 | stall owners interviewed"
@@ -128,6 +132,7 @@ class Post(SQLModel, table=True):       # Discuss: a thread
     title: str
     body: str = ""
     hidden: bool = False
+    project_id: Optional[int] = Field(default=None, index=True)   # optional: a public discussion about this project
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
 
 class Comment(SQLModel, table=True):    # Discuss: a reply (parent_id = another comment, or empty for top level)
@@ -234,6 +239,7 @@ class Program(SQLModel, table=True):    # funding and incubation programs on /fu
     self_checks: str = ""       # "|"-separated things the team must check themselves
     sort: int = 0
     active: bool = True
+    verified_at: Optional[NaiveDatetime] = None   # when an admin last checked it against the official call
 
 class Avatar(SQLModel, table=True):     # profile photo: a small square WebP, kept in the database so it survives redeploys
     user_id: int = Field(foreign_key="user.id", primary_key=True)
@@ -329,6 +335,7 @@ class SavedItem(SQLModel, table=True):       # a bookmark: a competition or proj
     __table_args__ = (UniqueConstraint("user_id", "kind", "item_id", name="uq_saved_item"),)
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(index=True)
-    kind: str                 # competition / project
+    kind: str                 # competition / project / program
     item_id: int
+    status: str = ""          # application tracking for opportunities: "" / planning / applied / accepted / not_selected
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
