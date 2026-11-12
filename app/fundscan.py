@@ -45,14 +45,17 @@ def find_deadline(text, today=None, terms=None):
     today = today or today_tw(); found = []
     for k in re.finditer(KEYWORDS, text, re.I):
         if terms is not None and not any(t.lower() in text[max(0, k.start() - 150):k.start()].lower() for t in terms): continue
-        window, near = text[k.end():k.end() + 80], []
-        for rx, parts in DATE_PATTERNS:
-            for m in rx.finditer(window):
-                try: near.append(date(*parts(m)))
-                except (ValueError, KeyError): continue
-        if near:
-            end = max(near)   # "申請期間 12月1日至1月15日": a period ends on its last date
-            if today <= end <= today + timedelta(days=400): found.append(end)
+        window = text[k.end():k.end() + 80]
+        hits = sorted((m.start(), m.end(), parts(m)) for rx, parts in DATE_PATTERNS for m in rx.finditer(window))
+        if not hits: continue
+        first = hits[0]; pick = first[2]
+        # "12月1日至1月15日" / "2026/10/01 - 2026/11/30": a period ends on its second date. Any other later date
+        # in the window (a demo day, an event) is ignored.
+        nxt = [h for h in hits[1:] if h[0] >= first[1]]
+        if nxt and re.fullmatch(r"\s*(至|到|~|～|–|—|-|to|through|until)\s*", window[first[1]:nxt[0][0]], re.I): pick = nxt[0][2]
+        try: end = date(*pick)
+        except (ValueError, KeyError): continue
+        if today <= end <= today + timedelta(days=400): found.append(end)
     return min(found) if found else None
 
 def check_program(p, client, today=None):
