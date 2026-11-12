@@ -118,11 +118,7 @@ def funding(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     mine = s.exec(select(Project).where(Project.owner_id == user.id, Project.kind.in_(["Startup", "Research"]))).all() if user else []
     track = {r.item_id: r.status for r in s.exec(select(SavedItem).where(SavedItem.user_id == user.id, SavedItem.kind == "program")).all()} if user else {}
     fields = sorted({c.strip() for p in progs for c in (p.categories or "").split(",") if c.strip()})
-    allc = s.exec(select(Competition).order_by(Competition.needs_review, Competition.id.desc())).all()
-    rank = {"closing": 0, "open": 1, "unknown": 2, "past": 3}
-    comps = sorted(allc[:300], key=lambda c: (rank[comp_status(c)[0]], comp_status(c)[2] if comp_status(c)[2] is not None else 9999, -c.id))
-    return render(req, "funding.html", user, progs=progs, mine=mine, track=track, fields=fields, comps=comps, cats=sorted({c.category for c in allc}),
-                  saved_c=saved_ids(s, user, "competition"), cat="")
+    return render(req, "funding.html", user, progs=progs, mine=mine, track=track, fields=fields)
 
 @app.post("/save/program/{iid}/track", dependencies=[limited("track", 120, 3600)])
 def track_program(req: Request, iid: int, status: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):

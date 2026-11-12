@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block body %}<h1>Funding &amp; incubation</h1>
-<p class="muted">Programs that fund or coach NTHU student startups and research, and competitions to enter. Each startup or research project page checks your team against these programs.</p>
+<p class="muted">Programs that fund or coach NTHU student startups and research. Each startup or research project page checks your team against them. Competitions are on the <a href="/#comps">home page</a>.</p>
 {% if mine %}<div class="box"><b>Your projects:</b> {% for p in mine %}<a href="/projects/{{ p.id }}#funding">{{ p.title }}</a>{{ ", " if not loop.last }}{% endfor %}. Open one to see what is missing.</div>
 {% elif user %}<p class="box">Post a <a href="/projects/new?kind=Startup">startup</a> or <a href="/projects/new?kind=Research">research</a> project to get a readiness check against these programs.</p>{% endif %}
 
@@ -26,7 +26,6 @@
 <p class="box" id="g-empty" hidden>No program matches these filters.</p>
 <p class="muted fine">Rules, amounts and dates change every year. Always read the official call before you apply. Applications are sent to each program, not through this site. Saved programs remind you 7 days and 1 day before a known deadline.</p>
 
-{% include "_comps.html" %}
 <script>
 (()=>{const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],cards=$$("#glist .fprog"),f={q:"",for:"",st:"",el:"",field:""};
 function go(){const qq=f.q.trim().toLowerCase();let n=0;
