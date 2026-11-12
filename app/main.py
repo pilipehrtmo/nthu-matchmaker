@@ -23,9 +23,10 @@ from .cv import parse_cv, CVError, MAX_BYTES
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
 from . import guide
 from .photo import make_avatar, PhotoError, MAX_UPLOAD
-from .faculty import staff_email, nthu_url, check_page, nthu_email, shared_domain
+from .faculty import staff_email, nthu_url, nthu_email, shared_domain, academic_email
 STUDENT_EMAIL_RULE = os.getenv("STUDENT_EMAIL_RULE", "any")   # "nthu" = students must sign up with an NTHU address (see faculty.nthu_email)
-TITLES = ["Professor", "Associate Professor", "Assistant Professor", "Lecturer", "Adjunct Professor", "Researcher", "Advisor"]
+TITLES = ["Professor", "Distinguished Professor", "Associate Professor", "Assistant Professor", "Adjunct Professor", "Visiting Professor",
+          "Emeritus Professor", "Jointly Appointed Faculty", "Lecturer", "Research Fellow", "Postdoctoral Researcher"]   # plus "Other academic appointment" (typed in)
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -301,10 +302,11 @@ def signup_page(req: Request, user=Depends(me)):
 
 @app.post("/signup")
 def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), password: str = Form(""),
-           password2: str = Form(""), role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), s: Session = Depends(get_session)):
+           password2: str = Form(""), role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), title_other: str = Form(""),
+           evidence: str = Form(""), s: Session = Depends(get_session)):
     email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = student_id.strip().upper()
     role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
-    back = lambda err: render(req, "signup.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title))
+    back = lambda err: render(req, "signup.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence))
     # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
     w = wait_left(f"signup:{ip_of(req)}", 200, 3600)
     if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
@@ -312,10 +314,11 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     if len(name) < 2: return back("Please enter your full name.")
     if s.exec(select(User).where(User.email == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.")
     if role == "faculty":
-        if not nthu_email(email):
-            return back("Professor and advisor accounts must use an NTHU email, for example name@cs.nthu.edu.tw, name@mx.nthu.edu.tw or name@gapp.nthu.edu.tw.")
-        if not dept: return back("Enter your department.")
-        if not nthu_url(page): return back("Paste a link to an NTHU page that lists you with this email, such as your department's faculty page. It must be on nthu.edu.tw.")
+        if not (nthu_email(email) or academic_email(email)):
+            return back("Use your institutional email: an NTHU address such as name@cs.nthu.edu.tw or name@gapp.nthu.edu.tw, or, for a joint or visiting appointment, your university or institute address.")
+        if title not in TITLES and not (title == "Other academic appointment" and title_other.strip()): return back("Choose your academic title, or write it in the box under Other.")
+        if len(dept) < 2: return back("Enter your department.")
+        if page and not nthu_url(page): return back("The link must be an official page on nthu.edu.tw, such as your department's faculty list. Leave it empty if you don't have one yet.")
         sid = ""
     else:
         if STUDENT_EMAIL_RULE == "nthu" and not nthu_email(email) and email not in ADMIN_EMAILS:
@@ -328,11 +331,16 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     if not agree: return back("Please agree to the privacy notice to create an account.")
     u = User(email=email, name=name, student_id=sid, handle=slugify(s, name), is_admin=email in ADMIN_EMAILS, password_hash=hash_password(password))
     u.lang = pick_lang(req)
-    if role == "faculty": u.role, u.faculty, u.faculty_url, u.title, u.faculty_status = "faculty", dept, page, title if title in TITLES else "", "pending"
+    if role == "faculty":
+        u.role, u.faculty, u.faculty_url = "faculty", dept, page
+        u.title = title if title in TITLES else re.sub(r"\s+", " ", title_other).strip()[:60]
+        u.faculty_evidence = evidence.replace("\r", "").strip()[:1000]
     else: u.faculty = dept   # department or major, shown on the profile and used by the Department filter
     s.add(u); s.add(SignupLog(email=email, ip="-", allowed=True)); s.commit(); s.refresh(u)
     note(f"signup:{ip_of(req)}")
-    if role == "faculty": run_faculty_check(s, u)
+    if role == "faculty":
+        from .profverify import new_application
+        new_application(s, u)
     if verify_required():
         req.session["pending_uid"] = u.id
         try: send_verify(s, u)
@@ -341,14 +349,16 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
             return render(req, "notice.html", title="Account created", pending=True, msg="We could not send the confirmation email just now. Press Send again in a minute.")
         return render(req, "notice.html", title="Check your inbox", pending=True,
                       msg=f"We sent a link to {email}. Open it to finish signing up. It can take a minute, and may land in spam.")
-    start_session(req, u); return go("/profile")
+    start_session(req, u); return go("/verification" if role == "faculty" else "/profile")
 
 @app.get("/verify/{t}")
 def verify(req: Request, t: str, s: Session = Depends(get_session)):
     tok, u = use_token(s, t, ("verify",))
     if not u: return render(req, "notice.html", title="Link not valid", msg="This confirmation link is wrong, expired or already used. Log in to get a new one.", show_login=True)
     tok.used = True; u.email_verified = True; s.commit()
-    start_session(req, u); return go("/profile")
+    from .profverify import on_email_verified
+    on_email_verified(s, u, "Confirmation link in the email was opened.")
+    start_session(req, u); return go("/verification" if u.role == "faculty" else "/profile")
 
 @app.post("/verify/resend")
 def verify_resend(req: Request, s: Session = Depends(get_session)):
@@ -396,9 +406,13 @@ def reset(req: Request, t: str, password: str = Form(""), password2: str = Form(
     err = password_problem(password, u.email, u.name) or ("The two passwords are not the same." if password != password2 else "")
     if err: return render(req, "reset.html", t=t, who=u, error=err)
     u.password_hash = hash_password(password)
+    newly = tok.kind == "reset" and not u.email_verified
     if tok.kind == "reset": u.email_verified = True   # the link came by email, so they own the address
     for x in s.exec(select(AuthToken).where(AuthToken.user_id == u.id, AuthToken.kind.in_(["reset", "setup"]), AuthToken.used == False)).all(): x.used = True
     s.commit()
+    if newly:
+        from .profverify import on_email_verified
+        on_email_verified(s, u, "Password reset link in the email was opened.")
     if u.banned and u.email not in ADMIN_EMAILS: return render(req, "notice.html", title="Account banned", msg="This account is banned.")
     if u.email in ADMIN_EMAILS and not u.is_admin: u.is_admin = True; s.commit()
     start_session(req, u); return go("/?n=pw")
@@ -414,15 +428,9 @@ def change_password(req: Request, current: str = Form(""), password: str = Form(
     req.session["pv"] = pw_stamp(user)   # stay logged in here; every other device is logged out
     return render(req, "profile.html", user, pw_ok=True)
 
-def run_faculty_check(s, u):
-    """Look for the user's email on their NTHU page. Found: verified automatically. Not found: an admin decides."""
-    found, note = check_page(u.email, u.faculty_url)
-    if found and shared_domain(u.email):   # @gapp / @oz / @m<year> can belong to students too, so a person checks it
-        found, note = False, "Email found on the page, but it is a shared NTHU address (@gapp, @oz or @m…), so an admin confirms it."
-    u.faculty_note = note[:300]
-    if found: u.faculty_status, u.is_faculty = "verified", True
-    elif u.faculty_status != "rejected": u.faculty_status, u.is_faculty = "pending", False
-    s.add(u); s.commit()
+def run_faculty_check(s, u):   # kept for older callers; the rules live in profverify
+    from .profverify import run_check
+    run_check(s, u)
 
 
 @app.post("/logout")
@@ -458,7 +466,8 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     for f, v in links.items(): setattr(user, f, v)
     if name != user.name: user.handle = slugify(s, name, user.id)   # the web address follows the name
     user.name, user.bio, user.contact = name, bio[:500], clean_contact(contact, 100)
-    user.faculty, user.hours = faculty.strip()[:40], max(1, min(hours, 60))
+    if not (user.role == "faculty" and user.faculty_status in ("verified", "suspended")): user.faculty = faculty.strip()[:40]   # a verified department changes only through an admin
+    user.hours = max(1, min(hours, 60))
     user.skills = ",".join(sorted(tags(skills)))
     for f in ("competitions", "past_projects", "awards"):   # one item per line, at most 10 lines of 200 characters
         lines = [re.sub(r"\s+", " ", l).strip(" -•*")[:200] for l in str(form.get(f, "")).splitlines()]
@@ -477,13 +486,8 @@ def profile_cv(file: UploadFile = File(...), user=Depends(me), s: Session = Depe
     except CVError as e: return JSONResponse({"error": str(e)}, status_code=400)
     finally: del data
 
-@app.post("/profile/faculty", dependencies=[limited("faccheck", 6, 3600)])
-def faculty_recheck(page: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
-    if not user or user.role != "faculty" or user.faculty_status == "verified": return go("/profile")
-    page = page.strip()[:300] or user.faculty_url
-    if nthu_url(page): user.faculty_url = page; run_faculty_check(s, user)
-    else: user.faculty_note = "The link must be on an nthu.edu.tw website."; s.add(user); s.commit()
-    return go("/profile#faculty")
+@app.post("/profile/faculty")   # old form on the profile page: verification has its own page now
+def faculty_recheck(): return go("/verification")
 
 @app.post("/profile/photo", dependencies=[limited("photo", 30, 3600)])
 def profile_photo(file: UploadFile = File(...), user=Depends(me), s: Session = Depends(get_session)):
@@ -834,7 +838,7 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     days = days_left(pr.deadline)
     accepting = pr.status == "open" and not (days is not None and days < 0)
     checks = team_info(s, pr)["checks"]
-    my_adv = bool(user and any(x["r"].advisor and a.status == "accepted" and u.id == user.id for x in out for a, u in x["apps"]))
+    my_adv = bool(user and user.is_faculty and any(x["r"].advisor and a.status == "accepted" and u.id == user.id for x in out for a, u in x["apps"]))
     insider = bool(user and (is_owner or user.is_admin or reveal or my_adv))
     from .advisor import people, supervision, supervised
     sup = supervision(s, pr, user, people(s, pr))
@@ -1094,7 +1098,8 @@ def extra_admin(s):
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
     return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None),
-        fac_requests=s.exec(select(User).where(User.faculty_status == "pending")).all(), programs=s.exec(select(Program).order_by(Program.sort)).all(),
+        profq=profverify.queue(s, req.query_params.get("profs", "open")), profs_all=req.query_params.get("profs") == "all",
+        perr=req.query_params.get("perr", ""), names_by_id={u.id: u.name or u.handle for u in s.exec(select(User).where(User.is_admin == True)).all()}, programs=s.exec(select(Program).order_by(Program.sort)).all(),
         logs=s.exec(select(SignupLog).order_by(SignupLog.at.desc()).limit(100)).all(),
         review=s.exec(select(Competition).where(Competition.needs_review == True)).all(), storage=storage_info(s), **extra_admin(s))
 
@@ -1183,16 +1188,8 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
     elif action == "rmphoto":   # remove an inappropriate profile photo
         u = s.get(User, oid)
         if u: s.exec(delete(Avatar).where(Avatar.user_id == oid)); u.avatar_v = 0
-    elif action in ("faculty", "unfaculty"):   # admins can approve only people with an NTHU staff email
-        u = s.get(User, oid)
-        if u and (action == "unfaculty" or staff_email(u.email)):
-            u.is_faculty = action == "faculty"; u.faculty_status = "verified" if u.is_faculty else ("rejected" if u.role == "faculty" else "")
-            if u.is_faculty: u.role = "faculty"
-    elif action == "faccheck":
-        u = s.get(User, oid)
-        if u and u.faculty_url: run_faculty_check(s, u)
     elif action == "scrape": run_scrapers()
     s.commit(); return go("/admin")
 
 from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)
-from . import notify, docs, opps   # notifications, research documents, competitions and saved items (after advisor: they use its rules)
+from . import notify, docs, opps, profverify   # notifications, research documents, competitions and saved items (after advisor: they use its rules)

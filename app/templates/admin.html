@@ -5,7 +5,7 @@
 <div class="stat"><b>{{ stats.unverified }}</b><span>To verify</span></div>
 <div class="stat"><b>{{ stats.reports }}</b><span>Open reports</span></div>
 <div class="stat"><b>{{ stats.review }}</b><span>Competitions to review</span></div></div>
-<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#faculty">Professor requests{% if fac_requests %} ({{ fac_requests|length }}){% endif %}</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
+<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#faculty">Professor verification{% if profq and not profs_all %} ({{ profq|length }}){% endif %}</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
 
 <section class="sec" id="reports"><h2>Reports <span class="count">{{ stats.reports }}</span></h2>
 {% for r in reports %}<div class="card" style="margin:.6rem 0"><div class="meta"><span class="pill">{{ r.kind }}</span><span>Reason: {{ r.reason }}</span></div>
@@ -27,14 +27,34 @@
 <div><label for="cd">Deadline (text)</label><input id="cd" name="deadline" placeholder="e.g. 30 Nov 2026"></div></div>
 <label for="cx">Short description</label><input id="cx" name="description"><p><button>Add competition</button></p></form></details></section>
 
-<section class="sec" id="faculty"><h2>Professor requests <span class="count">{{ fac_requests|length }}</span></h2>
-<p class="muted">Professor and advisor sign-ups whose email was not found automatically on the NTHU page they gave. Open the page, check the person is NTHU teaching staff, then approve or reject.</p>
-{% for u in fac_requests %}<div class="card" style="margin:.6rem 0"><div class="meta"><b>{{ u.name }}</b><span>{{ u.title }}</span><span>{{ u.faculty }}</span><span>{{ u.email }}</span></div>
-<p style="margin:.3rem 0">Page: {% if u.faculty_url %}<a href="{{ u.faculty_url }}" target="_blank" rel="noopener noreferrer">{{ u.faculty_url }}</a>{% else %}none{% endif %}<br><span class="muted">Automatic check: {{ u.faculty_note or "not run" }}</span></p>
-<div class="acts"><form method="post" action="/admin/faculty/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Approve as Faculty</button></form>
-<form method="post" action="/admin/faccheck/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Check page again</button></form>
-<form method="post" action="/admin/unfaculty/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Reject</button></form></div></div>
-{% else %}<p class="muted">No requests waiting.</p>{% endfor %}</section>
+<section class="sec" id="faculty"><h2>Professor verification <span class="count">{{ profq|length }}{{ "" if profs_all else " waiting" }}</span></h2>
+<p class="muted">Compare each person with the official NTHU listing (open their page, or find them on the department's faculty list) before you decide. An NTHU email alone is not proof. Rejecting, asking for more information and suspending need a reason; the person sees it.</p>
+<div class="chips"><a class="chip {{ '' if profs_all else 'on' }}" href="/admin#faculty">Waiting</a><a class="chip {{ 'on' if profs_all }}" href="/admin?profs=all#faculty">All professors</a></div>
+{% if perr == "reason" %}<p class="err" role="alert">Write a reason of at least 5 characters. The person sees it.</p>{% elif perr == "self" %}<p class="err" role="alert">You can't decide on your own account.</p>{% endif %}
+{% if profq %}<div class="tblwrap"><table class="tbl pq"><tr><th>Name</th><th>Department</th><th>Title</th><th>Email</th><th>Faculty page</th><th>Applied</th><th>Status</th></tr>
+{% for x in profq %}{% set u = x.u %}<tr id="prof{{ u.id }}"><td><b><a href="/u/{{ u.handle }}">{{ u.name }}</a></b></td><td>{{ u.faculty or "–" }}</td><td>{{ u.title or "–" }}</td>
+<td>{{ u.email }}<br><small class="{{ 'vok' if u.email_verified else 'warn-txt' }}">{{ "Email confirmed" if u.email_verified else "Email not confirmed" }}</small></td>
+<td>{% if u.faculty_url %}<a href="{{ u.faculty_url }}" target="_blank" rel="noopener noreferrer">{{ u.faculty_url|truncate(48, True, "…") }}</a>{% else %}none{% endif %}
+<br><small class="muted">{% for k, l in PROF_MATCH %}{{ "✓" if k in x.found else "–" }} {{ l }}{{ " · " if not loop.last }}{% endfor %}</small></td>
+<td>{{ (u.faculty_applied_at or u.created).strftime("%Y-%m-%d") }}</td><td><span class="badge vbadge vb-{{ x.st }}">{{ PROF_STATUS[x.st] }}</span>
+{% if u.faculty_reviewed_at %}<br><small class="muted">{{ u.faculty_reviewed_at.strftime("%Y-%m-%d") }} by {{ names_by_id.get(u.faculty_reviewed_by, "the automatic check") if u.faculty_reviewed_by else "the automatic check" }}</small>{% endif %}</td></tr>
+<tr class="pq-more"><td colspan="7">
+{% if x.flags %}<p class="pq-flags">{% for f in x.flags %}<span class="pill warn">{{ f }}</span>{% endfor %}</p>{% endif %}
+<p class="muted fine">Automatic check: {{ u.faculty_note or "not run" }}</p>
+{% if u.faculty_evidence %}<p class="fine"><b>Their note:</b> {{ u.faculty_evidence }}</p>{% endif %}
+{% if u.faculty_reason %}<p class="fine"><b>Last reason given:</b> {{ u.faculty_reason }}</p>{% endif %}
+<div class="acts pq-acts">
+{% if x.st in ("pending", "more_info", "rejected") %}<form method="post" action="/admin/prof/{{ u.id }}/approve"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Approve</button></form>{% endif %}
+{% if x.st == "suspended" %}<form method="post" action="/admin/prof/{{ u.id }}/reinstate"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Reinstate</button></form>{% endif %}
+<form method="post" action="/admin/prof/{{ u.id }}/recheck"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Check page again</button></form>
+{% if x.st in ("pending", "more_info", "verified") %}<form method="post" class="pq-why" action="/admin/prof/{{ u.id }}/{{ 'suspend' if x.st == 'verified' else ('more_info' if x.st == 'pending' else 'reject') }}"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label class="vh" for="why{{ u.id }}">Reason</label><input id="why{{ u.id }}" name="reason" maxlength="500" minlength="5" required placeholder="Reason (the person sees it)">
+{% if x.st == "pending" %}<button class="sm ghost" formaction="/admin/prof/{{ u.id }}/more_info">Ask for more information</button>{% endif %}
+{% if x.st in ("pending", "more_info") %}<button class="sm no" formaction="/admin/prof/{{ u.id }}/reject">Reject</button>{% endif %}
+{% if x.st == "verified" %}<button class="sm no" formaction="/admin/prof/{{ u.id }}/suspend">Suspend</button>{% endif %}</form>{% endif %}</div>
+{% if x.hist %}<details class="pq-hist"><summary>Audit log</summary><ol>{% for h in x.hist %}<li>{{ h.created.strftime("%Y-%m-%d %H:%M") }} · {{ PROF_HIST.get(h.action, h.action) }}{% if h.status_from != h.status_to %} · {{ h.status_from or "new" }} → {{ h.status_to }}{% endif %} · {% if not h.actor_id %}automatic{% elif h.actor_id == u.id %}the applicant{% else %}{{ names_by_id.get(h.actor_id, "admin #" ~ h.actor_id) }}{% endif %}{% if h.reason %}<br><small class="muted">{{ h.reason }}</small>{% endif %}</li>{% endfor %}</ol></details>{% endif %}
+</td></tr>{% endfor %}</table></div>
+{% else %}<p class="muted">{{ "No professor accounts yet." if profs_all else "No one is waiting." }}</p>{% endif %}</section>
 
 <section class="sec" id="programs"><h2>Funding programs</h2>
 <p class="muted">Shown on /funding and in each startup or research project's readiness check. When a call is announced, set its deadline (YYYY-MM-DD) so the countdown appears.</p>
@@ -65,7 +85,7 @@
 <div class="tblwrap"><table class="tbl"><tr><th>Handle</th><th>Name</th><th>Student ID</th><th>Email</th><th>Status</th><th></th></tr>
 {% for u in users %}<tr><td><a href="/u/{{ u.handle }}">{{ u.handle }}</a></td><td>{{ u.name }}</td><td>{{ u.student_id }}</td><td>{{ u.email }}</td>
 <td>{{ facbadge(u) }} {% if not u.password_hash %}<span class="pill warn">No password yet</span> {% endif %}{% if not u.email_verified %}<span class="pill">Email not confirmed</span> {% endif %}{% if u.is_admin %}<span class="pill match">Admin</span>{% elif u.banned %}<span class="pill bad">Banned</span>{% elif u.verified %}<span class="pill ok">✔ Verified</span>{% else %}<span class="pill">Unverified</span>{% endif %}</td>
-<td>{% if not u.is_admin %}<div class="acts">{% if u.banned %}<form method="post" action="/admin/unban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Unban</button></form>{% else %}{% if u.avatar_v %}<a href="/avatar/{{ u.id }}?v={{ u.avatar_v }}" target="_blank" rel="noopener"><img class="av xs pic" alt="photo" src="/avatar/{{ u.id }}?v={{ u.avatar_v }}"></a><form method="post" action="/admin/rmphoto/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Remove photo</button></form>{% endif %}<form method="post" action="/admin/pwlink/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">{{ "Password link" if u.password_hash else "Setup link" }}</button></form>{% if u.is_faculty or staff_email(u.email) %}<form method="post" action="/admin/{{ 'unfaculty' if u.is_faculty else 'faculty' }}/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">{{ "Remove Faculty" if u.is_faculty else "Mark as Faculty" }}</button></form>{% endif %}{% if not u.verified %}<form method="post" action="/admin/verify/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify</button></form>{% endif %}<form method="post" action="/admin/ban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban</button></form>{% endif %}</div>{% endif %}</td></tr>{% endfor %}</table></div></section>
+<td>{% if not u.is_admin %}<div class="acts">{% if u.banned %}<form method="post" action="/admin/unban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Unban</button></form>{% else %}{% if u.avatar_v %}<a href="/avatar/{{ u.id }}?v={{ u.avatar_v }}" target="_blank" rel="noopener"><img class="av xs pic" alt="photo" src="/avatar/{{ u.id }}?v={{ u.avatar_v }}"></a><form method="post" action="/admin/rmphoto/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Remove photo</button></form>{% endif %}<form method="post" action="/admin/pwlink/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">{{ "Password link" if u.password_hash else "Setup link" }}</button></form>{% if u.role == "faculty" %}<a class="btn ghost sm" href="/admin?profs=all#prof{{ u.id }}">Professor status</a>{% elif staff_email(u.email) %}<form method="post" action="/admin/prof/{{ u.id }}/approve" hx-confirm="Mark {{ u.name }} as a verified professor? Check the official NTHU listing first."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Mark as professor</button></form>{% endif %}{% if not u.verified %}<form method="post" action="/admin/verify/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Verify</button></form>{% endif %}<form method="post" action="/admin/ban/{{ u.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban</button></form>{% endif %}</div>{% endif %}</td></tr>{% endfor %}</table></div></section>
 
 <section class="sec" id="scraper"><h2>Scraper</h2>
 <div class="tblwrap"><table class="tbl"><tr><th>When</th><th>Source</th><th>New items</th><th>Problem</th></tr>

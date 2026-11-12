@@ -15,7 +15,7 @@ from .mail import send_mail, email_enabled
 from .config import BASE_URL
 
 EMAIL_PREFS = ["off", "daily", "important", "instant"]
-IMPORTANT = {"review_request", "remark_submitted", "remark_reopened", "removed", "app_decision", "deadline"}   # "important": these right away, the rest in the daily summary
+IMPORTANT = {"review_request", "remark_submitted", "remark_reopened", "removed", "app_decision", "deadline", "faculty_status"}   # "important": these right away, the rest in the daily summary
 MERGE = timedelta(minutes=10)
 
 

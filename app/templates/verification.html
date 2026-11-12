@@ -1,0 +1,56 @@
+{% extends "base.html" %}{% block body %}
+<div class="vwrap"><p class="crumb"><a href="/profile">← Your profile</a></p>
+<h1>Professor verification</h1>
+{% if n == "sent" %}<p class="box ok" role="status">Your information was saved{% if st == "verified" %} and your account is verified{% else %}. An admin will review it{% endif %}.</p>
+{% elif n == "code" %}<p class="box ok" role="status">We sent a 6-digit code to {{ user.email }}. It works for 15 minutes; check spam too.</p>
+{% elif n == "email" %}<p class="box ok" role="status">Email confirmed.{% if st == "verified" %} Your official page matched too, so your account is verified.{% endif %}</p>{% endif %}
+{% if err %}<p class="err" role="alert">{{ err }}</p>{% endif %}
+
+<section class="card vstatus vs-{{ st }}"><div class="vs-top"><span class="badge vbadge vb-{{ st }}">{{ PROF_STATUS[st] }}</span>
+{% if user.faculty_reviewed_at and st != "pending" %}<small class="muted">Decided {{ user.faculty_reviewed_at.strftime("%Y-%m-%d") }}{% if not user.faculty_reviewed_by %} by the automatic check{% endif %}</small>{% endif %}</div>
+{% if st == "verified" %}<p>{{ facbadge(user) }} You are verified as NTHU teaching staff. You can supervise projects, post research positions and use the <a href="/advisor">advisor dashboard</a>.</p>
+{% elif st == "pending" %}<p>Your account works, but professor features stay locked until you are verified. Confirm your email and give your official NTHU page below; if they match, you are verified right away, otherwise an admin reviews your information.</p>
+{% elif st == "more_info" %}<p>An admin needs more information before verifying you:</p><blockquote class="vreason">{{ user.faculty_reason }}</blockquote><p class="muted fine">Update your information below and press Send again.</p>
+{% elif st == "rejected" %}<p>An admin could not verify you as NTHU teaching staff:</p><blockquote class="vreason">{{ user.faculty_reason }}</blockquote><p class="muted fine">If this is a mistake, contact the site admins. Your account still works as a normal account.</p>
+{% elif st == "suspended" %}<p>Your professor verification is suspended:</p><blockquote class="vreason">{{ user.faculty_reason }}</blockquote><p class="muted fine">Contact the site admins if you have questions.</p>{% endif %}
+</section>
+
+<ol class="vsteps" id="steps">
+<li class="card {{ 'done' if user.email_verified }}"><h2><span class="vnum" aria-hidden="true">1</span> Confirm your institutional email</h2>
+<p class="muted">{{ user.email }}{% if shared %} · a shared NTHU address (students have these too), so an admin also checks your page{% elif not nthu %} · not an NTHU address, so an admin checks your appointment by hand{% endif %}</p>
+{% if user.email_verified %}<p class="vok">✓ Confirmed</p>
+{% elif not can_mail %}<p class="muted">Email can't be sent from the site right now. An admin can still verify you from the other information.</p>
+{% else %}<div class="vcode"><form method="post" action="/verification/code/send"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm">Send me a code</button></form>
+<form method="post" action="/verification/code/check" class="vcode-f"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="vc" class="vh">6-digit code</label>
+<input id="vc" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" pattern="[0-9 ]{6,7}" placeholder="6-digit code" required><button class="sm">Confirm</button></form></div>
+<p class="muted fine">Owning the address shows the email is yours. It does not by itself make you a verified professor.</p>{% endif %}</li>
+
+<li class="card {{ 'done' if 'email' in (user.faculty_match or '') and 'name' in (user.faculty_match or '') }}"><h2><span class="vnum" aria-hidden="true">2</span> Your official NTHU page</h2>
+{% if user.faculty_url %}<p><a href="{{ user.faculty_url }}" target="_blank" rel="noopener noreferrer">{{ user.faculty_url }}</a></p>
+{% set fm = (user.faculty_match or "").split(",") %}<ul class="vmatch">{% for k, l in PROF_MATCH %}<li class="{{ 'on' if k in fm }}">{{ "✓" if k in fm else "–" }} {{ l|replace(" on page", "") if lang != "zh" else l }}</li>{% endfor %}</ul>
+<p class="muted fine">{{ user.faculty_note }}</p>
+{% else %}<p class="muted">No page given yet. Add your entry on your department's faculty list below, if you have one.</p>{% endif %}</li>
+
+<li class="card {{ 'done' if st == 'verified' }}"><h2><span class="vnum" aria-hidden="true">3</span> Admin review</h2>
+<p class="muted">{% if st == "verified" %}Done.{% elif st in ("pending", "more_info") %}If steps 1 and 2 don't both match, an admin compares your information with the official NTHU listing and approves, asks for more information, or declines. You get a notification either way.{% else %}Reviewed.{% endif %}</p></li>
+</ol>
+
+{% if st in ("pending", "more_info") %}<section class="card" id="info"><h2>Your information</h2>
+<form method="post" action="/verification"><input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="two"><div><label for="ti">Academic title</label>{% set other = user.title and user.title not in titles %}<select id="ti" name="title">{% for t in titles %}<option value="{{ t }}" {{ "selected" if user.title == t }}>{{ t }}</option>{% endfor %}<option value="Other academic appointment" {{ "selected" if other }}>Other academic appointment</option></select></div>
+<div id="tiow" {{ "hidden" if not other }}><label for="tio">Your title</label><input id="tio" name="title_other" maxlength="60" value="{{ user.title if other else '' }}" placeholder="e.g. Project Assistant Professor"></div></div>
+<label for="dp">Department</label><input id="dp" name="dept" required maxlength="60" list="colleges" value="{{ user.faculty }}"><datalist id="colleges">{% for c in G.NTHU_COLLEGES %}<option value="{{ c }}">{% endfor %}</datalist>
+<label for="pg">Official NTHU faculty page</label><input id="pg" name="page" type="url" maxlength="300" value="{{ user.faculty_url }}" placeholder="https://….nthu.edu.tw/…">
+<label for="ev">Note for the reviewer <small class="muted">(only admins see it)</small></label><textarea id="ev" name="evidence" rows="3" maxlength="1000" placeholder="e.g. Jointly appointed from Academia Sinica; listed on the institute's page">{{ user.faculty_evidence }}</textarea>
+<p class="muted fine">Please don't upload or paste ID documents. A public faculty listing is enough.</p>
+<p><button>{{ "Send again" if st == "more_info" else "Save and check" }}</button></p></form></section>
+<script>(()=>{const t=document.getElementById("ti"),w=document.getElementById("tiow"),o=document.getElementById("tio");const f=()=>{w.hidden=t.value!=="Other academic appointment";o.required=!w.hidden};t.addEventListener("change",f);f()})();</script>{% endif %}
+
+<section class="card"><h2>What you can do</h2><div class="two vperm">
+<div><h3>Now</h3><ul><li>Complete your profile and research interests</li><li>Send verification information</li><li>Browse public projects and research positions</li></ul></div>
+<div><h3>After verification</h3><ul><li>Show the verified professor badge</li><li>Take an advisor seat and supervise projects</li><li>Post research and lab positions</li><li>Use the advisor dashboard</li></ul></div></div></section>
+
+{% if hist %}<details class="card vhist"><summary>History <small class="muted">· {{ hist|length }}</small></summary><ol>
+{% for h in hist %}<li><b>{{ PROF_HIST.get(h.action, h.action) }}</b>
+<small class="muted">{{ h.created.strftime("%Y-%m-%d %H:%M") }} UTC</small>{% if h.reason and h.action in ("auto_check", "rejected", "more_info", "suspended") %}<br><span class="muted fine">{{ h.reason }}</span>{% endif %}</li>{% endfor %}</ol></details>{% endif %}
+</div>{% endblock %}

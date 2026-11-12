@@ -6,16 +6,19 @@
 <div class="kinds" role="radiogroup" aria-label="Account type"><label class="kind"><input type="radio" name="role" value="student" {{ "checked" if f.get("role", "student") != "faculty" }}><span>Student</span></label>
 <label class="kind"><input type="radio" name="role" value="faculty" {{ "checked" if f.get("role") == "faculty" }}><span>Professor or advisor</span></label></div>
 <label for="e" id="elabel">Email</label><input id="e" name="email" type="email" required autocapitalize="none" spellcheck="false" value="{{ f.get('email', '') }}" autocomplete="email">
-<p class="muted fine" id="ehint" hidden>Use your NTHU email, such as name@cs.nthu.edu.tw. A @gapp.nthu.edu.tw address works too, but an admin then confirms you by hand.</p>
+<p class="muted fine" id="ehint" hidden>Use your institutional email, such as name@cs.nthu.edu.tw. A @gapp.nthu.edu.tw address, or another university's address for a joint or visiting appointment, also works; an admin then confirms you by hand.</p>
 <div class="two"><div><label for="n">Full name</label><input id="n" name="name" autocomplete="name" required value="{{ f.get('name', '') }}"></div>
 <div class="r-student"><label for="s">Student ID</label><input id="s" name="student_id" maxlength="12" value="{{ f.get('sid', '') }}"></div>
-<div class="r-faculty" hidden><label for="ti">Title</label><select id="ti" name="title">{% for t in titles %}<option value="{{ t }}" {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}</select></div></div>
+<div class="r-faculty" hidden><label for="ti">Academic title</label><select id="ti" name="title">{% for t in titles %}<option value="{{ t }}" {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}<option value="Other academic appointment" {{ "selected" if f.get("title") == "Other academic appointment" }}>Other academic appointment</option></select></div></div>
+<div class="r-faculty" id="tiow" hidden><label for="tio">Your title</label><input id="tio" name="title_other" maxlength="60" value="{{ f.get('title_other', '') }}" placeholder="e.g. Project Assistant Professor"></div>
 <label for="dp" id="dplabel">Department or major</label><input id="dp" name="dept" list="colleges" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science" autocomplete="organization-title">
 <datalist id="colleges">{% for c in G.NTHU_COLLEGES %}<option value="{{ c }}">{% endfor %}</datalist>
 <p class="muted fine r-student">Shown on your profile and used to filter projects by department. You can change it later.</p>
 <div class="r-faculty" hidden>
-<label for="pg">Link to an NTHU page that lists you with this email</label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
-<p class="muted fine">For example your department's faculty page or your lab page on nthu.edu.tw. We open it and look for your email to confirm you are NTHU teaching staff. If we cannot find it, an admin checks it by hand; until then your account works but has no Faculty badge.</p></div>
+<label for="pg">Official NTHU faculty page <small class="muted">(recommended)</small></label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
+<p class="muted fine">Your entry on your department's faculty list, or your page on nthu.edu.tw. We open it and compare your name, title, department and email with what it shows. If you don't have one yet, leave it empty and add a note below.</p>
+<label for="ev">Note for the reviewer <small class="muted">(optional)</small></label><textarea id="ev" name="evidence" rows="2" maxlength="1000" placeholder="e.g. Adjunct in Electrical Engineering since 2025; the department office can confirm">{{ f.get('evidence', '') }}</textarea>
+<p class="muted fine">Your account works right away. You can fill in your profile and browse projects; supervising projects, research positions and the advisor dashboard open once you are verified. Please don't upload or paste ID documents.</p></div>
 <div class="two"><div><label for="pw">Password</label><input id="pw" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="pwh"></div>
 <div><label for="pw2">Confirm password</label><input id="pw2" name="password2" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></div></div>
 <p class="muted fine" id="pwh">At least 8 characters. Don't reuse your school or email password.</p>
@@ -24,7 +27,8 @@
 </div>
 <script>
 (()=>{const sync=()=>{const fac=document.querySelector("input[name=role]:checked").value==="faculty";
- document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>{e.hidden=fac;e.querySelector("input").required=!fac});document.getElementById("dp").required=fac;document.getElementById("dplabel").textContent=fac?"Department":"Department or major (optional)";document.getElementById("pg").required=fac;
- document.getElementById("ehint").hidden=!fac;document.getElementById("elabel").textContent=fac?"NTHU staff email":"Email"};
+ document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>{e.hidden=fac;const i=e.querySelector("input");if(i)i.required=!fac});document.getElementById("dp").required=fac;document.getElementById("dplabel").textContent=fac?"Department":"Department or major (optional)";const ti=document.getElementById("ti"),tw=document.getElementById("tiow");tw.hidden=!fac||ti.value!=="Other academic appointment";document.getElementById("tio").required=!tw.hidden;
+ document.getElementById("ehint").hidden=!fac;document.getElementById("elabel").textContent=fac?"Institutional email":"Email"};
+ document.getElementById("ti").addEventListener("change",sync);
  document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})();
 </script>{% endblock %}

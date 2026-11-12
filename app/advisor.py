@@ -31,7 +31,7 @@ def people(s, pr):
 
 def roles_of(user, ppl):
     if not user: return dict(team=False, adv=False, insider=False)
-    team = user.id in ppl["team"]; adv = user.id in ppl["advisors"]
+    team = user.id in ppl["team"]; adv = user.id in ppl["advisors"] and user.is_faculty   # a suspended professor keeps the seat but loses advisor rights
     return dict(team=team, adv=adv, insider=team or adv or user.is_admin)
 
 def supervised(pr, roles):   # research projects and any project with an advisor seat get the supervision section
@@ -317,7 +317,7 @@ def attention(s, user):
     a = dict(team=waiting_team(s, user.id), reviews=[], docs=[], lab=[], overdue=[])
     a["apps"] = len(s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
                            .where(Project.owner_id == user.id, Application.status == "pending")).all())
-    if user.role == "faculty":
+    if user.is_faculty:
         pids = [p.id for p, _ in advised(s, user.id)]
         a["reviews"] = waiting_reviews(s, user.id, pids)
         a["docs"] = waiting_doc_reviews(s, pids)
@@ -338,6 +338,7 @@ def inbox_extra(s, user):   # kept for older callers
 def dashboard(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if user.role != "faculty": return go("/research")
+    if not user.is_faculty: return go("/verification")   # the dashboard is for verified professors only
     rows = advised(s, user.id); pids = [p.id for p, _ in rows]
     att = attention(s, user)
     reviews = att["reviews"]; doc_reviews = att["docs"]

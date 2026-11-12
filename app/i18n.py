@@ -188,6 +188,15 @@ PATTERNS += [
     (r"^(.+): (\d+) days? left$", "{0}：還剩 {1} 天"),
     (r"^(\d+) programs?$", "{0} 個計畫"),
 ]
+PATTERNS += [   # professor verification
+    (r"^Too many wrong codes\. Please wait (.+) and ask for a new one\.$", "驗證碼錯誤太多次。請等{0}後重新索取。"),
+    (r"^We already sent 3 codes this hour\. Please wait (.+), and check your spam folder\.$", "這一小時內已經寄了 3 次驗證碼。請等{0}，也請檢查垃圾信件匣。"),
+    (r"^Found on the page: (.+)\.$", "在頁面上找到：{0}。"),
+]
+_FOUND = {"your email": "你的信箱", "your name": "你的姓名", "your title": "你的職稱", "your department": "你的系所"}
+import itertools as _it
+for _n in range(1, 5):   # "your email, your name" ... every list the automatic check can write
+    for _c in _it.combinations(list(_FOUND), _n): _ui.setdefault(", ".join(_c), "、".join(_FOUND[x] for x in _c))
 PATTERNS = [(re.compile(a), b) for a, b in PATTERNS]
 def t(s, lang: str = "en"):
     if lang != "zh" or not s or not isinstance(s, str) or isinstance(s, Keep): return s

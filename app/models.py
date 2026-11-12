@@ -27,9 +27,15 @@ class User(SQLModel, table=True):
     is_admin: bool = False
     is_faculty: bool = False   # verified NTHU professor / advisor (staff email + found on an NTHU page, or approved by an admin)
     role: str = "student"      # student / faculty (chosen at sign-up)
-    faculty_status: str = ""   # "" / pending / verified / rejected
-    faculty_url: str = ""      # NTHU page that lists them
+    faculty_status: str = ""   # "" / pending / verified / rejected / more_info / suspended (only admins and the automatic check change it)
+    faculty_url: str = ""      # official NTHU page that lists them
     faculty_note: str = ""     # result of the last automatic check
+    faculty_match: str = ""    # what the automatic check found on that page: comma list of email,name,title,dept
+    faculty_reason: str = ""   # the admin's message for a rejection or a request for more information (shown to them)
+    faculty_evidence: str = "" # their note for the reviewer (private: admins only)
+    faculty_applied_at: Optional[NaiveDatetime] = None
+    faculty_reviewed_at: Optional[NaiveDatetime] = None
+    faculty_reviewed_by: Optional[int] = None
     title: str = ""            # Professor, Associate Professor, ...
     research: str = ""         # professors: research interests, comma-separated (public)
     lab_name: str = ""         # professors: lab or research group name (public)
@@ -45,6 +51,16 @@ class User(SQLModel, table=True):
     avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one
     banned: bool = False
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class FacultyAudit(SQLModel, table=True):   # admin-only: every change to a professor's verification, never edited or deleted
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    actor_id: Optional[int] = None   # None = the automatic check, otherwise the person (the applicant or an admin)
+    action: str                      # applied / resubmitted / email_verified / auto_check / approved / rejected / more_info / suspended / reinstated
+    status_from: str = ""
+    status_to: str = ""
+    reason: str = ""
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
 
 class SignupLog(SQLModel, table=True):   # admin-only audit trail
