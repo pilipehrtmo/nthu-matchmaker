@@ -26,6 +26,12 @@ DATE_PATTERNS = [
     (re.compile(r"\b(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+(20\d\d)", re.I), lambda m: (int(m[3]), MONTHS[m[2][:3].lower()], int(m[1]))),
 ]
 
+# A deadline is only taken when the program's own name stands right before the deadline word. Several official URLs are
+# an agency's home page full of other news, so a date next to "截止" alone could belong to anything.
+# Programs with no terms here (open all year, or no reliable page) are checked for reachability only.
+NAME_TERMS = {"ustart": ["U-start", "創新創業計畫"], "fiti": ["FITI", "創新創業激勵計畫"], "nstc": ["大專學生研究計畫", "大專生研究計畫"],
+              "appworks": ["AppWorks Accelerator", "AW#"], "sinica-summer": ["暑期大專生", "暑期研習"], "macronix": ["金矽獎", "Golden Silicon"]}
+
 def today_tw():
     return datetime.now(timezone(timedelta(hours=8))).date()
 
@@ -34,10 +40,11 @@ def page_text(html):
     for t in soup(["script", "style", "noscript", "nav", "footer", "header"]): t.decompose()
     return re.sub(r"\s+", " ", soup.get_text(" ")).strip()
 
-def find_deadline(text, today=None):
+def find_deadline(text, today=None, terms=None):
     """The deadline written after a deadline word (a period counts by its last date); the soonest future one, or None."""
     today = today or today_tw(); found = []
     for k in re.finditer(KEYWORDS, text, re.I):
+        if terms is not None and not any(t.lower() in text[max(0, k.start() - 150):k.start()].lower() for t in terms): continue
         window, near = text[k.end():k.end() + 80], []
         for rx, parts in DATE_PATTERNS:
             for m in rx.finditer(window):
@@ -61,7 +68,8 @@ def check_program(p, client, today=None):
     h = hashlib.sha256(text.encode()).hexdigest()
     changed = bool(p.page_hash) and h != p.page_hash
     p.page_hash, p.checked_at = h, now
-    d = find_deadline(text, today)
+    terms = NAME_TERMS.get(p.key)
+    d = find_deadline(text, today, terms) if terms else None
     if d and p.deadline_source != "admin":
         p.next_deadline, p.deadline_source = d.isoformat(), "auto"
         p.check_status, p.check_note = "ok", "Deadline read from the official page."
