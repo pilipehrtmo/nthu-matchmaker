@@ -1,8 +1,8 @@
 {% extends "base.html" %}{% block body %}{% set editing = pr and pr.id %}
 <h1>{{ "Edit project" if editing else "Post a project" }}</h1>
 {% if not editing %}<p class="muted">A competition team, a startup, a research project or something you are building for fun. Describe it, then list the seats you need to fill.</p>{% endif %}
-{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
-<form method="post" id="f" class="card" action="{{ '/projects/%d/edit'|format(pr.id) if editing else '/projects/new' }}"><input type="hidden" name="csrf" value="{{ csrf }}">
+{% if error %}<p class="err" role="alert">{{ error }}{% if dup %} <a href="/projects/{{ dup.id }}">Open {{ dup.title }}</a>{% endif %}</p>{% endif %}
+<form method="post" id="f" class="card" action="{{ '/projects/%d/edit'|format(pr.id) if editing else '/projects/new' }}"{% if not editing %} enctype="multipart/form-data" hx-encoding="multipart/form-data"{% endif %}>{% if dup %}<input type="hidden" name="again" value="1">{% endif %}<input type="hidden" name="csrf" value="{{ csrf }}">
 <label for="t">Title</label><input id="t" name="title" required minlength="3" maxlength="120" value="{{ pr.title if pr else '' }}" placeholder="e.g. Hackathon team: AI for health">
 <label>What kind of project?</label>
 <div class="kinds" role="radiogroup" aria-label="Project kind">{% for k in kinds %}<label class="kind"><input type="radio" name="kind" value="{{ k }}" {{ "checked" if k == kind }} required><span>{{ k }}</span></label>{% endfor %}</div>
@@ -40,7 +40,14 @@
 
 <div class="xbox" id="box-Research" hidden><p class="xh">About your research</p>
 <label for="rf">Field</label><select id="rf" name="category" data-for="Research"><option value="">Pick a field</option>{% for c in G.RESEARCH_FIELDS %}<option value="{{ c }}" {{ "selected" if pr and pr.kind == "Research" and pr.category == c }}>{{ c }}</option>{% endfor %}</select>
-<p class="muted">Your project page will suggest well-known places to publish or share work in this field, and the NSTC undergraduate research grant.</p></div>
+<p class="muted">Your project page will suggest well-known places to publish or share work in this field, and the NSTC undergraduate research grant.</p>
+{% if not editing and uploads_on %}<details class="firstdoc"><summary>Add your first document now <small class="muted">(optional)</small></summary>
+<p class="muted fine">A proposal or literature review you already have. Every later version is kept, and your advisor can review it once they join.</p>
+<div class="two"><div><label for="fdt">Title</label><input id="fdt" name="first_title" maxlength="120" placeholder="e.g. Research proposal"></div>
+<div><label for="fdk">Type</label><select id="fdk" name="first_kind">{% for k in DOC_KINDS %}<option value="{{ k }}">{{ k }}</option>{% endfor %}</select></div></div>
+<label for="fdf">File <small class="muted">(PDF, Word, PowerPoint, Excel, CSV, TXT or ZIP · up to 25 MB)</small></label><input id="fdf" type="file" name="first_file" accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.zip" data-max="26214400" data-toobig="This file is over 25 MB. Choose a smaller one.">
+<fieldset class="visopts"><legend>Who can see it</legend><label class="chk"><input type="radio" name="first_vis" value="team" checked> <span><b>Team and advisors</b></span></label>
+<label class="chk"><input type="radio" name="first_vis" value="private"> <span><b>Only me</b><small>A private draft; share it later</small></span></label></fieldset><p class="fsize muted fine" hidden></p></details>{% endif %}</div>
 
 <label for="d">What are you building?</label><textarea id="d" name="description" rows="5" maxlength="2000" placeholder="The idea, the goal, what you've done so far">{{ pr.description if pr else '' }}</textarea>
 <label>Links <small class="muted">(optional: GitHub repo, Trello board, timeline, docs…)</small></label>

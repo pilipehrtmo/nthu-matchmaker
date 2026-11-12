@@ -6,7 +6,7 @@
 {% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>
 {% elif notice == "removed" %}<p class="box" role="status">Removed from the seat. The seat is open again.</p>{% endif %}
 {% if err %}<p class="err" role="alert">{{ err }}</p>{% endif %}
-<section class="card head"><h1>{{ pr.title }}</h1>
+<section class="card head"><div class="phead"><h1>{{ pr.title }}</h1>{% if user and not is_owner %}<form method="post" action="/save/project/{{ pr.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/projects/{{ pr.id }}"><button class="ghost sm" aria-pressed="{{ 'true' if saved else 'false' }}">{{ "Saved ✓" if saved else "Save" }}</button></form>{% endif %}</div>
 <div class="meta"><span class="pill kindpill">{{ k }}</span>{% if pr.category %}<span class="pill">{{ pr.category }}</span>{% endif %}{% if pr.stage %}<span class="pill">Stage: {{ pr.stage }}</span>{% endif %}
 <span class="byline">{{ pic(owner, "av xs") }}<span>by <a href="/u/{{ owner.handle }}">{{ owner|dn }}</a></span>{% if owner.verified %}<span class="pill ok">✔ verified</span>{% endif %}</span><span>{{ pr.hours_per_week }} h/week</span>
 {% if pr.status == "closed" %}<span class="pill warn">Not recruiting</span>

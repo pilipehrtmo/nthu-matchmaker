@@ -392,7 +392,16 @@ def dashboard(req: Request, user=Depends(me), s: Session = Depends(get_session))
                   students=len(students), upcoming=upcoming, events=events, names=names, openings=openings, oapps=oapps,
                   pending_lab=sum(v[0] for v in oapps.values()), seat_apps=seat_apps, att=att, doc_reviews=doc_reviews,
                   vnum={v.id: v.number for v in s.exec(select(DocVersion).where(DocVersion.id.in_([rq.version_id for rq, _ in doc_reviews] or [-1]))).all()},
-                  fbp={p.id: p for p in s.exec(select(Project).where(Project.id.in_({t.project_id for t in att["team"]} or {-1})))})
+                  fbp={p.id: p for p in s.exec(select(Project).where(Project.id.in_({t.project_id for t in att["team"]} or {-1})))},
+                  doc_open=_doc_open(s, [d.id for _, d in doc_reviews]))
+
+def _doc_open(s, dids):
+    """Per document under review: (unresolved remarks, how many of them are high priority)."""
+    out = {d: [0, 0] for d in dids}
+    if dids:
+        for t in s.exec(select(Remark).where(Remark.doc_id.in_(dids), Remark.parent_id == None, Remark.deleted_at == None, Remark.state != "resolved")).all():
+            out[t.doc_id][0] += 1; out[t.doc_id][1] += t.priority == "High"
+    return out
 
 
 # ---------- professor directory and research positions ----------
@@ -512,6 +521,9 @@ def opening_apply(oid: int, message: str = Form(""), user=Depends(me), s: Sessio
     dup = s.exec(select(OpeningApp).where(OpeningApp.opening_id == oid, OpeningApp.user_id == user.id)).first()
     if dup and dup.status == "withdrawn": dup.status, dup.message, dup.at = "pending", message, datetime.utcnow(); s.add(dup); s.commit()
     elif not dup: s.add(OpeningApp(opening_id=oid, user_id=user.id, message=message)); s.commit()
+    else: return go(f"/openings/{oid}?n=sent")   # already applied: no second application, no second notification
+    from .notify import notify
+    notify(s, [o.owner_id], "lab_application", f"{user.name or user.handle} applied for {o.title}", f"/openings/{oid}#applicants", None, user.id)
     return go(f"/openings/{oid}?n=sent")
 
 @app.post("/opening-apps/{aid}/edit", dependencies=[limited("oappedit", 40, 3600)])
@@ -533,6 +545,8 @@ def opening_decide(aid: int, decision: str, next: str = Form(""), user=Depends(m
     if user.id == o.owner_id and a.status == "pending" and decision in ("accepted", "rejected"):
         if decision == "accepted" and opening_state(s, o)["full"]: return go(f"/openings/{o.id}?n=full")
         a.status = decision; s.add(a); s.commit()
+        from .notify import notify
+        notify(s, [a.user_id], "lab_decision", f"{'You were accepted for' if decision == 'accepted' else 'Your application was not accepted for'} {o.title}", f"/openings/{o.id}", None, user.id)
         if decision == "accepted" and opening_state(s, o)["full"]:   # every position is taken: close the other applications
             for x in s.exec(select(OpeningApp).where(OpeningApp.opening_id == o.id, OpeningApp.status == "pending")).all():
                 x.status = "closed"; s.add(x)

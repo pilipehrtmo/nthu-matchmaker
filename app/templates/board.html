@@ -20,21 +20,28 @@
 <div class="ctop"><span class="kindb">{{ kind_of(r.p) }}{% if r.p.category %} · {{ r.p.category }}{% endif %}</span>{% if user and r.score is not none %}<span class="match"><b>{{ r.score }}%</b> match</span>{% endif %}</div>
 <h2><a href="/projects/{{ r.p.id }}">{{ r.p.title }}</a></h2>
 {% set pt = parse_tags(r.p.tags) %}{% if pt %}<div class="ptagrow sm">{% for n, c in pt[:4] %}<span class="ptag tg-{{ c }}">{{ keep(n) }}</span>{% endfor %}{% if pt|length > 4 %}<span class="ptag more">+{{ pt|length - 4 }}</span>{% endif %}</div>{% endif %}
-<div class="pmeta"><span class="powner">{{ pic(r.owner, "av xs") }}<span>{{ r.owner|dn }}</span></span><span class="pdot" aria-hidden="true"></span><span>{{ r.p.hours_per_week }} h/week</span>{% set sn = soon.get(kind_of(r.p)) %}{% if sn %}<span class="soonpill" title="Funding deadline: {{ sn[0] }}">{{ sn[0] }} closes in {{ sn[1] }}d</span>{% endif %}{% if r.days is not none %}<span class="pleft {{ 'soon' if r.days <= 7 }}">{{ "closed" if r.days < 0 else ("last day" if r.days == 0 else (r.days ~ " day" ~ ("s" if r.days != 1 else "") ~ " left")) }}</span>{% endif %}</div>
+<div class="pmeta"><span class="powner">{{ pic(r.owner, "av xs") }}<span>{{ r.owner|dn }}</span></span><span class="pdot" aria-hidden="true"></span><span>{{ r.p.hours_per_week }} h/week</span>{% set sn = soon.get(kind_of(r.p)) %}{% if sn %}<span class="soonpill" title="Funding deadline: {{ sn[0] }}">{{ sn[0] }} closes in {{ sn[1] }}d</span>{% endif %}{% if r.days is not none %}<span class="pleft {{ 'soon' if r.days <= 7 }}">{% if r.days < 0 %}closed{% elif r.days == 0 %}last day{% elif r.days == 1 %}1 day left{% else %}{{ r.days }} days left{% endif %}</span>{% endif %}</div>
 {% if r.p.description %}<p class="desc">{{ r.p.description }}</p>{% endif %}
 <div class="pfoot"><span class="popen" title="{{ r.roles|map(attribute='name')|join(', ') }}"><b>{{ r.roles|length }}</b> open seat{{ "s" if r.roles|length != 1 }}</span><span class="muted">{{ filled }} of {{ r.total }} filled</span></div></article>
 {% endfor %}</div>
 <div class="box" id="f-empty" {{ "hidden" if rows else "" }}>No open seats match these filters. <button type="button" class="linkbtn" id="f-reset">Clear filters</button> or <a href="/projects/new">post a project</a>.</div>
-<h2 style="margin-top:2.2rem" id="comps">Competitions &amp; grants</h2>
-<p class="muted">Contests for every faculty, not just engineering. Pick one and start a team for it.</p>
-<div class="chips" id="ccats"><button type="button" class="chip {{ 'on' if not cat }}" data-c="">All</button>
-{% for c in cats %}<button type="button" class="chip {{ 'on' if cat == c }}" data-c="{{ c }}">{{ c }}</button>{% endfor %}</div>
-<div class="grid" id="clist">{% for c in comps %}<article class="card comp" data-cat="{{ c.category }}" data-text="{{ (c.title ~ ' ' ~ c.description)|lower }}"><span class="pill cat">{{ c.category }}</span>
-<h3><a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.title }}</a></h3>
+<section class="compsec" id="comps"><div class="compsec-h"><div><h2>Competitions &amp; grants</h2>
+<p class="muted">Contests for every faculty, not just engineering. Pick one and start a team for it.</p></div>
+<label class="csearch"><span class="vh">Search competitions</span><input id="c-q" type="search" placeholder="Search competitions" autocomplete="off"></label></div>
+<div class="chips" id="ccats"><button type="button" class="chip {{ 'on' if not cat }}" data-c="">All <span class="ccount" data-n=""></span></button>
+{% for c in cats %}<button type="button" class="chip {{ 'on' if cat == c }}" data-c="{{ c }}">{{ c }} <span class="ccount" data-n="{{ c }}"></span></button>{% endfor %}</div>
+<div class="crow"><label class="cfsel"><span>Show</span><select id="c-st"><option value="active">Open and upcoming</option><option value="closing">Closing soon</option><option value="unknown">Date not confirmed</option><option value="past">Past events</option>{% if user %}<option value="saved">Saved</option>{% endif %}</select></label>
+<label class="cfsel"><span>Sort</span><select id="c-sort"><option value="rec">Recommended</option><option value="deadline">Deadline</option><option value="new">Recently added</option></select></label>
+<span class="muted fine" id="c-count" aria-live="polite"></span></div>
+<div class="grid" id="clist">{% for c in comps %}{% set cs = comp_status(c) %}<article class="card comp st-c-{{ cs[0] }}" data-cat="{{ c.category }}" data-st="{{ cs[0] }}" data-days="{{ cs[2] if cs[2] is not none else 99999 }}" data-id="{{ c.id }}" data-saved="{{ 1 if c.id in saved_c else 0 }}" data-text="{{ (c.title ~ ' ' ~ c.description ~ ' ' ~ c.category)|lower }}">
+<div class="comp-top"><span class="ctags"><span class="pill cat">{{ c.category }}</span><span class="badge cst cst-{{ cs[0] }}">{{ cs[1] }}{% if cs[0] == "closing" %} · {{ cs[2] }}d{% endif %}</span></span>
+{% if user %}<form method="post" action="/save/competition/{{ c.id }}" class="savef"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/"><button class="savebtn" aria-pressed="{{ 'true' if c.id in saved_c else 'false' }}" aria-label="Save {{ c.title }}" title="Save"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button></form>{% endif %}</div>
+<h3><a href="/competitions/{{ c.id }}">{{ c.title }}</a></h3>
 {% if c.description %}<p>{{ c.description }}</p>{% endif %}
-<div class="meta"><span>{{ c.deadline or "Deadline unknown" }}</span>{% if c.needs_review %}<span class="pill">unreviewed</span>{% endif %}</div>
-<a class="btn sm" href="/projects/new?comp={{ c.id }}">Start a team</a></article>
-{% endfor %}</div><p class="muted" id="c-empty" hidden>No competitions in this category yet.</p>
+<div class="meta"><span>{{ c.deadline or "Date not confirmed" }}</span>{% if c.needs_review %}<span class="pill">Not checked by an admin yet</span>{% endif %}</div>
+<div class="comp-acts">{% if cs[0] != "past" %}<a class="btn sm" href="/projects/new?comp={{ c.id }}">Start a team</a>{% endif %}<a class="btn ghost sm" href="{{ c.url }}" target="_blank" rel="noopener">Official site&nbsp;↗</a></div></article>
+{% endfor %}</div><p class="box" id="c-empty" hidden>No competitions match. Try another category or “Show: Open and upcoming”.</p>
+<p class="cmore"><button type="button" class="ghost" id="c-more" hidden aria-expanded="false" aria-controls="clist">Show more</button></p></section>
 <script>
 (()=>{const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const list=$("#plist"),cards=$$("#plist .pcard"),P=new URLSearchParams(location.search);
@@ -61,17 +68,33 @@ function apply(){const qq=st.q.trim().toLowerCase();let shown=0;
  $$("#f-tags .tagchip").forEach(b=>b.classList.toggle("on",st.tags.includes(b.dataset.t)));
  $("#f-sort").value=st.sort;$("#f-ptag").value=st.ptag;$("#f-cat").value=st.cat;$("#f-role").value=st.role;
  const filtered=st.k||st.cat||st.ptag||st.role||st.tags.length||qq;$("#f-clear").hidden=!filtered;$("#fdot").hidden=!(st.cat||st.ptag||st.role||st.tags.length);
- $("#f-count").textContent={% if lang == "zh" %}filtered?`顯示 ${shown}／${cards.length} 個專案`:`${cards.length} 個專案`{% else %}filtered?`Showing ${shown} of ${cards.length}`:`${cards.length} project${cards.length==1?"":"s"}`{% endif %};
+ $("#f-count").textContent={% if lang == "zh" %}filtered?`显示 ${shown}／${cards.length} 个项目`:`${cards.length} 个项目`{% else %}filtered?`Showing ${shown} of ${cards.length}`:`${cards.length} project${cards.length==1?"":"s"}`{% endif %};
  $("#f-empty").hidden=shown>0;
- // competitions
- let cs=0;$$("#clist .comp").forEach(c=>{const ok=(!st.c||c.dataset.cat===st.c)&&(!qq||qq.split(/\s+/).every(w=>c.dataset.text.includes(w)));c.hidden=!ok;cs+=ok});
- $$("#ccats .chip").forEach(b=>b.classList.toggle("on",b.dataset.c===st.c));$("#c-empty").hidden=cs>0;
+ compApply();
  // keep the address in step so the view can be shared or reloaded
  const u=new URLSearchParams();if(st.k)u.set("kind",st.k);if(st.q)u.set("q",st.q);if(st.cat)u.set("cat2",st.cat);if(st.role)u.set("role",st.role);if(st.ptag)u.set("ptag",st.ptag);if(st.tags.length)u.set("tags",st.tags.join(","));if(st.c)u.set("cat",st.c);
  if(st.sort!==($("#f-sort option[value=match]")?"match":"deadline"))u.set("sort",st.sort);
  history.replaceState(null,"",location.pathname+(u.toString()?"?"+u:""))}
 $("#kinds").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b){st.k=b.dataset.k;apply()}});
-$("#ccats").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b){st.c=b.dataset.c;apply()}});
+$("#ccats").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b){st.c=b.dataset.c;cs.more=false;apply()}});
+// competitions: category + status + search + sort, 8 at first with Show more / Show less (no reload)
+const clist=$("#clist"),ccards=$$("#clist .comp"),cs={q:"",st:"active",sort:"rec",more:false},PREVIEW=8,cq=$("#c-q"),cmore=$("#c-more");
+function compMatch(c,withCat){const d=c.dataset,qq=cs.q.trim().toLowerCase();
+ const stOk=cs.st==="active"?(d.st==="open"||d.st==="closing"||d.st==="unknown"):cs.st==="saved"?d.saved==="1":d.st===cs.st;
+ return stOk&&(!withCat||!st.c||d.cat===st.c)&&(!qq||qq.split(/\s+/).every(w=>d.text.includes(w)))}
+function compApply(){const rank={closing:0,open:1,unknown:2,past:3};
+ const key={rec:c=>rank[c.dataset.st]*100000+(+c.dataset.days),deadline:c=>(c.dataset.st==="unknown"?1e9:0)+Math.abs(+c.dataset.days),new:c=>-(+c.dataset.id)}[cs.sort];
+ ccards.slice().sort((a,b)=>key(a)-key(b)).forEach(c=>clist.appendChild(c));
+ let n=0;$$("#clist .comp").forEach(c=>{const ok=compMatch(c,true);c.hidden=!ok||(!cs.more&&n>=PREVIEW);n+=ok});
+ $$("#ccats .chip").forEach(b=>{b.classList.toggle("on",b.dataset.c===st.c);b.setAttribute("aria-pressed",b.dataset.c===st.c)});
+ $$("#ccats .ccount").forEach(sp=>{const k=sp.dataset.n;sp.textContent=ccards.filter(c=>compMatch(c,false)&&(!k||c.dataset.cat===k)).length});
+ cmore.hidden=n<=PREVIEW;cmore.textContent=cs.more?{{ "Show less"|tr|tojson }}:{{ "Show more"|tr|tojson }}+" ("+(n-PREVIEW)+")";cmore.setAttribute("aria-expanded",cs.more);
+ $("#c-count").textContent={% if lang == "zh" %}`${n} 个比赛`{% else %}`${n} competition${n==1?"":"s"}`{% endif %};$("#c-empty").hidden=n>0}
+cmore.onclick=()=>{cs.more=!cs.more;compApply();if(!cs.more)$("#comps").scrollIntoView({block:"start"})};
+let ctm;cq.addEventListener("input",()=>{clearTimeout(ctm);ctm=setTimeout(()=>{cs.q=cq.value;cs.more=false;compApply()},120)});
+$("#c-st").onchange=e=>{cs.st=e.target.value;cs.more=false;compApply()};$("#c-sort").onchange=e=>{cs.sort=e.target.value;compApply()};
+clist.addEventListener("submit",async e=>{const f=e.target.closest(".savef");if(!f)return;e.preventDefault();const b=f.querySelector("button");
+ try{const r=await fetch(f.action,{method:"POST",body:new FormData(f),headers:{"x-fetch":"1"}});if(!r.ok)throw 0;const j=await r.json();b.setAttribute("aria-pressed",j.saved);f.closest(".comp").dataset.saved=j.saved?"1":"0";if(cs.st==="saved")compApply()}catch(_){f.submit()}});
 tagbox.addEventListener("click",e=>{const b=e.target.closest(".tagchip");if(!b)return;const t=b.dataset.t;st.tags=st.tags.includes(t)?st.tags.filter(x=>x!==t):[...st.tags,t];apply()});
 $("#f-sort").onchange=e=>{st.sort=e.target.value;apply()};$("#f-cat").onchange=e=>{st.cat=e.target.value;apply()};$("#f-role").onchange=e=>{st.role=e.target.value;apply()};$("#f-ptag").onchange=e=>{st.ptag=e.target.value;apply()};
 const clear=()=>{Object.assign(st,{k:"",cat:"",ptag:"",role:"",tags:[],q:""});q.value="";apply()};$("#f-clear").onclick=clear;$("#f-reset").onclick=clear;

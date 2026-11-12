@@ -36,6 +36,7 @@ class User(SQLModel, table=True):
     lab_url: str = ""          # professors: lab website (public, https)
     orcid: str = ""            # professors: ORCID link (public); Google Scholar uses the "scholar" field
     email_pref: str = "off"    # notification emails: off / daily (one digest a day) / instant
+    lang: str = ""             # interface language chosen in the profile menu: en / zh ("" = not chosen yet)
     competitions: str = ""    # one per line: competitions they entered (public)
     past_projects: str = ""   # one per line: projects they built (public)
     awards: str = ""          # one per line: awards and honours (public)
@@ -322,3 +323,12 @@ class VersionAddresses(SQLModel, table=True):  # "v2 addresses remark 14", with 
     version_id: int = Field(index=True)
     remark_id: int = Field(index=True)
     note: str = ""
+
+class SavedItem(SQLModel, table=True):       # a bookmark: a competition or project someone saved for later
+    __tablename__ = "saved_item"
+    __table_args__ = (UniqueConstraint("user_id", "kind", "item_id", name="uq_saved_item"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    kind: str                 # competition / project
+    item_id: int
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)

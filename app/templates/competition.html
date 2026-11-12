@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block body %}
+<p class="crumb"><a href="/#comps">← Competitions &amp; grants</a></p>
+<section class="card comphead"><div class="comp-top"><span class="pill cat">{{ c.category }}</span><span class="badge cst cst-{{ st[0] }}">{{ st[1] }}{% if st[0] == "closing" %} · {{ st[2] }}d{% endif %}</span></div>
+<h1>{{ c.title }}</h1>
+{% if c.description %}<p class="lead">{{ c.description }}</p>{% endif %}
+<dl class="cfacts"><div><dt>Dates</dt><dd>{{ c.deadline or "Date not confirmed" }}</dd></div>
+<div><dt>Status</dt><dd>{% if st[0] == "past" %}This event has ended.{% elif st[0] == "unknown" %}We don't have a confirmed date. Check the official site.{% elif st[0] == "closing" %}Ends in {{ st[2] }} days.{% else %}{{ st[2] }} days to go.{% endif %}</dd></div>
+<div><dt>Listed from</dt><dd>{{ "Added by an admin" if c.source == "admin" else (c.source or "Unknown") }}{% if c.needs_review %} · not checked by an admin yet{% endif %}</dd></div></dl>
+<p class="muted fine">Eligibility, requirements and the exact timeline are on the official site. We only show what we could confirm, so read the rules there before you register.</p>
+<div class="acts"><a class="btn" href="{{ c.url }}" target="_blank" rel="noopener">Official site&nbsp;↗</a>
+{% if st[0] != "past" %}<a class="btn ghost" href="/projects/new?comp={{ c.id }}">Start a team</a>{% endif %}
+{% if user %}<form method="post" action="/save/competition/{{ c.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/competitions/{{ c.id }}"><button class="ghost" aria-pressed="{{ 'true' if saved else 'false' }}">{{ "Saved ✓" if saved else "Save" }}</button></form>{% endif %}</div>
+{% if mine %}<p class="box">You already lead a team for this: {% for p in mine %}<a href="/projects/{{ p.id }}">{{ p.title }}</a>{{ ", " if not loop.last }}{% endfor %}.</p>{% endif %}
+</section>
+<section class="card"><h2>Teams looking for members</h2>
+{% if teams %}<ul class="doclist">{% for p in teams %}{% set o = owners.get(p.owner_id) %}<li><a href="/projects/{{ p.id }}"><span class="dl-m"><b>{{ p.title }}</b><small>{{ o|dn if o else "" }} · {{ p.hours_per_week }} h/week</small></span>
+<span class="dl-tags">{% if open_seats[p.id] %}<span class="badge b-open">{{ open_seats[p.id] }} open seat{{ "s" if open_seats[p.id] != 1 }}</span>{% else %}<span class="badge b-filled">Full</span>{% endif %}</span></a></li>{% endfor %}</ul>
+{% else %}<p class="muted">No team has formed for this yet.{% if st[0] != "past" %} <a href="/projects/new?comp={{ c.id }}">Start the first one</a>.{% endif %}</p>{% endif %}</section>
+{% endblock %}

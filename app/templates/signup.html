@@ -6,7 +6,7 @@
 <div class="kinds" role="radiogroup" aria-label="Account type"><label class="kind"><input type="radio" name="role" value="student" {{ "checked" if f.get("role", "student") != "faculty" }}><span>Student</span></label>
 <label class="kind"><input type="radio" name="role" value="faculty" {{ "checked" if f.get("role") == "faculty" }}><span>Professor or advisor</span></label></div>
 <label for="e" id="elabel">Email</label><input id="e" name="email" type="email" required autocapitalize="none" spellcheck="false" value="{{ f.get('email', '') }}" autocomplete="email">
-<p class="muted fine" id="ehint" hidden>Use your NTHU staff email, such as name@cs.nthu.edu.tw or name@mx.nthu.edu.tw. Student @gapp addresses are not accepted.</p>
+<p class="muted fine" id="ehint" hidden>Use your NTHU email, such as name@cs.nthu.edu.tw. A @gapp.nthu.edu.tw address works too, but an admin then confirms you by hand.</p>
 <div class="two"><div><label for="n">Full name</label><input id="n" name="name" autocomplete="name" required value="{{ f.get('name', '') }}"></div>
 <div class="r-student"><label for="s">Student ID</label><input id="s" name="student_id" maxlength="12" value="{{ f.get('sid', '') }}"></div>
 <div class="r-faculty" hidden><label for="ti">Title</label><select id="ti" name="title">{% for t in titles %}<option value="{{ t }}" {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}</select></div></div>

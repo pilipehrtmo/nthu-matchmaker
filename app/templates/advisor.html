@@ -1,5 +1,7 @@
 {% extends "base.html" %}{% block body %}
 {% set n_attn = att.total %}
+<div class="dbshell"><nav class="dbnav" aria-label="Professor workspace"><a href="#top" class="on">Dashboard</a><a href="#projects">My projects</a><a href="#students">My students</a><a href="#positions">Lab openings</a><a href="/profile#research">Profile settings</a></nav>
+<div class="dbbody" id="top">
 <div class="dbhead"><div class="dbhello">
 <p class="dbeye">{{ user.title or "Professor" }}{% if user.faculty %} · {{ user.faculty }}{% endif %} · {% if user.is_faculty %}<span class="dbok">Verified</span>{% else %}<span class="dbwarn">Not verified yet</span>{% endif %}</p>
 <h1>{% if lang == "zh" %}{{ greet }}，<span class="dbname">{{ user|dn }} {{ honor }}</span>{% else %}{{ greet }}, <span class="dbname">{{ honor }} {{ user|dn }}.</span>{% endif %}</h1>
@@ -19,8 +21,8 @@
 {% if n_attn %}<div class="dbrows">
 {% for rq, d in doc_reviews %}{% set p = projects.get(d.project_id) %}{% set au = names.get(rq.requested_by) %}<a class="dbrow" href="/docs/{{ d.id }}?v={{ rq.version_id }}">
 <span class="dbic ic-doc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg></span>
-<span class="dbrow-m"><b>Review {{ d.title }} v{{ vnum.get(rq.version_id, "") }}</b><small>{{ p.title if p else "" }}{% if au %} · {{ au|dn }}{% endif %} · asked {{ rq.created|ago }}</small></span>
-<span class="dbtag t-ask">Review</span></a>{% endfor %}
+{% set dop = doc_open.get(d.id, [0, 0]) %}<span class="dbrow-m"><b>Review {{ d.title }} v{{ vnum.get(rq.version_id, "") }}</b><small>{{ p.title if p else "" }}{% if au %} · {{ au|dn }}{% endif %} · asked {{ rq.created|ago }}{% if dop[0] %} · {{ dop[0] }} unresolved remark{{ "s" if dop[0] != 1 }}{% endif %}</small></span>
+<span class="dbtag {{ 't-high' if dop[1] else 't-ask' }}">{{ "High priority" if dop[1] else "Review" }}</span></a>{% endfor %}
 {% for t in reviews %}{% set p = projects.get(t.project_id) %}{% set au = names.get(t.last_by) or names.get(t.author_id) %}<a class="dbrow" href="/projects/{{ t.project_id }}#t{{ t.id }}">
 <span class="dbic {{ 'ic-high' if t.priority == 'High' else 'ic-ask' }}" aria-hidden="true">{{ "!" if t.priority == "High" else "?" }}</span>
 <span class="dbrow-m"><b>“{{ t.body|truncate(80, True, "…") }}”</b><small>{{ p.title if p else "" }} · {{ t.category }}{% if au %} · {{ au|dn }}{% endif %} · {{ (t.last_at or t.created)|ago }}</small></span>
@@ -34,6 +36,7 @@
 {% if att.apps %}<a class="dbrow" href="/activity"><span class="dbic ic-lab" aria-hidden="true">{{ att.apps }}</span><span class="dbrow-m"><b>{% if att.apps == 1 %}1 application to your projects{% else %}{{ att.apps }} applications to your projects{% endif %}</b><small>Seats on projects you lead</small></span><span class="dbtag t-lab">Review</span></a>{% endif %}
 </div>{% else %}<p class="muted dbempty">Nothing is waiting for you right now.</p>{% endif %}</section>
 
+{% set ns = namespace(seen=[], rows=[]) %}{% for x in prog %}{% for u in x.people %}{% if u.id not in ns.seen %}{% set ns.seen = ns.seen + [u.id] %}{% set ns.rows = ns.rows + [(u, x.p)] %}{% endif %}{% endfor %}{% endfor %}
 <section class="dbcard" id="projects"><div class="dbcard-h"><h2>Projects you supervise</h2></div>
 {% if prog %}<div class="dbtable"><div class="dbtr dbth" aria-hidden="true"><span>Project</span><span>Progress</span><span>Students</span><span></span></div>
 {% for x in prog %}<div class="dbtr">
@@ -42,9 +45,13 @@
 <span class="dbfaces">{% for u in x.people[:4] %}{{ pic(u, "av sm") }}{% endfor %}{% if x.people|length > 4 %}<span class="av sm more">+{{ x.people|length - 4 }}</span>{% endif %}<span class="vh">{{ x.people|map("dn")|join(", ") }}</span></span>
 <a class="dbopen" href="/projects/{{ x.p.id }}#supervision">Open →</a></div>{% endfor %}</div>
 {% else %}<p class="muted dbempty">You don't supervise a project yet. Students add an advisor seat to their project and you apply for it, or you can <a href="/">browse projects that need an advisor</a>.</p>{% endif %}</section>
+<section class="dbcard" id="students"><div class="dbcard-h"><h2>My students</h2><small class="muted">{{ ns.rows|length }} on the projects you supervise</small></div>
+{% if ns.rows %}<ul class="dbstud">{% for u, p in ns.rows %}<li><a href="/u/{{ u.handle }}">{{ pic(u, "av sm") }}<span class="dbrow-m"><b>{{ u|dn }}</b><small>{{ u.faculty or "NTHU" }} · {{ p.title }}{% if u.id == p.owner_id %} · lead{% endif %}</small></span></a></li>{% endfor %}</ul>
+{% else %}<p class="muted dbempty">No students yet. They appear here once a team accepts you as their advisor.</p>{% endif %}</section>
 </div>
 
 <aside class="dbside">
+<section class="dbcard"><h2>Quick actions</h2><div class="dbquick">{% if user.is_faculty %}<a href="/openings/new">Open a lab position</a>{% endif %}<a href="#attention">Review submissions</a><a href="#students">Manage students</a><a href="/projects/new">Post a project</a><a href="/notifications">Notifications</a></div></section>
 <section class="dbcard"><h2>Upcoming milestones</h2>
 {% if upcoming %}<ul class="dbms">{% for m in upcoming %}{% set p = projects.get(m.project_id) %}{% set db = day_box(m.due) %}{% set late = (days_left(m.due) or 0) < 0 %}<li><a href="/projects/{{ m.project_id }}#milestones">
 <span class="dbdate {{ 'late' if late }}"><b>{{ db[0] }}</b><small>{{ db[1] }}</small></span><span class="dbrow-m"><b>{{ m.title }}</b><small class="{{ 'warn-t' if late }}">{{ due_text(m.due)|capitalize }}{% if p %} · {{ p.title }}{% endif %}</small></span></a></li>{% endfor %}</ul>
@@ -62,5 +69,5 @@
 {% else %}<p class="muted dbempty">Post an undergraduate research position and students who fit can apply to you directly.</p>{% endif %}</section>
 
 {% if seat_apps %}<section class="dbcard"><h2>Advisor seats you applied for</h2><div class="dbpos">{% for a, r, p in seat_apps %}<a href="/projects/{{ p.id }}"><b>{{ p.title }}</b><small>{{ r.name }} · sent {{ a.at|ago }} · waiting for the team</small></a>{% endfor %}</div></section>{% endif %}
-</aside></div>
+</aside></div></div></div>
 {% endblock %}

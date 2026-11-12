@@ -24,4 +24,8 @@
 {% if oapps %}<h2>Research positions you applied for <span class="count">{{ oapps|length }}</span></h2>
 <div class="dlist">{% for a, o in oapps %}{% set pf = profs.get(o.owner_id) %}<a class="drow" href="/openings/{{ o.id }}"><span class="dmain"><b>{{ o.title }}</b><small class="muted">{{ pf|dn }} · sent {{ a.at|ago }}</small></span>
 <span class="badge b-{{ a.status }}">{{ {"closed": "Positions filled", "withdrawn": "Withdrawn", "accepted": "Accepted", "pending": "Waiting"}.get(a.status, a.status|capitalize) }}</span></a>{% endfor %}</div>{% endif %}
+<h2 id="saved">Saved {% if saved %}<span class="count">{{ saved|length }}</span>{% endif %}</h2>
+{% if saved %}<div class="dlist">{% for k, x in saved %}{% if k == "competition" %}{% set cst = comp_status(x) %}<a class="drow" href="/competitions/{{ x.id }}"><span class="dmain"><b>{{ x.title }}</b><small class="muted">Competition · {{ x.category }} · {{ x.deadline or "Date not confirmed" }}</small></span><span class="badge cst cst-{{ cst[0] }}">{{ cst[1] }}</span></a>
+{% else %}<a class="drow" href="/projects/{{ x.id }}"><span class="dmain"><b>{{ x.title }}</b><small class="muted">{{ kind_of(x) }}</small></span><span class="badge {{ 'b-open' if x.status == 'open' else 'b-closed' }}">{{ "Recruiting" if x.status == "open" else "Not recruiting" }}</span></a>{% endif %}{% endfor %}</div>
+{% else %}<p class="muted">Nothing saved yet. Use Save on a competition or project to keep it here.</p>{% endif %}
 {% endblock %}

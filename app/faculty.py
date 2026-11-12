@@ -11,6 +11,15 @@ def staff_email(email: str) -> bool:
     dom = email.rsplit("@", 1)[-1].lower()
     return (dom == "nthu.edu.tw" or dom.endswith(".nthu.edu.tw")) and not STUDENT_DOMAINS.match(dom)
 
+def nthu_email(email: str) -> bool:
+    """Any NTHU address: staff domains, the Google Workspace domain @gapp (students, faculty, staff and alumni),
+    the student mail systems @m<year> (e.g. @m114) and the alias domain @oz."""
+    dom = email.rsplit("@", 1)[-1].lower()
+    return dom == "nthu.edu.tw" or dom.endswith(".nthu.edu.tw")
+
+def shared_domain(email: str) -> bool:   # NTHU addresses anyone at NTHU can hold: a professor using one is checked by an admin
+    return bool(STUDENT_DOMAINS.match(email.rsplit("@", 1)[-1].lower()))
+
 def nthu_url(url: str) -> bool:
     u = urlparse(url.strip())
     host = (u.hostname or "").lower()

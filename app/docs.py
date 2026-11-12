@@ -177,6 +177,19 @@ async def new_doc(pid: int, title: str = Form(""), kind: str = Form("Other"), vi
         notify(s, ppl["advisors"] | ppl["team"], "doc_new", f"{user.name or user.handle} added a document: {d.title}", f"/docs/{d.id}", pid, user.id, instant_ok=False)
     return go(f"/docs/{d.id}?n=uploaded")
 
+async def first_upload(s, pr, user, file, title, kind, visibility):
+    """The optional first document from the new-project form. Returns an error message, or "" when it worked."""
+    title = re.sub(r"\s+", " ", title).strip()[:120] or "Research proposal"
+    try: data = await _read(file)
+    except FileProblem as e: return str(e)
+    d = ResearchDoc(project_id=pr.id, created_by=user.id, title=title, kind=kind if kind in DOC_KINDS else "Proposal",
+                    visibility=visibility if visibility in ("team", "private") else "team")
+    s.add(d); s.commit(); s.refresh(d)
+    try: _store(s, d, pr, user, data, file.filename, "First version, uploaded with the project")
+    except FileProblem as e:
+        s.delete(d); s.commit(); return str(e)
+    return ""
+
 @app.post("/docs/{did}/versions", dependencies=[limited("docver", 30, 3600)])
 async def new_version(did: int, req: Request, note: str = Form(""), review: str = Form(""), message: str = Form(""),
                       file: UploadFile = File(None), user=Depends(me), s: Session = Depends(get_session)):
@@ -413,7 +426,7 @@ def purge_private_docs_of(s, uid):
 
 
 # ---------- stop oversized uploads before they are read ----------
-UPLOAD_PATH = re.compile(r"^/(projects/(\d+)/docs|docs/(\d+)/versions)$")
+UPLOAD_PATH = re.compile(r"^/(projects/(\d+)/docs|docs/(\d+)/versions|projects/(new))$")
 BODY_LIMIT = MAX_FILE + 512 * 1024   # the file plus the small form fields
 
 class UploadLimit:
@@ -422,7 +435,7 @@ class UploadLimit:
     async def __call__(self, scope, receive, send):
         m = UPLOAD_PATH.match(scope.get("path", "")) if scope["type"] == "http" and scope.get("method") == "POST" else None
         if not m: return await self.app(scope, receive, send)
-        back = f"/projects/{m.group(2)}" if m.group(2) else f"/docs/{m.group(3)}"
+        back = f"/projects/{m.group(2)}" if m.group(2) else (f"/docs/{m.group(3)}" if m.group(3) else "/projects/new")
         size = dict(scope.get("headers") or []).get(b"content-length")
         if size and size.isdigit() and int(size) > BODY_LIMIT:
             await send({"type": "http.response.start", "status": 303, "headers": [(b"location", f"{back}?err=Files+can+be+at+most+25+MB.".encode())]})

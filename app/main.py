@@ -8,7 +8,7 @@ from markupsafe import Markup, escape
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
-from sqlmodel import Session, select, delete
+from sqlmodel import Session, select, delete, func
 from starlette.middleware.sessions import SessionMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from .config import *
@@ -23,7 +23,8 @@ from .cv import parse_cv, CVError, MAX_BYTES
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
 from . import guide
 from .photo import make_avatar, PhotoError, MAX_UPLOAD
-from .faculty import staff_email, nthu_url, check_page
+from .faculty import staff_email, nthu_url, check_page, nthu_email, shared_domain
+STUDENT_EMAIL_RULE = os.getenv("STUDENT_EMAIL_RULE", "any")   # "nthu" = students must sign up with an NTHU address (see faculty.nthu_email)
 TITLES = ["Professor", "Associate Professor", "Assistant Professor", "Lecturer", "Adjunct Professor", "Researcher", "Advisor"]
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -251,6 +252,7 @@ def send_verify(s, u):
 def pw_stamp(u): return hashlib.sha256((u.password_hash or "").encode()).hexdigest()[:12]
 def start_session(req, u):
     req.session.pop("pending_uid", None); req.session["uid"] = u.id; req.session["pv"] = pw_stamp(u)
+    if u.lang in LANGS: req.session["lang"] = u.lang   # the language chosen on any device follows the account
 
 def ip_of(req):
     """The visitor's real IP, for rate limits. On Render, Cloudflare sets CF-Connecting-IP and overwrites any copy the visitor sends.
@@ -284,6 +286,7 @@ def login(req: Request, email: str = Form(""), password: str = Form(""), s: Sess
         return render(req, "notice.html", title="Confirm your email first", pending=True,
                       msg=f"We sent a link to {u.email}. Open it to finish signing up. Check your spam folder too.")
     if email in ADMIN_EMAILS and (not u.is_admin or u.banned): u.is_admin = True; u.banned = False; s.commit()   # listed admins are never locked out
+    if not u.lang and req.cookies.get("lang") in LANGS: u.lang = req.cookies["lang"]; s.add(u); s.commit()   # keep the language they were already using
     start_session(req, u); return go("/")
 
 @app.get("/signup")
@@ -304,12 +307,14 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     if len(name) < 2: return back("Please enter your full name.")
     if s.exec(select(User).where(User.email == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.")
     if role == "faculty":
-        if not staff_email(email):
-            return back("Professor and advisor accounts must use your NTHU staff email, for example name@cs.nthu.edu.tw or name@mx.nthu.edu.tw. Student addresses such as @gapp.nthu.edu.tw cannot be used.")
+        if not nthu_email(email):
+            return back("Professor and advisor accounts must use an NTHU email, for example name@cs.nthu.edu.tw, name@mx.nthu.edu.tw or name@gapp.nthu.edu.tw.")
         if not dept: return back("Enter your department.")
         if not nthu_url(page): return back("Paste a link to an NTHU page that lists you with this email, such as your department's faculty page. It must be on nthu.edu.tw.")
         sid = ""
     else:
+        if STUDENT_EMAIL_RULE == "nthu" and not nthu_email(email) and email not in ADMIN_EMAILS:
+            return back("Use your NTHU email to sign up, for example s114123456@m114.nthu.edu.tw or your @gapp.nthu.edu.tw address.")
         if not SID.match(sid): return back("Enter your student ID (6 to 12 letters or digits).")
         if s.exec(select(User).where(User.student_id == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.")
     err = password_problem(password, email, name)
@@ -317,6 +322,7 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     if password != password2: return back("The two passwords are not the same.")
     if not agree: return back("Please agree to the privacy notice to create an account.")
     u = User(email=email, name=name, student_id=sid, handle=slugify(s, name), is_admin=email in ADMIN_EMAILS, password_hash=hash_password(password))
+    u.lang = pick_lang(req)
     if role == "faculty": u.role, u.faculty, u.faculty_url, u.title, u.faculty_status = "faculty", dept, page, title if title in TITLES else "", "pending"
     s.add(u); s.add(SignupLog(email=email, ip="-", allowed=True)); s.commit(); s.refresh(u)
     note(f"signup:{ip_of(req)}")
@@ -405,6 +411,8 @@ def change_password(req: Request, current: str = Form(""), password: str = Form(
 def run_faculty_check(s, u):
     """Look for the user's email on their NTHU page. Found: verified automatically. Not found: an admin decides."""
     found, note = check_page(u.email, u.faculty_url)
+    if found and shared_domain(u.email):   # @gapp / @oz / @m<year> can belong to students too, so a person checks it
+        found, note = False, "Email found on the page, but it is a shared NTHU address (@gapp, @oz or @m…), so an admin confirms it."
     u.faculty_note = note[:300]
     if found: u.faculty_status, u.is_faculty = "verified", True
     elif u.faculty_status != "rejected": u.faculty_status, u.is_faculty = "pending", False
@@ -415,8 +423,11 @@ def run_faculty_check(s, u):
 def logout(req: Request): req.session.clear(); return go("/")
 
 @app.get("/lang/{code}")
-def set_lang(req: Request, code: str, next: str = "/"):
+def set_lang(req: Request, code: str, next: str = "/", s: Session = Depends(get_session)):
     if code not in LANGS: code = "en"
+    uid = req.session.get("uid"); u = s.get(User, uid) if uid else None
+    if u: u.lang = code; s.add(u); s.commit()
+    req.session["lang"] = code
     back = next if next.startswith("/") and not next.startswith("//") and "\\" not in next else "/"
     r = go(back); r.set_cookie("lang", code, max_age=31536000, samesite="lax", secure=PUBLIC); return r
 
@@ -588,8 +599,10 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         if d is not None and 0 <= d <= 30 and (prog.for_kind not in soon or d < soon[prog.for_kind][1]): soon[prog.for_kind] = (short_name(prog.name), d)
     allc = s.exec(select(Competition).order_by(Competition.needs_review, Competition.id.desc())).all()
     cats = sorted({c.category for c in allc})
-    comps = allc[:200]
-    return render(req, "board.html", user, rows=rows, comps=comps, comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
+    from .opps import comp_status, saved_ids
+    rank = {"closing": 0, "open": 1, "unknown": 2, "past": 3}
+    comps = sorted(allc[:300], key=lambda c: (rank[comp_status(c)[0]], comp_status(c)[2] if comp_status(c)[2] is not None else 9999, -c.id))
+    return render(req, "board.html", user, rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
 
 PITCH_FIELDS = [("tagline", 140), ("problem", 600), ("audience", 400), ("solution", 600), ("progress", 600), ("needs", 300), ("metrics", 200)]
 def metric_rows(text):   # "12 | stall owners interviewed" -> ("12", "stall owners interviewed"), at most 3
@@ -624,7 +637,8 @@ def project_form(req, user, s, pr=None, seats=None, error="", **kw):
     for c in sorted(comps, key=lambda c: (days_left(c.deadline) is not None and days_left(c.deadline) < 0, c.title.lower())):
         groups.setdefault(c.category or "Other", []).append(c)
     clubs = sorted({n for n in s.exec(select(Project.event_name).where(Project.kind == "Club or event")).all() if n}, key=str.lower)[:200]
-    return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), kind=kind, kinds=PROJECT_KINDS, sel=sel,
+    from .docs import uploads_on
+    return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), dup=kw.get("dup"), uploads_on=uploads_on(), kind=kind, kinds=PROJECT_KINDS, sel=sel,
                   today=datetime.utcnow().date().isoformat(), comps=comps, cgroups=sorted(groups.items(), key=lambda g: (g[0] == "Other", g[0])), clubs=clubs, days_left=days_left)
 
 SEAT_FIELDS = ("name", "skills", "about", "must", "nice", "years", "years_in")
@@ -730,9 +744,23 @@ async def create_project(req: Request, user=Depends(me), s: Session = Depends(ge
     if err:
         draft = Project(owner_id=user.id, **f)
         return project_form(req, user, s, pr=draft, seats=seats, error=err, kind=f["kind"], sel=str(form.get("competition_id", "")) if f["kind"] == "Competition" else "")
+    if f.get("competition_id") and not form.get("again"):   # one click too many should not make two teams for the same competition
+        dup = s.exec(select(Project).where(Project.owner_id == user.id, Project.competition_id == f["competition_id"])).first()
+        if dup:
+            draft = Project(owner_id=user.id, **f)
+            return project_form(req, user, s, pr=draft, seats=seats, kind=f["kind"], sel=str(f["competition_id"]), dup=dup,
+                                error=f"You already lead a team for this competition: {dup.title}. Open it, or press Publish again to make a second team.")
     pr = Project(owner_id=user.id, **f); s.add(pr); s.commit(); s.refresh(pr)
     for x in seats: s.add(Role(project_id=pr.id, advisor=x["adv"], **{k: x[k] for k in SEAT_FIELDS}))
-    s.commit(); return go(f"/projects/{pr.id}")
+    s.commit()
+    up = form.get("first_file")   # optional first research document, uploaded with the project
+    if pr.kind == "Research" and getattr(up, "filename", ""):
+        from .docs import first_upload
+        problem = await first_upload(s, pr, user, up, str(form.get("first_title", "")), str(form.get("first_kind", "Proposal")), str(form.get("first_vis", "team")))
+        if problem:
+            from urllib.parse import quote
+            return go(f"/projects/{pr.id}?err={quote('Project published, but the document was not uploaded: ' + problem)}#docs")
+    return go(f"/projects/{pr.id}")
 
 @app.get("/projects/{pid}/edit")
 def edit_project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_session)):
@@ -800,7 +828,8 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     from .docs import project_docs
     docsec = project_docs(s, pr, user, people(s, pr)) if user and supervised(pr, [x["r"] for x in out]) else None
     if docsec and not docsec["rows"] and not docsec["can_upload"]: docsec = None
-    return render(req, "project.html", user, checks=checks, sup=sup, docsec=docsec, err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
+    from .opps import saved_ids
+    return render(req, "project.html", user, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
 
 @app.get("/projects/{pid}/onepager")
@@ -843,6 +872,9 @@ def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depe
     dup = s.exec(select(Application).where(Application.role_id == rid, Application.user_id == user.id)).first()
     if dup and dup.status == "withdrawn": dup.status, dup.message, dup.at = "pending", message.strip()[:500], datetime.utcnow(); s.commit()
     elif not dup: s.add(Application(role_id=rid, user_id=user.id, message=message.strip()[:500])); s.commit()
+    else: return go(f"/projects/{pr.id}?n=sent")   # already applied: no duplicate application or notification
+    from .notify import notify
+    notify(s, [pr.owner_id], "application", f"{user.name or user.handle} applied for the {r.name} seat on {pr.title}", f"/projects/{pr.id}#seats", pr.id, user.id)
     return go(f"/projects/{pr.id}?n=sent")
 
 @app.post("/applications/{aid}/edit", dependencies=[limited("appedit", 60, 3600)])
@@ -867,6 +899,8 @@ def decide(aid: int, decision: str, next: str = Form(""), user=Depends(me), s: S
         return go(f"/projects/{pr.id}?n=removed#seats")
     if user.id == pr.owner_id and a.status == "pending" and decision in ("accepted", "rejected") and not r.filled:
         a.status = decision
+        from .notify import notify
+        notify(s, [a.user_id], "app_decision", f"{'You joined' if decision == 'accepted' else 'Your application was not accepted for'} {pr.title}{' as ' + r.name if decision == 'accepted' else ''}", f"/projects/{pr.id}", pr.id, user.id)
         if decision == "accepted":
             r.filled = True   # the seat is taken: close the other applications for it
             for o in s.exec(select(Application).where(Application.role_id == r.id, Application.id != a.id, Application.status == "pending")).all(): o.status = "closed"
@@ -890,7 +924,8 @@ def activity(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     profs = {u.id: u for u in s.exec(select(User).where(User.id.in_({o.owner_id for _, o in oapps} or {-1})))}
     fb = waiting_team(s, user.id)
     fbp = {p.id: p for p in s.exec(select(Project).where(Project.id.in_({t.project_id for t in fb} or {-1})))}
-    return render(req, "activity.html", user, mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left, oapps=oapps, profs=profs, fb=fb, fbp=fbp)
+    from .opps import saved_for
+    return render(req, "activity.html", user, saved=saved_for(s, user), mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left, oapps=oapps, profs=profs, fb=fb, fbp=fbp)
 
 @app.get("/funding")
 def funding(req: Request, user=Depends(me), s: Session = Depends(get_session)):
@@ -1039,7 +1074,11 @@ def storage_info(s):
     from .storage import backend
     b = backend()
     return dict(used=site_bytes(s), cap=SITE_CAP, where=b.name if b else "not connected (uploads are off)",
-                docs=len(s.exec(select(ResearchDoc.id)).all()), versions=len(s.exec(select(DocVersion.id).where(DocVersion.deleted_at == None)).all()))
+                docs=len(s.exec(select(ResearchDoc.id)).all()), versions=len(s.exec(select(DocVersion.id).where(DocVersion.deleted_at == None)).all()),
+                by_project=s.exec(select(Project.id, Project.title, func.count(DocVersion.id), func.coalesce(func.sum(DocVersion.size_bytes), 0))
+                                  .join(ResearchDoc, ResearchDoc.project_id == Project.id).join(DocVersion, DocVersion.doc_id == ResearchDoc.id)
+                                  .where(DocVersion.deleted_at == None).group_by(Project.id, Project.title).order_by(func.sum(DocVersion.size_bytes).desc()).limit(30)).all(),
+                deleted=len(s.exec(select(DocVersion.id).where(DocVersion.deleted_at != None)).all()))
 
 @app.post("/admin/source")
 def add_source(url: str = Form(...), user=Depends(me), s: Session = Depends(get_session)):
@@ -1125,4 +1164,4 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
     s.commit(); return go("/admin")
 
 from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)
-from . import notify, docs   # notifications and research documents (after advisor: they use its rules)
+from . import notify, docs, opps   # notifications, research documents, competitions and saved items (after advisor: they use its rules)
