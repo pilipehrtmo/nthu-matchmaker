@@ -9,7 +9,7 @@
 <form method="post" action="/projects/{{ pr.id }}/docs" enctype="multipart/form-data" hx-boost="false" class="upform"><input type="hidden" name="csrf" value="{{ csrf }}">
 <div class="two"><div><label for="dt">Title</label><input id="dt" name="title" required maxlength="120" placeholder="e.g. Research proposal"></div>
 <div><label for="dk">Type</label><select id="dk" name="kind">{% for k in docsec.kinds %}<option value="{{ k }}">{{ k }}</option>{% endfor %}</select></div></div>
-<label for="df">File <small class="muted">(PDF, Word, PowerPoint, Excel, CSV, TXT or ZIP · up to 25 MB)</small></label><input id="df" type="file" name="file" required accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.zip" data-max="26214400" data-toobig="This file is over 25 MB. Choose a smaller one.">
+<label for="df">File <small class="muted">(PDF, Word, PowerPoint, Excel, CSV, TXT or ZIP · up to 25 MB)</small></label><div class="filepick"><span class="fp-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg></span><span class="fp-t"><b>Choose a file</b> <span>or drop it here</span></span><span class="fp-n">No file chosen</span><input id="df" type="file" name="file" required accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.zip" data-max="26214400" data-toobig="This file is over 25 MB. Choose a smaller one."></div>
 <label for="dn">Note <small class="muted">(optional)</small></label><input id="dn" name="note" maxlength="1000" placeholder="e.g. First draft for our advisor">
 <fieldset class="visopts"><legend>Who can see it</legend>
 <label class="chk"><input type="radio" name="visibility" value="team" checked> <span><b>Team and advisors</b></span></label>
