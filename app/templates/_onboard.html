@@ -1,0 +1,10 @@
+{% macro onboard_card(ob) %}{% if ob %}<section class="card onb" id="onboard" aria-labelledby="onb-h" data-kind="{{ ob.kind }}">
+<div class="onb-top"><div><h2 id="onb-h">Getting started</h2><p class="muted fine onb-count"><b>{{ ob.done }}/{{ ob.total }}</b> completed</p></div>
+<div class="onb-ctl"><button type="button" class="ghost sm" data-tour="{{ 'student:skills' if ob.kind == 'student' else 'prof:p_status' }}">Guide me through it</button>
+<button type="button" class="linkbtn sm onb-tog" aria-expanded="true" aria-controls="onb-l"><span class="onb-hide">Hide list</span><span class="onb-show">Show list</span></button></div></div>
+<div class="onb-bar" aria-hidden="true"><i style="width:{{ (100 * ob.done / ob.total)|round|int }}%"></i></div>
+<ol class="start-l" id="onb-l">{% for it in ob["items"] %}<li class="{{ 'done' if it.done }}{{ ' locked' if it.locked and not it.done }}"><span class="sn" aria-hidden="true">{{ "✓" if it.done else loop.index }}</span>
+<div><b>{{ it.label }}</b><small>{% if it.locked and not it.done %}Opens after verification. {% endif %}{{ it.desc }}</small></div>
+{% if not it.done and not it.locked %}<span class="start-b"><a class="btn sm" href="{{ it.href }}">{{ "Go" if loop.index > 1 else "Start" }}</a>{% if it.tour %}<button type="button" class="ghost sm" data-tour="{{ it.tour }}">Guide me</button>{% endif %}</span>
+{% elif it.done %}<span class="vh">Done</span>{% endif %}</li>{% endfor %}</ol>
+</section>{% endif %}{% endmacro %}

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block body %}
+{% extends "base.html" %}{% from "_onboard.html" import onboard_card with context %}{% block body %}
 {% set n_attn = att.total %}
 <div class="dbshell"><nav class="dbnav" aria-label="Professor workspace"><a href="#top" class="on">Dashboard</a><a href="#projects">My projects</a><a href="#students">My students</a><a href="#positions">Lab openings</a><a href="/profile#research">Profile settings</a></nav>
 <div class="dbbody" id="top">
@@ -17,6 +17,7 @@
 </section>
 
 <div class="dbcols"><div class="dbmain">
+{{ onboard_card(onboarding(user)) }}
 <section class="dbcard" id="attention"><div class="dbcard-h"><h2>Needs your attention</h2><small class="muted">Most urgent first</small></div>
 {% if n_attn %}<div class="dbrows">
 {% for rq, d in doc_reviews %}{% set p = projects.get(d.project_id) %}{% set au = names.get(rq.requested_by) %}<a class="dbrow" href="/docs/{{ d.id }}?v={{ rq.version_id }}">

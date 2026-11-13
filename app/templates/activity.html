@@ -1,5 +1,6 @@
-{% extends "base.html" %}{% block body %}<h1>Activity</h1>
+{% extends "base.html" %}{% from "_onboard.html" import onboard_card with context %}{% block body %}<h1>Activity</h1>
 <p class="muted">Your projects and the applications you sent, in one place.</p>
+{{ onboard_card(onboarding(user)) }}
 {% if request.query_params.get("n") == "edited" %}<p class="box ok" role="status">Application updated.</p>{% elif request.query_params.get("n") == "withdrawn" %}<p class="box" role="status">Application withdrawn.</p>{% endif %}
 {% if user.role == "faculty" and not user.is_faculty %}<p class="box">Your professor account is not verified yet. <a href="/verification">See what's needed</a>.</p>{% elif user.is_faculty %}<p class="box">Feedback requests, the projects you supervise and your research positions are on your <a href="/advisor">advisor dashboard</a>.</p>{% endif %}
 {% if fb %}<h2>Advisor feedback for your team <span class="count">{{ fb|length }}</span></h2>

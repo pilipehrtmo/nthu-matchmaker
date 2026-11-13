@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% block body %}<div class="helpwrap">{% if lang == "zh" %}
 <h1>使用說明</h1>
+<p class="helptour">{% if user %}<button type="button" class="btn" data-tour="replay">重播導覽</button>{% else %}<button type="button" class="btn" data-tour="student:start">學生導覽 · 2 分鐘</button><button type="button" class="btn ghost" data-tour="prof:p_start">教授導覽</button>{% endif %}</p>
 <p class="muted">NTHU Matchmaker 幫你為比賽、新創、研究和課堂專案找隊友。每個專案都列出需要的職位，你直接申請適合的職位。</p>
 <section class="card"><h2>加入團隊</h2><ol class="hsteps">
 <li><b>建立帳號。</b>按<a href="/signup">註冊</a>，選「學生」，填入清大信箱、全名和學號。</li>
@@ -21,6 +22,7 @@
 <li><b>語言：</b>在你名字下方的選單切換 English 和繁體中文。</li></ul></section>
 {% else %}
 <h1>How it works</h1>
+<p class="helptour">{% if user %}<button type="button" class="btn" data-tour="replay">Replay the tutorial</button>{% else %}<button type="button" class="btn" data-tour="student:start">Student tour · 2 min</button><button type="button" class="btn ghost" data-tour="prof:p_start">Professor tour</button>{% endif %}</p>
 <p class="muted">NTHU Matchmaker helps you find teammates for competitions, startups, research and class projects. Each project lists the exact seats it needs, and you apply for a seat.</p>
 
 <section class="card"><h2>Join a team</h2><ol class="hsteps">

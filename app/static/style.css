@@ -994,3 +994,36 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .fl-ic svg{width:1.3rem;height:1.3rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .fl-t{display:flex;flex-direction:column;min-width:0}.fl-t b{font-size:.98rem}.fl-t small{color:var(--mut);font-size:.84rem}
 .foot a.flink::after{content:"→";margin-left:auto;color:var(--mut);transition:transform .15s}.foot a.flink:hover::after{transform:translateX(3px);color:var(--pri)}
+/* guided tour */
+.tour{position:fixed;inset:0;z-index:90;pointer-events:none}
+.t-spot{position:fixed;border-radius:12px;box-shadow:0 0 0 9999px rgba(18,10,30,.55),0 0 0 3px var(--gold,#f0b34a);transition:left .25s,top .25s,width .25s,height .25s;pointer-events:none}
+.t-spot::after{content:"";position:absolute;inset:-3px;border-radius:14px;border:3px solid var(--gold,#f0b34a);animation:tpulse 1.6s ease-out infinite}
+@keyframes tpulse{from{opacity:.9;transform:scale(1)}to{opacity:0;transform:scale(1.08)}}
+.t-tip{position:fixed;width:min(360px,calc(100vw - 24px));background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;padding:1rem 1.1rem 1.05rem;
+  box-shadow:0 18px 50px rgba(20,8,40,.35);pointer-events:auto;animation:tin .25s ease both}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}}
+.t-tip.t-center{left:50%!important;top:50%!important;transform:translate(-50%,-50%);animation:none}
+.t-tip.t-sheet{left:12px!important;right:12px;width:auto;bottom:calc(76px + env(safe-area-inset-bottom));top:auto!important}
+.t-tip.t-sheet.t-top{bottom:auto;top:76px!important}
+.t-bar{display:flex;justify-content:space-between;align-items:center;gap:.5rem}.t-step{font-size:.8rem;font-weight:700;color:var(--pri-ink);letter-spacing:.02em}
+.t-bar .t-x{width:auto;color:var(--mut)}
+.t-prog{height:4px;border-radius:99px;background:var(--soft);margin:.5rem 0 .7rem;overflow:hidden}.t-prog i{display:block;height:100%;background:linear-gradient(90deg,var(--pri),var(--pri2));border-radius:inherit}
+.t-tip h2{font-size:1.1rem;margin:0 0 .3rem}.t-text{margin:0;line-height:1.5}.t-hint{margin:.45rem 0 0;min-height:0}.t-hint:empty{display:none}
+.t-acts{display:flex;gap:.5rem;justify-content:flex-end;margin-top:.8rem}.t-acts button{width:auto}.t-acts button:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.tour.t-pill{inset:auto 12px calc(80px + env(safe-area-inset-bottom)) auto;display:flex;gap:.6rem;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:.4rem .5rem .4rem .45rem;box-shadow:0 10px 30px rgba(20,8,40,.25);pointer-events:auto}
+@media (min-width:900px){.tour.t-pill{bottom:24px;right:24px}}
+.howto-a .btn svg{width:1em;height:1em;fill:currentColor;vertical-align:-2px;margin-right:.4rem}
+.start-help{margin:.3rem 0 0}.start-help .linkbtn{width:auto}.tourlink{width:auto;padding:0;font-weight:600}
+@media (prefers-reduced-motion:reduce){.t-spot,.t-spot::after,.t-tip{animation:none;transition:none}}
+/* onboarding checklist */
+.onb-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}.onb-top h2{margin:0;font-size:1.1rem}.onb-count{margin:.15rem 0 0}
+.onb-ctl{display:flex;gap:.6rem;align-items:center}.onb-ctl button{width:auto}
+.onb-bar{height:6px;border-radius:99px;background:var(--soft);margin:.7rem 0 .2rem;overflow:hidden}.onb-bar i{display:block;height:100%;background:var(--ok);border-radius:inherit}
+.onb .onb-show{display:none}.onb.collapsed .onb-show{display:inline}.onb.collapsed .onb-hide{display:none}.onb.collapsed .start-l{display:none}
+.start-l li.locked{opacity:.6}.start-l li.locked .sn{background:transparent;border:1.5px dashed var(--line)}
+.dbshell .onb{margin:0 0 1rem}
+/* tour additions */
+.t-warn{margin:.6rem 0 0;padding:.5rem .7rem;border-radius:10px;background:var(--warn-bg);color:var(--warn-ink);font-size:.9rem;line-height:1.45}
+.t-acts{align-items:center}.t-acts .t-skip{margin-right:auto;color:var(--mut)}.t-acts .t-gap{display:none}
+.helptour{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}.tourlinks{display:flex;gap:1rem;flex-wrap:wrap}
+.howto-a .linkbtn{width:auto}
