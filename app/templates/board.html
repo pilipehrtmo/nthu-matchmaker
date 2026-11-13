@@ -6,13 +6,13 @@
 <li><b>Sign up</b><span>with your student ID. Takes a minute.</span></li>
 <li><b>Add your skills</b><span>Every seat then shows how well you fit.</span></li>
 <li><b>Apply for a seat</b><span>Write one short note. You see the lead's contact once you're accepted.</span></li></ol>
-<p class="howto-a"><a class="btn" href="/signup">Create an account</a><a href="/help">How it works</a></p></section>
+<p class="howto-a"><button type="button" class="btn" data-tour="start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Show me how · 2 min</button><a class="btn ghost" href="/signup">Create an account</a></p></section>
 {% elif start %}<section class="card start" id="start" aria-labelledby="start-h"><div class="start-top"><h2 id="start-h">Getting started</h2><button type="button" class="linkbtn sm" id="start-x">Hide</button></div>
 <ol class="start-l">
 <li class="{{ 'done' if start.skills }}"><span class="sn" aria-hidden="true">{{ "✓" if start.skills else "1" }}</span><div><b>Add your skills</b><small>So every seat can show your match %.</small></div>{% if not start.skills %}<a class="btn sm" href="/profile#s">Add skills</a>{% endif %}</li>
 <li class="{{ 'done' if start.act }}"><span class="sn" aria-hidden="true">{{ "✓" if start.act else "2" }}</span><div><b>Apply for a seat, or post your own project</b><small>Open a project below, press “Apply for this seat” and write a short note. Need people instead? Post a project and list the seats.</small></div>{% if not start.act %}<span class="start-b"><a class="btn sm" href="#plist">See projects</a><a class="btn ghost sm" href="/projects/new">Post a project</a></span>{% endif %}</li>
 <li class="{{ 'done' if start.joined }}"><span class="sn" aria-hidden="true">{{ "✓" if start.joined else "3" }}</span><div><b>Get accepted, or accept someone</b><small>The bell lights up when there is news. Contacts appear only after acceptance.</small></div>{% if start.act and not start.joined %}<a class="btn ghost sm" href="/activity">Open Activity</a>{% endif %}</li></ol>
-<p class="muted fine">Stuck? <a href="/help">How it works</a></p></section>
+<p class="start-help"><button type="button" class="linkbtn sm" data-tour="skills">Show me step by step</button><span class="muted fine"> · <a href="/help">How it works</a></span></p></section>
 <script>(()=>{const c=document.getElementById("start");try{if(localStorage.getItem("start-hide")==="1")c.hidden=true}catch(_){}
 document.getElementById("start-x").onclick=()=>{c.hidden=true;try{localStorage.setItem("start-hide","1")}catch(_){}}})();</script>{% endif %}
 <div class="chips" id="kinds" role="tablist" aria-label="Project type"><button type="button" class="chip {{ 'on' if not kind }}" data-k="">All projects</button>

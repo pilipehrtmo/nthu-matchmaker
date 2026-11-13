@@ -40,7 +40,7 @@
 {% if x.r.nice %}<div><p class="req-h nice">Nice to have</p><ul class="req nice">{% for l in x.r.nice.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}</div>{% endif %}</details>
 {% set myapp = (x.apps|selectattr("1.id", "equalto", user.id if user else 0)|list|first) if user else none %}
 {% if x.r.advisor and user and not is_owner and not x.r.filled and accepting and not user.is_faculty %}<p class="muted fine">Only verified NTHU professors can apply for an advisor seat.</p>
-{% elif user and not is_owner and not x.r.filled and accepting and (not myapp or myapp[0].status == "withdrawn") %}<details><summary>{{ "Apply again" if myapp else "Apply for this seat" }}</summary>
+{% elif user and not is_owner and not x.r.filled and accepting and (not myapp or myapp[0].status == "withdrawn") %}<details><summary class="applysum">{{ "Apply again" if myapp else "Apply for this seat" }}</summary>
 <form method="post" action="/roles/{{ x.r.id }}/apply"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="m{{ x.r.id }}">Why you?</label>
 <textarea id="m{{ x.r.id }}" name="message" rows="3" maxlength="500" placeholder="Short intro and a portfolio link"></textarea><p><button>Send application</button></p></form></details>
 {% elif not user and not x.r.filled and accepting %}<p class="muted"><a href="/login">Log in</a> or <a href="/signup">sign up</a> to apply.</p>

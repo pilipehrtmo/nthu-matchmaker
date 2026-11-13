@@ -1203,4 +1203,4 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
     s.commit(); return go("/admin")
 
 from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)
-from . import notify, docs, opps, profverify   # notifications, research documents, competitions and saved items (after advisor: they use its rules)
+from . import notify, docs, opps, profverify, tour   # notifications, research documents, competitions and saved items (after advisor: they use its rules)
