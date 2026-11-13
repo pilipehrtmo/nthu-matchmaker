@@ -69,27 +69,77 @@ STUDENT = [
     S("save", r"^/profile$", "#psave", "submit",
       ("Save", "Press Save profile. You can come back and add more later."),
       ("儲存", "按「儲存個人檔案」。之後隨時可以回來補充。"), need="#pform", go="/profile"),
-    S("pick", r"^/$", "#plist .pcard", "click",
-      ("Pick a project", "Each card is a team looking for people. The % is how well you fit its best seat. Open one that interests you."),
-      ("選一個專案", "每張卡片都是一個在找人的團隊，百分比是你和最適合職位的配對度。打開一個你有興趣的。"), need="#plist .pcard", go="/"),
-    S("seat", r"^/projects/\d+$", ".applysum", "click",
-      ("Choose a seat", "Each seat is one role in the team. Read what it needs, then press Apply for this seat."),
-      ("選一個職位", "每個職位是團隊裡的一個角色。看看需要什麼，然後按「申請這個職位」。"), need=".applysum", go="/", skip="skipapply"),
+    # ---- Discover: how to read the board, search, filter, open a project
+    S("pick", r"^/$", "#plist .pcard:not([hidden])", "next",
+      ("This is Discover", "Each card is a team looking for people. Here's how to read one."),
+      ("這是探索頁", "每張卡片都是一個正在找人的團隊。我們看看怎麼讀一張卡片。"), need="#plist .pcard", go="/", sect="d_open",
+      demo=[dict(sel="#plist .pcard:not([hidden]) .kindb", do="point", en="Type of project", zh="專案類型"),
+            dict(sel="#plist .pcard:not([hidden]) .match", do="point", en="How well you fit", zh="你的配對度"),
+            dict(sel="#plist .pcard:not([hidden]) .pmeta", do="point", en="Lead and hours a week", zh="發起人和每週時數"),
+            dict(sel="#plist .pcard:not([hidden]) .popen", do="point", en="Seats still open", zh="還有的空位")]),
+    S("d_search", r"^/$", ".search input", "next",
+      ("Search", "Type a skill or a topic. The list updates as you type."), ("搜尋", "輸入技能或主題，清單會跟著更新。"), need="#plist", go="/", sect="d_open",
+      demo=[dict(sel=".search input", do="type", value="research", en="Try a topic", zh="試試一個主題"), dict(sel="#plist", do="point", en="Only matching projects stay", zh="只留下符合的專案"),
+            dict(sel=".search input", do="clear")]),
+    S("d_filter", r"^/$", "#kinds", "next",
+      ("Filter by type", "Pick a type to see only those projects. Department, hours and skills are under Sort and filters."),
+      ("依類型篩選", "選一個類型，只看這類專案。系所、時數和技能在「排序與篩選」裡。"), need="#kinds", go="/", sect="d_open",
+      demo=[dict(sel='#kinds .chip[data-k="Research"]', do="click", en="Research projects", zh="研究專案", when='#plist .pcard[data-kind="Research"]'),
+            dict(sel="#fpanel summary", do="point", en="More filters", zh="更多篩選")]),
+    S("d_open", r"^/$", "#plist .pcard:not([hidden]) h2 a", "click",
+      ("Open a project", "Open one to see the details. Opening a project doesn't send anything."),
+      ("打開一個專案", "打開一個專案看細節。打開不會送出任何東西。"), need="#plist .pcard", go="/"),
+    # ---- Project page: read it, then see how applying works (a demonstration on an example form: nothing is sent)
+    S("p_read", r"^/projects/\d+$", ".card.head h1", "next",
+      ("What it's about", "Start with the title and description. Research projects also list objectives and method."),
+      ("專案在做什麼", "先看標題和說明。研究專案也會列出研究目標和方法。"), need=".card.head", go="/", sect="seat",
+      demo=[dict(sel=".card.head h1", do="point", en="The project", zh="專案"), dict(sel=".card.head .pdesc", do="point", en="What it's about", zh="內容說明"),
+            dict(sel=".rplan", do="point", en="Objectives and method", zh="研究目標和方法")]),
+    S("p_people", r"^/projects/\d+$", ".card.head .byline", "next",
+      ("Who you'd work with", "The lead posted it. An advisor seat means a professor supervises. Filled seats show who's already in."),
+      ("你會和誰合作", "發起人刊登了這個專案。有指導教授職位代表有教授指導。已填滿的職位會顯示已加入的人。"), need=".card.head", go="/", sect="seat",
+      demo=[dict(sel=".card.head .byline", do="point", en="Project lead", zh="發起人"), dict(sel=".seatcard .advpill", do="point", en="Professor advisor", zh="指導教授"),
+            dict(sel=".seatcard.is-filled h3", do="point", en="Already in the team", zh="已加入的成員")]),
+    S("p_commit", r"^/projects/\d+$", ".card.head .meta", "next",
+      ("Time and open seats", "Check the hours a week, the last day to join, and which seats are open."),
+      ("時間和名額", "看看每週時數、最後加入日期，以及哪些職位還開放。"), need=".card.head", go="/", sect="seat",
+      demo=[dict(sel=".card.head .phours", do="point", en="Hours a week", zh="每週時數"), dict(sel=".card.head .pjoin", do="point", en="Last day to join", zh="最後加入日期"),
+            dict(sel=".seatcard:not(.is-filled) .b-open", do="point", en="Open seat", zh="開放的職位")]),
+    S("p_skills", r"^/projects/\d+$", ".seatcard:not(.is-filled) .sdet", "next",
+      ("What each seat needs", "Open Details for the skills it asks for. Skills you have are highlighted; the % is your fit."),
+      ("每個職位需要什麼", "打開「詳細內容」看需要的技能。你有的技能會被標示，百分比是你的配對度。"), need=".seatcard:not(.is-filled) .sdet", go="/", sect="seat",
+      demo=[dict(sel=".seatcard:not(.is-filled) .sdet summary", do="click", en="Details", zh="詳細內容"),
+            dict(sel=".seatcard:not(.is-filled) .sdet[open] .tag.hit", do="point", en="You have this", zh="你有這項技能"),
+            dict(sel=".seatcard:not(.is-filled) .sdet[open] .req.must", do="point", en="Must have", zh="必要條件"),
+            dict(sel=".seatcard:not(.is-filled) .match", do="point", en="Your fit", zh="你的配對度")]),
     S("noseat", r"^/projects/\d+$", "", "next",
-      ("No seat for you here", "This project has no open seat you can apply for. Go back and open another project."),
-      ("這裡沒有適合的職位", "這個專案沒有你可以申請的空位。回到首頁打開另一個專案。"), need="body:not(:has(.applysum))", unless="n=sent", back="/", alt=True),
-    S("note", r"^/projects/\d+$", ".seatcard details[open] textarea", "input",
-      ("Say why you fit", "One or two sentences and a link to your work are enough."),
-      ("說明你為什麼適合", "一兩句話加上作品連結就夠了。"), need=".seatcard details[open] textarea", go="/", skip="skipapply"),
-    S("send", r"^/projects/\d+$", ".seatcard details[open] form button", "submit",
-      ("Send it", "Press Send application. The team lead gets a notification right away."),
-      ("送出", "按「送出申請」，隊長會馬上收到通知。"), need=".seatcard details[open] form button", go="/", warn=W_APPLY, skip="skipapply"),
-    S("done", r"^/projects/\d+$", ".nbell", "done",
-      ("You're all set", "Your application is sent. The bell lights up when the lead answers, and you see their contact once you're accepted. You can follow it on Activity."),
-      ("完成了", "你的申請已送出。隊長回覆時鈴鐺會亮起，被接受後就能看到他的聯絡方式。你可以在「動態」追蹤進度。"), q="n=sent"),
-    S("skipapply", r".*", ".nbell|#onboard", "done",
-      ("That's the whole flow", "When you're ready, open a project and press Apply for this seat. The bell lights up when the lead answers, and your Getting started list shows what's left."),
-      ("這就是完整流程", "準備好時，打開一個專案並按「申請這個職位」。隊長回覆時鈴鐺會亮起，「新手上路」清單會告訴你還剩什麼。"), via=True, alt=True),
+      ("No seat for you here", "This project has no open seat you can apply for. Go back to Discover and open another one."),
+      ("這裡沒有適合的職位", "這個專案沒有你可以申請的空位。回到探索頁打開另一個專案。"), need="body:not(:has(.applysum))", unless="n=sent", back="/", alt=True),
+    S("seat", r"^/projects/\d+$", ".applysum", "next",
+      ("Where to apply", "Each open seat has its own Apply button. Next, we'll show what happens when you press it."),
+      ("在哪裡申請", "每個開放的職位都有自己的申請按鈕。下一步示範按下去會發生什麼。"), need=".applysum", go="/",
+      demo=[dict(sel=".applysum", do="point", en="Apply for this seat", zh="申請這個職位")]),
+    S("note", r"^/projects/\d+$", ".applysum", "next",
+      ("The application form", "Pressing Apply opens a short form: a few lines on why you fit, plus a link to your work. This is an example copy, so nothing is sent."),
+      ("申請表單", "按下申請會打開一個簡短表單：寫幾句你為什麼適合，加上作品連結。這是示範用的範例，不會送出任何東西。"), need=".applysum", go="/", simulated=True,
+      demo=[dict(sel=".applysum", do="press", en="Apply for this seat", zh="申請這個職位"),
+            dict(sel=".applysum", do="mock"),
+            dict(sel=".t-mock-ta", do="type", en="Example note", zh="範例留言",
+                 value="Hi! I'm a 2nd-year EE student. I built a sensor dashboard last semester: github.com/example", value_zh="你好！我是電機系二年級學生，上學期做過感測器儀表板：github.com/example"),
+            dict(sel=".t-mock-btn", do="press", en="Send application", zh="送出申請"),
+            dict(sel=".t-mock-btn", do="preview", en="Preview — not sent", zh="預覽 — 未送出")]),
+    S("after", r"^/projects/\d+$", ".nbell", "next",
+      ("After you apply", "The lead gets a notification. When they accept or decline, this bell lights up for you. Your contacts are shared only after you're accepted."),
+      ("申請之後", "隊長會收到通知。對方接受或拒絕時，你的鈴鐺會亮起。被接受後才會分享聯絡方式。"), go="/", demo=[dict(sel=".nbell", do="point", en="Notifications", zh="通知")]),
+    S("totrack", r"^/projects/\d+$", ".nbell", "go",
+      ("Track your applications", "Every application you send, and its status, is on your Activity page."),
+      ("追蹤你的申請", "你送出的每一份申請和它的狀態都在「動態」頁。"), href="/activity#apps-sent", go="/"),
+    S("track", r"^/activity$", "#apps-sent", "next",
+      ("Your applications", "Each one shows Pending, Accepted or Not accepted. You can edit or withdraw a pending one."),
+      ("你的申請", "每一份都會顯示等待中、已接受或未接受。等待中的申請可以修改或撤回。"), go="/activity", demo=[dict(sel="#apps-sent", do="point", en="Applications you sent", zh="你送出的申請")]),
+    S("done", r"^/activity$", "#onboard|#apps-sent|h1", "done",
+      ("You're ready", "That's the whole flow. When you find a seat that fits, press Apply for this seat and send your note for real."),
+      ("準備好了", "這就是完整流程。找到適合的職位時，按「申請這個職位」並真正送出你的留言。"), go="/activity"),
 ]
 
 PROF = [
@@ -200,10 +250,16 @@ PROF = [
 TOURS = {"student": STUDENT, "prof": PROF}
 LABELS = {"en": dict(next="Next", back="Back", skip="Skip this step", end="End tour", done="Finish", go="Take me there", resume="Continue the tour", step="Step {0} of {1}",
                      fill="Fill this in to continue, or skip this step", tick="Choose this to continue, or skip this step", press="Press the highlighted button when you're ready",
-                     back2="Back to projects", warn="Heads up"),
+                     back2="Back to projects", warn="Heads up", sim="Demonstration — nothing is sent", again="Show again", doit="Open it for me",
+                     pv_t="What would happen", pv_b="The lead gets your note and profile. You get a notification when they decide.", pv_tag="Preview — not sent",
+                     pause="Pause", resume_demo="Resume", missing="This part isn't on the page right now. You can go on with Next.", knowpage="I know this page — skip ahead",
+                     mock="Example form · demonstration", mock_l="Why you?", mock_b="Send application"),
           "zh": dict(next="下一步", back="上一步", skip="略過這一步", end="結束導覽", done="完成", go="帶我過去", resume="繼續導覽", step="第 {0} 步，共 {1} 步",
                      fill="填好後才能繼續，也可以略過這一步", tick="選好後才能繼續，也可以略過這一步", press="準備好時按下標示的按鈕",
-                     back2="回到專案列表", warn="請注意")}
+                     back2="回到專案列表", warn="請注意", sim="示範 — 不會送出任何東西", again="再看一次", doit="幫我打開",
+                     pv_t="接下來會發生什麼", pv_b="隊長會收到你的留言和個人檔案。對方決定後你會收到通知。", pv_tag="預覽 — 未送出",
+                     pause="暫停", resume_demo="繼續", missing="這個部分目前不在頁面上，可以按「下一步」繼續。", knowpage="這頁我已經會了，跳過",
+                     mock="範例表單 · 示範", mock_l="為什麼是你？", mock_b="送出申請")}
 
 def tour_data(lang, user=None):
     zh = lang == "zh"
@@ -211,7 +267,13 @@ def tour_data(lang, user=None):
         d = {k: v for k, v in st.items() if k not in ("en", "zh", "warn")}
         d["title"], d["text"] = st["zh" if zh else "en"]
         if st.get("warn"): d["warn"] = st["warn"][1 if zh else 0]
+        if st.get("demo"):   # demonstration actions: captions and sample text in the page's language
+            d["demo"] = [{k: v for k, v in dict(a, text=a.get("zh" if zh else "en", ""), value=(a.get("value_zh") if zh and a.get("value_zh") else a.get("value", ""))).items()
+                          if k not in ("en", "zh", "value_zh")} for a in st["demo"]]
         return d
-    return dict(tours={k: [one(s) for s in v] for k, v in TOURS.items()}, labels=LABELS["zh" if zh else "en"],
+    from .whatsnew import tour_steps
+    tours = {k: [one(s) for s in v] for k, v in TOURS.items()}
+    tours["new"] = tour_steps("prof" if user and user.role == "faculty" else "student", lang)   # every announced feature with a step, automatically
+    return dict(tours=tours, labels=LABELS["zh" if zh else "en"],
                 verified=bool(user and user.is_faculty), uid=user.id if user else 0)
 templates.env.globals["tour_data"] = tour_data

@@ -45,4 +45,7 @@
 <li><b>Discuss</b> is the forum: ask questions or look for people before you post a project.</li>
 <li><b>Professors</b> sign up as Professor or advisor and verify their account. After that they can supervise projects, review documents and post research positions.</li>
 <li><b>Language:</b> switch between English and 繁體中文 in the menu under your name.</li></ul></section>
-{% endif %}</div>{% endblock %}
+{% endif %}{% set rel = latest_release() %}{% if rel %}<section class="card wnlist" id="whatsnew"><div class="wnl-h"><h2>{{ keep("最新功能") if lang == "zh" else "What's new" }}</h2><small class="muted">{{ rel.date.strftime("%Y-%m-%d") }}</small></div>
+<ul>{% for it in rel["items"] %}<li><span class="pill wn-kind {{ 'feat' if it.kind == 'Feature' }}">{{ keep(it.kind if lang != "zh" else {"Feature": "新功能", "Improvement": "改進"}[it.kind]) }}</span><div><b>{{ keep(it.zh[0] if lang == "zh" else it.en[0]) }}</b><span class="muted">{{ keep(it.zh[1] if lang == "zh" else it.en[1]) }}</span></div></li>{% endfor %}</ul>
+{% if user %}<p class="helptour"><button type="button" class="btn sm" data-wn="open">{{ keep("看看新功能") if lang == "zh" else "Show the slides" }}</button>{% if rel["items"]|selectattr("step")|list %}<button type="button" class="ghost sm" data-tour="new:wn_{{ (rel['items']|selectattr('step')|first).key }}">{{ keep("新功能導覽") if lang == "zh" else "Tour the new features" }}</button>{% endif %}</p>{% endif %}</section>{% endif %}
+</div>{% endblock %}
