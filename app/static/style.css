@@ -983,3 +983,14 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .seathint{margin:-.3rem 0 .8rem}
 .helpwrap{max-width:760px;margin:0 auto}.hsteps{padding-left:1.3rem;margin:.4rem 0}.hsteps li{margin:.55rem 0;line-height:1.55}
 @media (max-width:600px){.start-l li>div{flex:1 1 calc(100% - 2.6rem)}.start-l li{align-items:flex-start}}
+/* footer: two link cards */
+.foot{flex-direction:column;gap:.9rem;padding:2.2rem 1rem 2.4rem}
+.flinks{display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;width:100%;max-width:720px}
+.foot a.flink{flex:1 1 260px;display:flex;align-items:center;gap:.8rem;padding:.8rem 1rem;border:1px solid var(--line);border-radius:14px;background:var(--card);
+  color:var(--ink);text-decoration:none;text-align:left;white-space:normal;transition:border-color .2s,transform .15s,box-shadow .2s}
+.foot a.flink:hover{border-color:var(--pri);transform:translateY(-1px);box-shadow:0 8px 22px rgba(70,35,120,.10)}
+.foot a.flink:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.fl-ic{flex:none;width:2.4rem;height:2.4rem;border-radius:12px;display:grid;place-items:center;background:var(--pri-soft);color:var(--pri-ink)}
+.fl-ic svg{width:1.3rem;height:1.3rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.fl-t{display:flex;flex-direction:column;min-width:0}.fl-t b{font-size:.98rem}.fl-t small{color:var(--mut);font-size:.84rem}
+.foot a.flink::after{content:"→";margin-left:auto;color:var(--mut);transition:transform .15s}.foot a.flink:hover::after{transform:translateX(3px);color:var(--pri)}
