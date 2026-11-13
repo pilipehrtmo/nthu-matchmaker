@@ -129,6 +129,7 @@ class ZhLoader(FileSystemLoader):
 # ---------- run time: messages made in Python ----------
 PATTERNS = [   # messages with a number, a name or a wait time inside; groups are translated too
     (r"^(\d+)d ago$", "{0} 天前"), (r"^(\d+)h ago$", "{0} 小時前"), (r"^(\d+)m ago$", "{0} 分鐘前"),
+    (r"^(\d+) days left to join$", "{0} 天後截止組隊"), (r"^(\d+) days left$", "{0} 天後截止"),
     (r"^about a minute$", "大約一分鐘"), (r"^about (\d+) minutes$", "大約 {0} 分鐘"),
     (r"^You did that a lot in a short time\. Please wait (.+) and try again\.$", "你在短時間內操作太多次了。請等{0}後再試。"),
     (r"^Too many wrong passwords\. Please wait (.+), or use Forgot password\.$", "密碼錯誤太多次。請等{0}，或使用「忘記密碼」。"),

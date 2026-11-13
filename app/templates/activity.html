@@ -12,7 +12,7 @@
 <div class="alist">{% for p in mine %}{% set d = days_left(p.deadline) %}<a class="card arow" href="/projects/{{ p.id }}">
 <span class="amain"><b>{{ p.title }}</b><small class="muted">{{ kind_of(p) }} · {{ seats[p.id][1] }} of {{ seats[p.id][0] }} seat{{ "s" if seats[p.id][0] != 1 }} filled{% if p.status == "closed" %} · not recruiting{% elif d is not none and d < 0 %} · join-by date passed{% endif %}</small></span>
 {% if pend[p.id] %}<span class="badge b-open">{{ pend[p.id] }} waiting</span>{% else %}<span class="badge b-pending">No new</span>{% endif %}</a>{% endfor %}</div>
-<h2>Applications you sent {% if sent %}<span class="count">{{ sent|length }}</span>{% endif %}</h2>
+<h2 id="apps-sent">Applications you sent {% if sent %}<span class="count">{{ sent|length }}</span>{% endif %}</h2>
 {% if not sent %}<p class="card muted">No applications yet. Find a seat on the <a href="/">home page</a>.</p>{% endif %}
 <div class="alist">{% for a, r, p in sent %}<article class="card sentapp" id="app-{{ a.id }}">
 <div class="sa-top"><div class="amain"><a class="sa-seat" href="/projects/{{ p.id }}"><b>{{ r.name }}</b></a><small class="muted"><a href="/projects/{{ p.id }}">{{ p.title }}</a> · sent {{ a.at|ago }}</small></div>
