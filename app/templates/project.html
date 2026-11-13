@@ -24,7 +24,10 @@
 <form method="post" action="/projects/{{ pr.id }}/delete" hx-confirm="Delete this project and its applications?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="no sm">Delete project</button></form></div>
 {% if is_owner and days is not none and days < 0 and pr.status == "open" %}<p class="muted" style="margin:.6rem 0 0">The join-by date has passed, so this project is hidden from the home page. Edit it to set a new date.</p>{% endif %}{% endif %}</section>
 {% if reveal %}<div class="reveal">You're in the team. Contact the lead: {{ contact_list(owner) }}</div>{% endif %}
-<section class="seatsec" id="seats"><h2>Seats</h2><div class="seatlist">
+<section class="seatsec" id="seats"><h2>Seats</h2>
+{% if is_owner %}<p class="muted fine seathint">When someone applies, they appear under the seat with their note. Accept to add them to the team; you then see each other's contacts.</p>
+{% elif user %}<p class="muted fine seathint">Pick a seat that fits you, press <b>Apply for this seat</b> and say why you fit. The lead gets a notification, and you see their contact once you're accepted.</p>
+{% else %}<p class="muted fine seathint"><a href="/login">Log in</a> or <a href="/signup">create an account</a> to apply for a seat.</p>{% endif %}<div class="seatlist">
 {% for x in roles %}<article class="seatcard {{ 'is-filled' if x.r.filled }}">
 <header><h3>{{ x.r.name }}{% if x.r.advisor %} <span class="pill advpill">Advisor seat</span>{% endif %}</h3><span class="seattags">{% if x.pct is not none %}<span class="pill match">{{ x.pct }}% match</span>{% endif %}<span class="badge {{ 'b-filled' if x.r.filled else 'b-open' }}">{{ "Filled" if x.r.filled else "Open" }}</span></span></header>
 {% if x.r.about %}<p class="s-about-v">{{ x.r.about }}</p>{% endif %}
@@ -40,7 +43,7 @@
 {% elif user and not is_owner and not x.r.filled and accepting and (not myapp or myapp[0].status == "withdrawn") %}<details><summary>{{ "Apply again" if myapp else "Apply for this seat" }}</summary>
 <form method="post" action="/roles/{{ x.r.id }}/apply"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="m{{ x.r.id }}">Why you?</label>
 <textarea id="m{{ x.r.id }}" name="message" rows="3" maxlength="500" placeholder="Short intro and a portfolio link"></textarea><p><button>Send application</button></p></form></details>
-{% elif not user and not x.r.filled and accepting %}<p class="muted"><a href="/login">Log in</a> to apply.</p>
+{% elif not user and not x.r.filled and accepting %}<p class="muted"><a href="/login">Log in</a> or <a href="/signup">sign up</a> to apply.</p>
 {% elif not x.r.filled and not accepting and not is_owner %}<p class="muted">Not taking applications right now.</p>{% endif %}
 {% if x.apps %}<div class="apps">{% if is_owner or user.is_admin %}<p class="apps-h">Applicants <span class="count">{{ x.apps|length }}</span>{% if user.is_admin and not is_owner %}<span class="apps-note">admin view</span>{% endif %}</p>
 {% else %}<p class="apps-h">Your application</p><p class="apps-note">Only you, the project lead and admins can see this.</p>{% endif %}

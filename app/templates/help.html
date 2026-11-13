@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% block body %}<div class="helpwrap">{% if lang == "zh" %}
+<h1>使用說明</h1>
+<p class="muted">NTHU Matchmaker 幫你為比賽、新創、研究和課堂專案找隊友。每個專案都列出需要的職位，你直接申請適合的職位。</p>
+<section class="card"><h2>加入團隊</h2><ol class="hsteps">
+<li><b>建立帳號。</b>按<a href="/signup">註冊</a>，選「學生」，填入清大信箱、全名和學號。</li>
+<li><b>加上你的技能。</b>打開<a href="/profile#s">個人檔案</a>，用逗號分隔輸入幾個技能，例如 figma, python, 簡報。按「儲存個人檔案」。也可以上傳履歷，系統會幫你填好。</li>
+<li><b>找專案。</b><a href="/">首頁</a>列出所有還有空位的專案。可以搜尋或篩選，每張卡片都會顯示你和最適合職位的配對度。</li>
+<li><b>申請職位。</b>打開專案，選一個職位，按「申請這個職位」，寫一兩句你為什麼適合，然後按「送出申請」。</li>
+<li><b>等待回覆。</b>隊長接受或拒絕時，上方的鈴鐺會亮起。你的申請都在<a href="/activity">動態</a>裡。被接受後就能看到隊長的聯絡方式（LINE、Instagram 等）。</li></ol></section>
+<section class="card"><h2>為自己的專案找隊友</h2><ol class="hsteps">
+<li><b>刊登專案。</b>按<a href="/projects/new">+ 刊登專案</a>，選類型（比賽、新創、研究、課堂等），填標題和簡短說明。</li>
+<li><b>列出職位。</b>每需要一個人就加一個職位：名稱（例如 UI 設計師）、技能和要求。</li>
+<li><b>發布。</b>專案會出現在首頁，技能相符的同學也會在推薦中看到。</li>
+<li><b>接受申請。</b>有人申請時鈴鐺會亮起。打開你的專案，每位申請者會列在職位下方並附上留言。按「接受」或「拒絕」。被接受的成員可以看到彼此的聯絡方式。</li></ol></section>
+<section class="card"><h2>小提醒</h2><ul class="hsteps">
+<li><b>配對度</b>是比較你個人檔案上的技能和職位需要的技能。個人檔案沒有技能就不會顯示配對度。</li>
+<li><b>聯絡方式</b>在你被接受加入團隊前都不會公開。</li>
+<li><b>比賽和資金</b>在<a href="/#comps">首頁</a>和<a href="/funding">資金</a>頁。收藏後，截止前會提醒你。</li>
+<li><b>討論區</b>可以發問，或在發布專案前先找人。</li>
+<li><b>教授</b>註冊時選「教授或指導教授」並完成驗證，之後就能指導專案、審閱文件和發布研究職缺。</li>
+<li><b>語言：</b>在你名字下方的選單切換 English 和繁體中文。</li></ul></section>
+{% else %}
+<h1>How it works</h1>
+<p class="muted">NTHU Matchmaker helps you find teammates for competitions, startups, research and class projects. Each project lists the exact seats it needs, and you apply for a seat.</p>
+
+<section class="card"><h2>Join a team</h2><ol class="hsteps">
+<li><b>Create an account.</b> Press <a href="/signup">Sign up</a>, choose Student, and enter your NTHU email, full name and student ID.</li>
+<li><b>Add your skills.</b> Open <a href="/profile#s">Your profile</a> and type a few skills separated by commas, such as <i>figma, python, pitching</i>. Press Save profile. You can also upload your CV and we fill them in.</li>
+<li><b>Find a project.</b> The <a href="/">home page</a> lists every project with open seats. Search, or use the filters. Each card shows your match % for its best seat.</li>
+<li><b>Apply for a seat.</b> Open the project, pick a seat, press <b>Apply for this seat</b>, write one or two sentences about why you fit, and press Send application.</li>
+<li><b>Wait for the answer.</b> The bell at the top lights up when the lead accepts or declines. Your applications are listed in <a href="/activity">Activity</a>. Once you're accepted, you see the lead's contacts (LINE, Instagram...).</li></ol></section>
+
+<section class="card"><h2>Find teammates for your own project</h2><ol class="hsteps">
+<li><b>Post a project.</b> Press <a href="/projects/new">+ Post a project</a>. Choose the type (competition, startup, research, class...), give it a title and a short description.</li>
+<li><b>List the seats.</b> For each person you need, add a seat: its name (for example UI designer), the skills, and what is required.</li>
+<li><b>Publish.</b> Your project appears on the home page, and students with matching skills see it in their recommendations.</li>
+<li><b>Accept applicants.</b> When someone applies, the bell lights up. Open your project: each applicant is listed under the seat with their note. Press Accept or Reject. Accepted members see each other's contacts.</li></ol></section>
+
+<section class="card"><h2>Good to know</h2><ul class="hsteps">
+<li><b>Match %</b> compares the skills on your profile with the skills a seat asks for. No skills on your profile means no match %.</li>
+<li><b>Contacts stay private</b> until you are accepted into a team.</li>
+<li><b>Competitions and funding</b> are on the <a href="/#comps">home page</a> and on <a href="/funding">Funding</a>. Save one to get a reminder before it closes.</li>
+<li><b>Discuss</b> is the forum: ask questions or look for people before you post a project.</li>
+<li><b>Professors</b> sign up as Professor or advisor and verify their account. After that they can supervise projects, review documents and post research positions.</li>
+<li><b>Language:</b> switch between English and 繁體中文 in the menu under your name.</li></ul></section>
+{% endif %}</div>{% endblock %}

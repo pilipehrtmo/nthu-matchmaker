@@ -445,6 +445,9 @@ def set_lang(req: Request, code: str, next: str = "/", s: Session = Depends(get_
     back = next if next.startswith("/") and not next.startswith("//") and "\\" not in next else "/"
     r = go(back); r.set_cookie("lang", code, max_age=31536000, samesite="lax", secure=PUBLIC); return r
 
+@app.get("/help")
+def help_page(req: Request, user=Depends(me)): return render(req, "help.html", user)
+
 @app.get("/privacy")
 def privacy(req: Request, user=Depends(me)): return render(req, "privacy.html", user)
 
@@ -601,7 +604,7 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         owner = owners.get(pr.owner_id)
         # no match score on your own project
         best, reason = None, ""
-        if user and user.id != pr.owner_id:
+        if user and user.id != pr.owner_id and user.skills.strip():   # no skills yet: no score (a row of 0% helps nobody)
             scored = [(match_pct(user, r, pr, owner), r) for r in roles if not r.advisor or user.is_faculty]
             if scored:
                 best, br = max(scored, key=lambda x: x[0]); reason = f"{br.name}: {why(user, br, best)}"
@@ -618,7 +621,15 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
     from .opps import comp_status, saved_ids
     rank = {"closing": 0, "open": 1, "unknown": 2, "past": 3}
     comps = sorted(allc[:300], key=lambda c: (rank[comp_status(c)[0]], comp_status(c)[2] if comp_status(c)[2] is not None else 9999, -c.id))
-    return render(req, "board.html", user, recs=recs, depts=sorted({(r["owner"].faculty or "").strip() for r in rows if r["owner"] and (r["owner"].faculty or "").strip()}), rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
+    start = None   # "Getting started" steps for a new student, worked out from what they have really done
+    if user and not user.is_faculty:
+        applied = s.exec(select(Application.id).where(Application.user_id == user.id, Application.status != "withdrawn")).first() is not None
+        posted = s.exec(select(Project.id).where(Project.owner_id == user.id)).first() is not None
+        joined = s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
+                        .where(Application.status == "accepted", (Application.user_id == user.id) | (Project.owner_id == user.id))).first() is not None
+        start = dict(skills=bool(user.skills.strip()), act=applied or posted, joined=joined)
+        if all(start.values()): start = None
+    return render(req, "board.html", user, start=start, recs=recs, depts=sorted({(r["owner"].faculty or "").strip() for r in rows if r["owner"] and (r["owner"].faculty or "").strip()}), rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
 
 RESEARCH_PLAN = [("objectives", 800), ("methodology", 800), ("outcomes", 600)]
 PITCH_FIELDS = [("tagline", 140), ("problem", 600), ("audience", 400), ("solution", 600), ("progress", 600), ("needs", 300), ("metrics", 200)]
@@ -831,7 +842,7 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
         for a in s.exec(select(Application).where(Application.role_id == r.id)):
             # application notes are private: only the project lead, the applicant and admins see them
             if is_owner or (user and (a.user_id == user.id or user.is_admin)): apps.append((a, s.get(User, a.user_id)))
-        pct = match_pct(user, r, pr, owner) if user and not r.filled and not is_owner and not r.advisor else None
+        pct = match_pct(user, r, pr, owner) if user and user.skills.strip() and not r.filled and not is_owner and not r.advisor else None
         out.append(dict(r=r, apps=apps, mine=any(u.id == (user.id if user else 0) for _, u in apps),
                         pct=pct, why=why(user, r, pct) if pct is not None else ""))
     reveal = bool(user and any(a.status == "accepted" and u.id == user.id for r in out for a, u in r["apps"]))
