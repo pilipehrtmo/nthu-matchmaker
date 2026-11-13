@@ -212,6 +212,9 @@ def tour_data(lang, user=None):
         d["title"], d["text"] = st["zh" if zh else "en"]
         if st.get("warn"): d["warn"] = st["warn"][1 if zh else 0]
         return d
-    return dict(tours={k: [one(s) for s in v] for k, v in TOURS.items()}, labels=LABELS["zh" if zh else "en"],
+    from .whatsnew import tour_steps
+    tours = {k: [one(s) for s in v] for k, v in TOURS.items()}
+    tours["new"] = tour_steps("prof" if user and user.role == "faculty" else "student", lang)   # every announced feature with a step, automatically
+    return dict(tours=tours, labels=LABELS["zh" if zh else "en"],
                 verified=bool(user and user.is_faculty), uid=user.id if user else 0)
 templates.env.globals["tour_data"] = tour_data

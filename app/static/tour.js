@@ -83,7 +83,12 @@
     if (s.warn) { const w = $(".t-warn"); w.hidden = false; w.querySelector("b").textContent = L.warn; w.querySelector("span").textContent = s.warn; }
     const x = $(".t-x"); x.textContent = L.end; x.onclick = end;
 
-    const jump = (j, via) => { write({ ...read(), i: j, floor: j, via: via || null }); show(); };
+    const jump = (j, via) => {   // the next step is on another page: go there, instead of leaving a Continue button behind
+      const st2 = { ...read(), i: j, floor: j, via: via || null }; write(st2);
+      const T = S[j]; let elsewhere = false;
+      try { elsewhere = T && !fits(T, st2) && T.go && new URL(T.go, location.href).pathname !== location.pathname; } catch (_) {}
+      if (elsewhere) location.href = T.go; else show();
+    };
     const nextIdx = i + 1;
     const skip = $(".t-skip");
     if (last) skip.remove();
