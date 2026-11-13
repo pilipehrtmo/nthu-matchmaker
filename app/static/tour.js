@@ -17,11 +17,13 @@
   const phone = () => innerWidth < 640;
   const touch = () => phone() || matchMedia("(pointer: coarse)").matches;
   const T = { move: [420, 880], settle: 1200, fade: 220, press: 170, pause: 650, type: 26 };   // one set of timings for everything
-  let D = null, layer = null, raf = 0, cleanup = [], gen = 0, spot = null, cur = null, focusEl = null, mainEl = null, moving = false;
+  let D = null, layer = null, raf = 0, cleanup = [], gen = 0, spot = null, cur = null, focusEl = null, mainEl = null, moving = false, paused = false, track = null;
 
   const data = () => { const el = document.getElementById("tourdata"); try { return el ? JSON.parse(el.textContent) : null; } catch (_) { return null; } };
   const steps = st => (D && D.tours[st.t]) || [];
   const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function hold(g) { while (paused && g === gen) await sleep(120); }        // a paused demonstration waits here
+  const wait = async (ms, g) => { await sleep(ms); await hold(g); };
   function fits(s, st) {
     if (!new RegExp(s.path).test(location.pathname)) return false;
     const skipped = st.via === s.key;   // reached by "Skip this step": the result of the skipped action isn't required
@@ -44,9 +46,15 @@
     for (const one of sel.split("|")) { try { const t = [...document.querySelectorAll(one)].find(visible); if (t) return t; } catch (_) {} }
     return null;
   }
-  async function waitFor(fn, ms, g) {   // for elements that appear after navigation, a click or a slow load
-    const t0 = performance.now();
-    for (;;) { const v = fn(); if (v || performance.now() - t0 > ms || g !== gen) return v; await sleep(80); }
+  function waitFor(fn, ms, g) {   // for elements that appear after navigation, a click or a slow load: re-checked only when the page changes
+    const v = fn(); if (v || g !== gen) return Promise.resolve(v);
+    return new Promise(res => {
+      let done = false, queued = false;
+      const fin = x => { if (done) return; done = true; mo.disconnect(); clearTimeout(to); res(x); };
+      const mo = new MutationObserver(() => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; if (g !== gen) return fin(null); const x = fn(); if (x) fin(x); }); });
+      mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "open", "hidden", "style"] });
+      const to = setTimeout(() => fin(g === gen ? fn() : null), ms);
+    });
   }
   function goPage(S, i) { for (let j = i; j >= 0; j--) if (S[j] && S[j].go) return S[j].go; return "/"; }
 
@@ -79,37 +87,56 @@
     return cur;
   }
   function place(c) { c.style.transform = `translate3d(${c._x}px, ${c._y}px, 0)`; try { sessionStorage.setItem(POS, JSON.stringify({ x: c._x, y: c._y })); } catch (_) {} }
-  function aim(el) {   // where on an element the pointer rests: near the start of text fields, the middle of small things
-    const r = el.getBoundingClientRect(), field = /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
-    const x = field ? r.left + Math.min(28, r.width / 3) : r.left + Math.min(r.width / 2, 90);
-    return { x: Math.min(innerWidth - 24, Math.max(8, x)), y: Math.min(innerHeight - 24, Math.max(8, r.top + Math.min(r.height / 2, field ? r.height / 2 : 26))) };
+  function aim(el) {   // the pointer's tip rests on the element's lower edge, so the arrow (or fingertip) sits below it and never hides its text
+    const r = el.getBoundingClientRect(), a = area(sheetH()), small = r.width < 220;
+    const x = small ? r.left + r.width * 0.72 : r.left + Math.min(46, r.width * 0.18);
+    let y = r.bottom - 2;
+    if (y > a.bottom - 8) y = Math.max(r.top + 10, Math.min(a.bottom - 8, r.top + 40));   // tall blocks: rest near the top instead
+    return { x: Math.min(innerWidth - 30, Math.max(8, x)), y: Math.min(innerHeight - 30, Math.max(8, y)) };
   }
   async function moveTo(el, g) {
     const c = cursor(); c.classList.toggle("touch", touch()); c.classList.add("on"); focusEl = el;
     if (reduced()) { const p = aim(el); c._x = p.x; c._y = p.y; place(c); return; }
-    const sx = c._x, sy = c._y, p0 = aim(el), dist = Math.hypot(p0.x - sx, p0.y - sy);
-    const dur = Math.min(T.move[1], Math.max(T.move[0], dist * 0.9)), t0 = performance.now(); moving = true;
-    while (g === gen) {   // eased, and re-aimed every frame so it lands on the element even if the page moves
-      const k = Math.min(1, (performance.now() - t0) / dur), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2, p = aim(el);
-      c._x = sx + (p.x - sx) * e; c._y = sy + (p.y - sy) * e; place(c);
+    const sx = c._x, sy = c._y, p0 = aim(el), dx = p0.x - sx, dy = p0.y - sy, dist = Math.hypot(dx, dy);
+    if (dist < 2) { flipCap(c); return; }
+    // like a hand: a slight arc (not a ruler-straight line), fast start and a gentle landing (minimum-jerk profile),
+    // and a duration that grows with distance the way real pointing does (Fitts), within T.move
+    const dur = Math.min(T.move[1], Math.max(T.move[0], 260 + 150 * Math.log2(1 + dist / 36)));
+    const bow = Math.min(60, dist * 0.12) * (dx >= 0 ? 1 : -1), nx = -dy / dist, ny = dx / dist;
+    let t0 = performance.now(); moving = true;
+    while (g === gen) {   // re-aimed every frame so it lands on the element even if the page moves
+      if (paused) { const w0 = performance.now(); await hold(g); t0 += performance.now() - w0; continue; }
+      const k = Math.min(1, (performance.now() - t0) / dur), e = k * k * k * (10 - 15 * k + 6 * k * k), p = aim(el), arc = 4 * e * (1 - e) * bow;
+      c._x = sx + (p.x - sx) * e + nx * arc; c._y = sy + (p.y - sy) * e + ny * arc; place(c);
       if (k >= 1) break; await new Promise(r => requestAnimationFrame(r));
     }
-    moving = false;
+    moving = false; flipCap(c);
   }
+  function flipCap(c) { c.classList.toggle("flip", c._x > innerWidth - 220); }   // keep the caption on screen
   const hideCursor = () => { if (cur) { cur.classList.remove("on"); caption(""); } };
-  function caption(text) { if (!cur) return; const cap = cur.querySelector(".t-cap"); cap.textContent = text || ""; cap.classList.toggle("on", !!text); }
+  function caption(text) { if (!cur) return; const cap = cur.querySelector(".t-cap"); cap.textContent = text || ""; cap.classList.toggle("on", !!text); placeCap(); }
+  function placeCap() {   // the label sits beside what's being shown (in the free space to its right), not on top of the next line of text
+    const cap = cur && cur.querySelector(".t-cap"); if (!cap) return;
+    if (!focusEl || !cap.textContent || moving) { cap.style.left = cap.style.top = ""; return; }
+    const r = focusEl.getBoundingClientRect(), w = cap.offsetWidth, h = cap.offsetHeight;
+    if (r.width < 260 && r.right + 12 + w < innerWidth - 8) { cap.style.left = (r.right + 12 - cur._x) + "px"; cap.style.top = (r.top + r.height / 2 - h / 2 - cur._y) + "px"; }
+    else { cap.style.left = cap.style.top = ""; }
+  }
   async function press(g) {
     const c = cursor(); c.classList.add("press");
     const rip = document.createElement("span"); rip.className = "t-ripple"; rip.style.transform = `translate3d(${c._x}px, ${c._y}px, 0)`; document.body.appendChild(rip);
     await sleep(T.press); c.classList.remove("press"); setTimeout(() => rip.remove(), 600);
   }
-  const SAFE = "summary, #kinds .chip, [data-tour-safe]";   // the only things a demonstration may click
+  const SAFE = "details:not(:has(form)) > summary, #kinds .chip, [data-tour-safe]";   // the only things a demonstration may click (never a disclosure that holds a form)
 
   // ---------- sample text and previews (never sent) ----------
   async function typeInto(el, text, g) {
+    if (!/^(INPUT|TEXTAREA)$/.test(el.tagName)) {   // the example form's note box: just text on screen
+      el.textContent = ""; for (const ch of text) { if (g !== gen) return; el.textContent += ch; await wait(reduced() ? 0 : T.type, g); } return;
+    }
     if (!("tourOrig" in el.dataset)) el.dataset.tourOrig = el.value;
     el.value = "";
-    for (const ch of text) { if (g !== gen) return; el.value += ch; el.dispatchEvent(new Event("input", { bubbles: true })); await sleep(T.type); }
+    for (const ch of text) { if (g !== gen) return; el.value += ch; el.dispatchEvent(new Event("input", { bubbles: true })); await wait(reduced() ? 0 : T.type, g); }
   }
   function restore(el) {
     const list = el ? [el] : [...document.querySelectorAll("[data-tour-orig]")];
@@ -118,6 +145,23 @@
   document.addEventListener("submit", e => {   // sample text in a form: never let it be sent
     if (e.target.querySelector && e.target.querySelector("[data-tour-orig]")) { e.preventDefault(); e.stopImmediatePropagation(); restore(); }
   }, true);
+  document.addEventListener("keydown", e => {     // a key in a field holding sample text: the sample goes away first, so Enter can't send it
+    const t = e.target; if (t && t.dataset && "tourOrig" in t.dataset) { restore(t); if (e.key === "Enter") e.preventDefault(); }
+  }, true);
+
+  // ---------- the example application form: a picture of the form, not a form ----------
+  // No <form>, no inputs, no buttons: it can't be submitted by a click, Enter or any script that looks for forms.
+  function mock(el, L) {
+    document.querySelectorAll(".t-mock").forEach(m => m.remove());
+    const real = el.closest("details") || el, form = real.querySelector("form");
+    const m = document.createElement("div"); m.className = "t-mock"; m.setAttribute("role", "img"); m.setAttribute("aria-label", L.mock);
+    m.innerHTML = `<span class="t-mock-tag"></span><span class="t-mock-l"></span><div class="t-mock-ta"></div><span class="t-mock-btn"></span>`;
+    m.querySelector(".t-mock-tag").textContent = L.mock;
+    m.querySelector(".t-mock-l").textContent = (form && form.querySelector("label")?.firstChild?.textContent || L.mock_l).trim();
+    m.querySelector(".t-mock-btn").textContent = (form && form.querySelector("button")?.textContent || L.mock_b).trim();
+    real.insertAdjacentElement("afterend", m); cleanup.push(() => m.remove());
+    return m;
+  }
   function preview(el, L) {
     const r = el.getBoundingClientRect(), pv = document.createElement("div"); pv.className = "t-preview";
     pv.innerHTML = `<span class="t-pv-tag"></span><b></b><p></p>`;
@@ -127,7 +171,9 @@
     const h = pv.offsetHeight, a = area(sheetH()), tip = layer && layer.querySelector(".t-tip"), tr = tip ? tip.getBoundingClientRect() : null;
     const hit = (x, y, b) => b ? Math.max(0, Math.min(x + w, b.right + 8) - Math.max(x, b.left - 8)) * Math.max(0, Math.min(y + h, b.bottom + 8) - Math.max(y, b.top - 8)) : 0;
     let best = null;   // next to the button, never on top of the tutorial panel or the button itself
-    for (const [x0, y0] of [[r.right + 14, r.top + r.height / 2 - h / 2], ...(tr ? [[Math.max(r.right, tr.right) + 16, Math.min(r.bottom, tr.bottom) - h]] : []), [r.left, r.top - h - 14], [r.left, r.bottom + 14], [r.left - w - 14, r.top + r.height / 2 - h / 2]]) {
+    const spots = [[r.right + 14, r.top + r.height / 2 - h / 2], ...(tr ? [[Math.max(r.right, tr.right) + 16, Math.min(r.bottom, tr.bottom) - h]] : []), [r.left, r.top - h - 14], [r.left, r.bottom + 14], [r.left - w - 14, r.top + r.height / 2 - h / 2]];
+    if (phone()) spots.unshift([r.left, r.bottom + 30]);   // phones: below the button, where the page is free
+    for (const [x0, y0] of spots) {
       const x = Math.min(innerWidth - w - 12, Math.max(12, x0)), y = Math.min(a.bottom - h - 8, Math.max(a.top + 8, y0));
       const v = hit(x, y, tr) * 2 + hit(x, y, r); if (!best || v < best[0]) best = [v, x, y]; if (v === 0) break;
     }
@@ -139,27 +185,36 @@
     for (const a of s.demo || []) {
       if (g !== gen) return;
       if (a.when && !document.querySelector(a.when)) continue;
+      await hold(g); if (g !== gen) return;
       if (a.do === "clear") { const el = find(a.sel); if (el) restore(el); continue; }
+      if (a.do === "mock") { const base = find(a.sel); if (!base) continue; mock(base, L); await wait(120, g); continue; }
       const el = await waitFor(() => find(a.sel), 1500, g); if (!el || g !== gen) continue;   // a part this project doesn't have: skip it
       await reveal(el, g, sheetH()); if (g !== gen) return;
       await moveTo(el, g); if (g !== gen) return;
-      caption(a.text);
-      if (a.do === "click" && el.matches(SAFE)) { await press(g); if (g !== gen) return; el.click(); await sleep(260); }
-      else if (a.do === "type" && /^(INPUT|TEXTAREA)$/.test(el.tagName)) { await press(g); await typeInto(el, a.value || "", g); }
-      else if (a.do === "preview") { const pv = preview(el, L); await sleep(T.pause * 3.2); if (g !== gen) return; pv.classList.add("out"); setTimeout(() => pv.remove(), 300); }
-      await sleep(T.pause);
+      caption(a.do === "preview" ? "" : a.text);   // the preview card carries its own "Preview — not sent" label
+      if (a.do === "click" && el.matches(SAFE)) { await press(g); if (g !== gen) return; el.click(); await wait(260, g); }
+      else if (a.do === "press") await press(g);   // shows the click, doesn't click
+      else if (a.do === "type" && (/^(INPUT|TEXTAREA)$/.test(el.tagName) || el.matches(".t-mock-ta"))) { await press(g); await typeInto(el, a.value || "", g); }
+      else if (a.do === "preview") { const pv = preview(el, L); await wait(T.pause * 3.4, g); if (g !== gen) return; pv.classList.add("out"); setTimeout(() => pv.remove(), 300); }
+      await wait(T.pause, g); kick();
     }
     caption("");
-    if (g === gen && mainEl) { focusEl = mainEl; await reveal(mainEl, g, sheetH()); if (g !== gen) return; await moveTo(mainEl, g); }   // back to the step's own element
+    if (g === gen && mainEl) { focusEl = mainEl; await reveal(mainEl, g, sheetH()); if (g !== gen) return; await moveTo(mainEl, g); kick(); }   // back to the step's own element
   }
 
   // ---------- panel placement ----------
   const sheetH = () => { const t = layer && layer.querySelector(".t-tip"); return phone() && t ? t.offsetHeight : 0; };
-  function placeTip(t, tip) {
+  function placeTip(t, tip, main) {
     if (phone()) { tip.classList.add("t-sheet"); tip.classList.remove("t-center"); return; }   // phone: always a bottom sheet; the page scrolls above it
     if (!t) { tip.classList.add("t-center"); return; }
     tip.classList.remove("t-center");
-    const r = t.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight, m = 12, W = innerWidth, H = innerHeight, top0 = area(0).top - 6;
+    let r = t.getBoundingClientRect(); const mk = document.querySelector(".t-mock");
+    const grow = m => { r = { left: Math.min(r.left, m.left), top: Math.min(r.top, m.top), right: Math.max(r.right, m.right), bottom: Math.max(r.bottom, m.bottom) }; r.width = r.right - r.left; r.height = r.bottom - r.top; };
+    if (main && main !== t && document.body.contains(main)) {   // keep the whole thing being explained in view, not only the part the cursor is on
+      const m = main.getBoundingClientRect(); if (Math.max(r.bottom, m.bottom) - Math.min(r.top, m.top) < innerHeight * 0.6) grow(m);
+    }
+    if (mk) grow(mk.getBoundingClientRect());   // and the example form
+    const tw = tip.offsetWidth, th = tip.offsetHeight, m = 12, W = innerWidth, H = innerHeight, top0 = area(0).top - 6;
     const cx = Math.min(Math.max(m, r.left + r.width / 2 - tw / 2), W - tw - m), cy = Math.min(Math.max(top0, r.top), H - th - m);
     const spots = [[cx, r.bottom + 16], [cx, r.top - th - 16], [r.right + 16, cy], [r.left - tw - 16, cy]];
     const cover = ([x, y]) => { const X = Math.min(Math.max(m, x), W - tw - m), Y = Math.min(Math.max(top0, y), H - th - m);
@@ -176,8 +231,13 @@
     spot.style.left = r.left - pad + "px"; spot.style.top = r.top - pad + "px"; spot.style.width = r.width + pad * 2 + "px"; spot.style.height = r.height + pad * 2 + "px";
   }
 
+  let follow = null, until = 0;
+  function tick() { raf = 0; if (follow) follow(); if (follow && (moving || performance.now() < until)) raf = requestAnimationFrame(tick); }
+  function kick(ms = 450) { until = Math.max(until, performance.now() + ms); if (!raf) raf = requestAnimationFrame(tick); }
+
   function clear(all) {
-    gen++; cancelAnimationFrame(raf); cleanup.forEach(f => f()); cleanup = []; restore();
+    gen++; cancelAnimationFrame(raf); raf = 0; follow = null; paused = false; if (track) track(); track = null; cleanup.forEach(f => f()); cleanup = []; restore();
+    document.querySelectorAll(".t-mock").forEach(m => m.remove());
     if (layer) { const old = layer; old.classList.remove("in"); setTimeout(() => old.remove(), T.fade); } layer = null;
     document.querySelectorAll(".t-preview").forEach(p => p.remove());
     if (all) { if (spot) spot.classList.remove("on"); hideCursor(); }
@@ -228,8 +288,21 @@
     else { skip.textContent = L.skip; skip.onclick = () => { if (s.skip) jump(S.findIndex(z => z.key === s.skip), s.skip); else jump(nextIdx); }; }
     const btn = (label, cls, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = label; b.onclick = fn; acts.appendChild(b); return b; };
     if (i > 0 && !S[i - 1].via && fits(S[i - 1], { via: null }) && S[i - 1].act !== "submit" && !s.via) btn(L.back, "ghost sm", () => { const st2 = read(); write({ ...st2, i: i - 1, floor: Math.min(st2.floor || 0, i - 1) }); show(); });
-    if (s.demo && s.demo.length) { const a = $(".t-again"); a.hidden = false; a.textContent = "↻ " + L.again; a.onclick = () => { restore(); run(true); }; }
+    const again = $(".t-again");   // while the demonstration plays: Pause / Resume; afterwards: Show again
+    const setPause = v => { paused = v; if (layer) layer.dataset.paused = v ? "1" : ""; label(); };
+    const label = () => { if (!layer) return; const running = layer.dataset.demo === "running"; again.textContent = running ? (paused ? "▶ " + L.resume_demo : "❚❚ " + L.pause) : "↻ " + L.again;
+      again.setAttribute("aria-pressed", running && paused ? "true" : "false"); };
+    if (s.demo && s.demo.length) { again.hidden = false; again.onclick = () => { if (layer.dataset.demo === "running") setPause(!paused); else { restore(); run(true); } }; }
+    // the person takes over (scrolls, clicks, types on the page): the demonstration pauses instead of fighting them
+    const takeover = e => { if (!layer || layer.dataset.demo !== "running" || paused) return; if (e.target && e.target.closest && e.target.closest(".t-tip")) return;
+      if (e.type === "keydown" && (e.key === "Escape" || e.key === "Tab" || e.key === "Shift")) return; setPause(true); };
+    ["wheel", "touchmove", "pointerdown", "keydown"].forEach(ev => { addEventListener(ev, takeover, { capture: true, passive: true }); cleanup.push(() => removeEventListener(ev, takeover, { capture: true })); });
 
+    if (s.sect) {   // already know this page: jump to the step that matters
+      const j = S.findIndex(z => z.key === s.sect);
+      if (j > i) { const b = document.createElement("button"); b.type = "button"; b.className = "linkbtn sm t-sect"; b.textContent = s.sect_label || L.knowpage; b.onclick = () => jump(j); hint.before(b); }
+    }
+    if (s.sel && !t) hint.textContent = L.missing;   // the element isn't here (hidden, removed, not loaded): say so, never get stuck
     if (s.act === "next") { if (s.back) btn(L.back2, "sm", () => { write({ ...read(), i: S.findIndex(z => z.key === "pick") }); location.href = s.back; }); else btn(L.next, "sm", next); }
     else if (s.act === "done") btn(L.done, "sm", end);
     else if (s.act === "go") btn(L.go, "sm", () => { write({ ...read(), i: nextIdx, floor: nextIdx, via: null }); restore(); location.href = s.href; });
@@ -257,20 +330,24 @@
     spot.classList.add("t-anim"); spotOn(t); placeTip(t, tip); setTimeout(() => spot && spot.classList.remove("t-anim"), 380);
     requestAnimationFrame(() => layer && layer.classList.add("in"));
     let lastW = innerWidth, lastH = innerHeight, lastF = mainEl, glide = 0;
-    const loop = () => {   // follow the real elements every frame: resizing, late images, expanding panels
+    follow = () => {   // re-measure the real elements; runs only in short bursts after scrolling, resizing, layout changes or cursor moves
       if (g !== gen) return;
-      if (innerWidth !== lastW || innerHeight !== lastH) { lastW = innerWidth; lastH = innerHeight; if (focusEl) reveal(focusEl, g, sheetH()); }
+      if (innerWidth !== lastW || innerHeight !== lastH) { lastW = innerWidth; lastH = innerHeight; if (focusEl && !paused) reveal(focusEl, g, sheetH()); }
       spotOn(focusEl && document.body.contains(focusEl) ? focusEl : (mainEl = find(s.sel), focusEl = mainEl));
       const f = focusEl || mainEl;   // the panel stays next to what the cursor is showing; it glides only when that changes
       if (f !== lastF) { tip.classList.add("t-glide"); clearTimeout(glide); glide = setTimeout(() => tip.classList.remove("t-glide"), 420); lastF = f; }
-      placeTip(f, tip);
-      if (!moving && cur && cur.classList.contains("on") && focusEl) { const p = aim(focusEl); cur._x = p.x; cur._y = p.y; place(cur); }
-      raf = requestAnimationFrame(loop);
+      placeTip(f, tip, mainEl);
+      if (!moving && cur && cur.classList.contains("on") && focusEl) { const p = aim(focusEl); cur._x = p.x; cur._y = p.y; place(cur); placeCap(); }
     };
-    loop();
-    const run = async again => {   // data-demo tells tests (and styles) whether the demonstration is still playing
-      const g2 = gen; if (!t) return hideCursor(); if (layer) layer.dataset.demo = "running";
-      await moveTo(t, g2); if (s.demo) await demo(s, g2, L); if (g2 === gen && layer) layer.dataset.demo = "done";
+    const onMove = () => kick(), ro = new ResizeObserver(onMove); ro.observe(document.body); if (t) ro.observe(t);
+    addEventListener("scroll", onMove, { capture: true, passive: true }); addEventListener("resize", onMove, { passive: true });
+    track = () => { ro.disconnect(); removeEventListener("scroll", onMove, { capture: true }); removeEventListener("resize", onMove); };
+    kick(600);
+    // keyboard: the panel's main button gets focus, unless the person is typing in the page (form steps keep their focus)
+    if (!/^(input|check)$/.test(s.act)) { const a = document.activeElement; if (!a || a === document.body || (a.closest && a.closest(".t-tip"))) { const b = acts.querySelector("button:not(.t-skip):not(.ghost)") || acts.querySelector("button"); b && b.focus({ preventScroll: true }); } }
+    const run = async () => {   // data-demo tells tests (and styles) whether the demonstration is still playing
+      const g2 = gen; if (!t) return hideCursor(); if (layer) { layer.dataset.demo = s.demo ? "running" : "done"; label(); }
+      await moveTo(t, g2); kick(); if (s.demo) await demo(s, g2, L); if (g2 === gen && layer) { layer.dataset.demo = "done"; paused = false; label(); }
     };
     if (t) run(); else hideCursor();
   }
