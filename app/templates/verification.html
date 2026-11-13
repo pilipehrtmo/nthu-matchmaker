@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block body %}
+{% extends "base.html" %}{% from "_onboard.html" import onboard_card with context %}{% block body %}
 <div class="vwrap"><p class="crumb"><a href="/profile">← Your profile</a></p>
 <h1>Professor verification</h1>
 {% if n == "sent" %}<p class="box ok" role="status">Your information was saved{% if st == "verified" %} and your account is verified{% else %}. An admin will review it{% endif %}.</p>
@@ -15,6 +15,7 @@
 {% elif st == "suspended" %}<p>Your professor verification is suspended:</p><blockquote class="vreason">{{ user.faculty_reason }}</blockquote><p class="muted fine">Contact the site admins if you have questions.</p>{% endif %}
 </section>
 
+{{ onboard_card(onboarding(user)) }}
 <ol class="vsteps" id="steps">
 <li class="card {{ 'done' if user.email_verified }}"><h2><span class="vnum" aria-hidden="true">1</span> Confirm your institutional email</h2>
 <p class="muted">{{ user.email }}{% if shared %} · a shared NTHU address (students have these too), so an admin also checks your page{% elif not nthu %} · not an NTHU address, so an admin checks your appointment by hand{% endif %}</p>

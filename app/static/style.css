@@ -1015,3 +1015,15 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .howto-a .btn svg{width:1em;height:1em;fill:currentColor;vertical-align:-2px;margin-right:.4rem}
 .start-help{margin:.3rem 0 0}.start-help .linkbtn{width:auto}.tourlink{width:auto;padding:0;font-weight:600}
 @media (prefers-reduced-motion:reduce){.t-spot,.t-spot::after,.t-tip{animation:none;transition:none}}
+/* onboarding checklist */
+.onb-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap}.onb-top h2{margin:0;font-size:1.1rem}.onb-count{margin:.15rem 0 0}
+.onb-ctl{display:flex;gap:.6rem;align-items:center}.onb-ctl button{width:auto}
+.onb-bar{height:6px;border-radius:99px;background:var(--soft);margin:.7rem 0 .2rem;overflow:hidden}.onb-bar i{display:block;height:100%;background:var(--ok);border-radius:inherit}
+.onb .onb-show{display:none}.onb.collapsed .onb-show{display:inline}.onb.collapsed .onb-hide{display:none}.onb.collapsed .start-l{display:none}
+.start-l li.locked{opacity:.6}.start-l li.locked .sn{background:transparent;border:1.5px dashed var(--line)}
+.dbshell .onb{margin:0 0 1rem}
+/* tour additions */
+.t-warn{margin:.6rem 0 0;padding:.5rem .7rem;border-radius:10px;background:var(--warn-bg);color:var(--warn-ink);font-size:.9rem;line-height:1.45}
+.t-acts{align-items:center}.t-acts .t-skip{margin-right:auto;color:var(--mut)}.t-acts .t-gap{display:none}
+.helptour{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}.tourlinks{display:flex;gap:1rem;flex-wrap:wrap}
+.howto-a .linkbtn{width:auto}
