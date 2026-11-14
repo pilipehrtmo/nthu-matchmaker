@@ -185,7 +185,7 @@
     for (const a of s.demo || []) {
       if (g !== gen) return;
       if (a.when && !document.querySelector(a.when)) continue;
-      await hold(g); if (g !== gen) return;
+      await hold(g); if (g !== gen || (layer && layer.dataset.demo === "stop")) return;
       if (a.do === "clear") { const el = find(a.sel); if (el) restore(el); continue; }
       if (a.do === "mock") { const base = find(a.sel); if (!base) continue; mock(base, L); await wait(120, g); continue; }
       const el = await waitFor(() => find(a.sel), 1500, g); if (!el || g !== gen) continue;   // a part this project doesn't have: skip it
@@ -316,6 +316,20 @@
       const box = t.querySelector("input[type=checkbox],input[type=radio]") || t, b = btn(L.next, "sm", next);
       const ok = () => { b.disabled = !box.checked; hint.textContent = b.disabled ? L.tick : ""; };
       ok(); const on = () => setTimeout(ok, 0); t.addEventListener("change", on); cleanup.push(() => t.removeEventListener("change", on));
+    } else if (s.act === "role" && t) {   // both choices are highlighted; the person must pick one. The other role switches to its own tour.
+      const b = btn(L.next, "sm", next); b.disabled = true; hint.textContent = L.choose;
+      const pick = e => {
+        const k = e.target.closest(".kind"); if (!k) return;
+        setTimeout(() => {
+          const v = (t.querySelector("input[name=role]:checked") || {}).value; if (!v) return;
+          if (v === s.role) {   // their choice ends the demonstration; the cursor goes to what they picked
+            if (layer.dataset.demo === "running") { layer.dataset.demo = "stop"; paused = false; }
+            b.disabled = false; hint.textContent = L.chosen; focusEl = k; moveTo(k, gen); kick(); return;
+          }
+          // the other role: the sign-up form's change listener below switches tours
+        }, 0);
+      };
+      t.addEventListener("click", pick); cleanup.push(() => t.removeEventListener("click", pick));
     } else if (s.act === "click" && t) {
       hint.textContent = L.press;
       const on = () => { if (t.closest("a,.pcard")) write({ ...read(), i: nextIdx }); else setTimeout(next, 60); };
@@ -334,7 +348,9 @@
     follow = () => {   // re-measure the real elements; runs only in short bursts after scrolling, resizing, layout changes or cursor moves
       if (g !== gen) return;
       if (innerWidth !== lastW || innerHeight !== lastH) { lastW = innerWidth; lastH = innerHeight; if (focusEl && !paused) reveal(focusEl, g, sheetH()); }
-      spotOn(focusEl && document.body.contains(focusEl) ? focusEl : (mainEl = find(s.sel), focusEl = mainEl));
+      if (!(mainEl && document.body.contains(mainEl))) mainEl = find(s.sel);
+      if (!(focusEl && document.body.contains(focusEl))) focusEl = mainEl;
+      spotOn(s.act === "role" ? mainEl : focusEl);   // a choice: keep every option lit while the cursor points at each
       const f = focusEl || mainEl;   // the panel stays next to what the cursor is showing; it glides only when that changes
       if (f !== lastF) { tip.classList.add("t-glide"); clearTimeout(glide); glide = setTimeout(() => tip.classList.remove("t-glide"), 420); lastF = f; }
       placeTip(f, tip, mainEl);
@@ -348,7 +364,7 @@
     if (!/^(input|check)$/.test(s.act)) { const a = document.activeElement; if (!a || a === document.body || (a.closest && a.closest(".t-tip"))) { const b = acts.querySelector("button:not(.t-skip):not(.ghost)") || acts.querySelector("button"); b && b.focus({ preventScroll: true }); } }
     const run = async () => {   // data-demo tells tests (and styles) whether the demonstration is still playing
       const g2 = gen; if (!t) return hideCursor(); if (layer) { layer.dataset.demo = s.demo ? "running" : "done"; label(); }
-      await moveTo(t, g2); kick(); if (s.demo) await demo(s, g2, L); if (g2 === gen && layer) { layer.dataset.demo = "done"; paused = false; label(); }
+      await moveTo(t, g2); kick(); if (s.demo) await demo(s, g2, L); if (g2 === gen && layer) { const stopped = layer.dataset.demo === "stop"; layer.dataset.demo = "done"; paused = false; label(); if (stopped) return; }
     };
     if (t) run(); else hideCursor();
   }
@@ -370,6 +386,14 @@
     const i = Math.max(0, S.findIndex(s => s.key === key)), st = { t, i, floor: i, via: null, uid: D.uid };
     write(st);
     if (fits(S[i], st)) show(); else location.href = S[i].go || "/";
+  });
+  document.addEventListener("change", e => {   // sign-up form: changing Student / Professor switches to that role's tour, at any step of the form
+    if (!e.target.matches || !e.target.matches("#lf input[name=role]")) return;
+    D = D || data(); const st = read(); if (!D || !st || !(st.t === "student" || st.t === "prof")) return;
+    const want = e.target.value === "faculty" ? "prof" : "student", cur = D.tours[st.t][st.i];
+    if (st.t === want || !cur || !/signup/.test(cur.path)) return;
+    const j = D.tours[want].findIndex(z => z.key === (want === "prof" ? "p_email" : "email")); if (j < 0) return;
+    write({ ...st, t: want, i: j, floor: j, via: null }); show();
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && layer && !layer.classList.contains("t-pill")) end(); });
   addEventListener("beforeunload", () => restore());

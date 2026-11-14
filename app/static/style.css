@@ -1095,3 +1095,4 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .tour .t-tip button:focus-visible,.tour .t-tip .linkbtn:focus-visible{outline:2px solid var(--gold,#f0b34a);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.t-mock{animation:none}.t-cur .t-arrow,.t-cur .t-finger,.t-cap{transition:none}}
 .t-cur .t-cap{left:24px;top:6px}.t-cur.touch .t-cap{left:20px;top:14px}.t-cur.flip .t-cap{left:auto;right:8px;top:26px}
+#lf .kinds{width:fit-content;max-width:100%}
