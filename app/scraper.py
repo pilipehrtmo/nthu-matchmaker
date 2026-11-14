@@ -7,7 +7,8 @@ Taiwan sources:
                Only competitions open to university students or adults are kept; kids-only ones are skipped.
   * pages    - announcement pages that list competitions as plain links (built-in TW_PAGES, the NTHU_PAGES setting,
                and pages an admin adds on the admin page). Links whose text names a competition are kept.
-  * devpost  - upcoming online hackathons (worldwide, open to Taiwan students).
+  * devpost  - hackathons that are online or in Taiwan (in-person events abroad are skipped).
+Rule for every source: held in Taiwan, or hosted abroad but entered entirely online.
 Deadlines are only stored when a page really states one; otherwise the date shows as "Date not confirmed".
 """
 import json, logging, re, time, urllib.robotparser as rp
@@ -17,7 +18,7 @@ import httpx
 from bs4 import BeautifulSoup
 from sqlmodel import Session, select
 from .db import engine
-from .models import Competition, SourcePage, ScrapeLog, ScrapeSeen
+from .models import Competition, SourcePage, ScrapeLog, ScrapeSeen, SavedItem
 from .config import NTHU_PAGES
 UA = "NTHU-Matchmaker/0.1 (student project; lists competitions for NTHU students)"
 HDRS = {"User-Agent": UA, "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8"}
@@ -51,10 +52,32 @@ def get(url, **kw):
     r = httpx.get(url, headers=HDRS, timeout=25, follow_redirects=True, **kw); r.raise_for_status(); return r
 
 # ---------- devpost ----------
+TW_PLACE = re.compile(r"taiwan|taipei|hsinchu|taichung|tainan|kaohsiung|taoyuan|台灣|臺灣|台北|臺北|新竹|台中|臺中|台南|臺南|高雄|桃園", re.I)
+def devpost_ok(h):
+    """Online (location "Online", or "... + Online"), or held in Taiwan; never invite-only."""
+    loc = ((h.get("displayed_location") or {}).get("location") or "")
+    return not h.get("invite_only") and (bool(re.search(r"\bonline\b", loc, re.I)) or bool(TW_PLACE.search(loc)))
+DEVPOST_URLS = set()   # the hackathons that qualified on this run, for pruning older entries
 def devpost():
-    r = httpx.get("https://devpost.com/api/hackathons", params={"status[]": "upcoming"}, headers=HDRS, timeout=20)
+    r = httpx.get("https://devpost.com/api/hackathons", params=[("status[]", "upcoming"), ("status[]", "open")], headers=HDRS, timeout=20)
+    DEVPOST_URLS.clear()
     for h in r.json().get("hackathons", []):
+        if not devpost_ok(h): continue
+        DEVPOST_URLS.add(h["url"])
         yield dict(title=h["title"], url=h["url"], deadline=h.get("submission_period_dates", ""))
+
+def prune_devpost():
+    """Remove scraped Devpost entries that are no longer listed as online/Taiwan (ended, or in person abroad),
+    unless an admin verified one or someone saved it."""
+    if not DEVPOST_URLS: return 0
+    gone = 0
+    with Session(engine) as s:
+        saved = set(s.exec(select(SavedItem.item_id).where(SavedItem.kind == "competition")).all())
+        for c in s.exec(select(Competition).where(Competition.source == "devpost")).all():
+            if c.url in DEVPOST_URLS or c.verified_at or c.id in saved: continue
+            s.delete(c); gone += 1
+        s.commit()
+    return gone
 
 # ---------- announcement pages ----------
 def pages():
@@ -64,9 +87,10 @@ def pages():
 def page_items(page):
     if not allowed(page): raise RuntimeError("robots.txt does not allow reading this page")
     soup = BeautifulSoup(get(page).text, "html.parser")
+    own = urlparse(page).netloc.endswith("nthu.edu.tw")   # another school's internal selections aren't open to NTHU students
     for a in soup.select("a[href]"):
         t = re.sub(r"\s+", " ", a.get_text(" ", strip=True))
-        if is_competition(t): yield dict(title=t[:200], url=urljoin(page, a["href"]), deadline="")
+        if is_competition(t) and (own or not re.search(r"系內|校內|院內", t)): yield dict(title=t[:200], url=urljoin(page, a["href"]), deadline="")
 
 # ---------- 獎金獵人 bhuntr ----------
 BH_INDEX = "https://bhuntr.com/sitemap_v2.xml"
@@ -80,6 +104,10 @@ TW = re.compile(r"台灣|臺灣|中華民國|新臺幣|新台幣|全國|國內|�
                 r"教育部|文化部|經濟部|環境部|數位發展部|交通部|衛生福利部|衛福部|國科會|農業部|勞動部|內政部|客家委員會|原住民族委員會|青年發展署|市政府|縣政府|國立|大專|大學")
 ABROAD = re.compile(r"義大利|德國|法國|英國|美國|日本|韓國|波蘭|希臘|保加利亞|西班牙|荷蘭|加拿大|澳洲|阿拉斯加|慕尼黑|邁阿密|阿爾勒|索菲亞|紐約|倫敦|巴黎|pixiv|Gallery", re.I)
 SPORT = ["馬拉松", "路跑", "健走", "超馬", "鐵人"]   # races to sign up for, not competitions to build a team for
+NOT_CONTEST = ["申請展", "駐村", "駐館"]               # exhibition and residency applications
+# hosted abroad is fine only if it's entered online and nobody has to travel for a round
+ONLINE = re.compile(r"線上|網路投稿|online|上傳|電子檔|數位檔|e-?mail|電子郵件|平台提交|投稿平台|提交平台|網站提交|Picter|Zealous", re.I)
+IN_PERSON = re.compile(r"實體決賽|現場決賽|親自出席|須親臨|現場參賽|須到場|親赴|實體參與|必須出席|現場評選|現場答辯")
 OTHER_SCHOOL = re.compile(r"(臺大|台大|政大|成大|陽明交大|交大|師大|中央大學|中興|中山大學|中正大學|東海|輔大|北科大|台科大|臺科大)學生")
 
 def bh_list(xml):
@@ -120,7 +148,9 @@ def bh_item(url, ev, now=None):
     if any(y in f"{kw} {name}" for y in YOUNG) and not (any(g in kw for g in GROWN) or any(g in name for g in GROWN_TITLE)): return None
     if any(x in f"{name} {kw}" for x in SPORT): return None
     if OTHER_SCHOOL.search(name): return None                                    # only for another university's students
-    if ABROAD.search(name) or not TW.search(f"{name} {kw} {desc}"): return None   # held abroad
+    if any(x in name for x in NOT_CONTEST): return None
+    abroad = bool(ABROAD.search(name)) or not TW.search(f"{name} {kw} {desc}")
+    if abroad and (not ONLINE.search(f"{kw} {desc}") or IN_PERSON.search(desc)): return None   # abroad and not entered online
     end = ev.get("endDate") or ""
     try:
         e = datetime.fromisoformat(end.replace("Z", "+00:00"))
@@ -181,12 +211,33 @@ def _save(name, items):
         s.commit()
     return new
 
+def prune_titles():
+    """Apply the title rules to entries already saved from scraped sources (rules can get stricter over time),
+    unless an admin verified one or someone saved it."""
+    gone = 0
+    with Session(engine) as s:
+        saved = set(s.exec(select(SavedItem.item_id).where(SavedItem.kind == "competition")).all())
+        for c in s.exec(select(Competition).where((Competition.source == "bhuntr") | Competition.source.like("page:%"))).all():
+            if c.verified_at or c.id in saved: continue
+            t = c.title
+            bad = any(x in t for x in SPORT + NOT_CONTEST) or bool(OTHER_SCHOOL.search(t)) or (c.source.startswith("page:") and "nthu.edu.tw" not in c.source and re.search(r"系內|校內|院內", t))
+            if bad: s.delete(c); gone += 1
+        s.commit()
+    return gone
+
 def run_scrapers():
+    try:
+        n = prune_titles()
+        if n: log.info("removed %d saved entries that no longer pass the rules", n)
+    except Exception as e: log.error("prune failed: %s", e)
     jobs = list(SOURCES.items()) + [(f"page:{urlparse(p).netloc}", (lambda p=p: page_items(p))) for p in pages()]
     for name, fn in jobs:
         try: items = list(fn())
         except Exception as e: log.error("source %s failed: %s", name, e); _note(name, 0, f"{type(e).__name__}: {e}"); continue
         new = _save(name, items)
+        if name == "devpost":
+            gone = prune_devpost()
+            if gone: log.info("devpost: removed %d entries that are not online or in Taiwan", gone)
         # bhuntr opens only pages it hasn't seen, so 0 new is normal once it has caught up
         if not items and name != "bhuntr": log.warning("source %s returned 0 items", name); _note(name, 0, "returned 0 items (blocked, empty, or layout changed)"); continue
         _note(name, new); log.info("source %s: %d items, %d new", name, len(items), new)
