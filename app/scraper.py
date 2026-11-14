@@ -38,8 +38,8 @@ TW_PAGES = [
 ]
 PAGE_DETAILS = 15   # new posts opened per board per run, to read the deadline
 # a link names a competition if it has one of these words, and none of the words for results, scholarships or reports
-KEYWORDS = ["競賽", "比賽", "徵件", "徵稿", "徵選", "黑客松", "挑戰賽", "大賽", "創業", "提案", "選拔", "hackathon", "competition", "contest", "challenge", "pitch", "award"]
-NOT = ["獎學金", "榮獲", "獲獎", "得獎", "奪", "恭喜", "賀", "成果", "頒獎", "名單", "結果", "公告得獎", "scholarship", "winners", "congrat"]
+KEYWORDS = ["競賽", "比賽", "徵件", "徵稿", "徵選", "黑客松", "挑戰賽", "大賽", "爭霸賽", "創業", "提案", "選拔", "hackathon", "competition", "contest", "challenge", "pitch", "award"]
+NOT = ["講座", "說明會", "工作坊", "座談", "演講", "分享會", "成果展", "獎學金", "榮獲", "獲獎", "得獎", "奪", "恭喜", "賀", "成果", "頒獎", "名單", "結果", "公告得獎", "scholarship", "winners", "congrat"]
 
 def allowed(url: str) -> bool:
     """robots.txt says we may read this page (RFC 9309: no robots.txt (4xx) means allowed; a server error means not now)."""
@@ -282,7 +282,7 @@ def prune_titles():
             if c.verified_at or c.id in saved: continue
             t = c.title
             kids = c.source == "bhuntr" and any(y in t for y in YOUNG) and not any(g in t for g in GROWN_TITLE)
-            bad = kids or any(x in t for x in SPORT + NOT_CONTEST) or bool(OTHER_SCHOOL.search(t)) or (c.source.startswith("page:") and "nthu.edu.tw" not in c.source and re.search(r"系內|校內|院內", t))
+            bad = kids or any(x in t for x in SPORT + NOT_CONTEST) or (c.source.startswith("page:") and not is_competition(t)) or bool(OTHER_SCHOOL.search(t)) or (c.source.startswith("page:") and "nthu.edu.tw" not in c.source and re.search(r"系內|校內|院內", t))
             if bad: s.delete(c); gone += 1
             else:
                 k = categorize(c.title); c.category = k if k != "Other" else categorize(c.description[:300]); s.add(c)   # keep categories in step with the rules
