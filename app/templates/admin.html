@@ -25,7 +25,8 @@
 <div class="two"><div><label for="ct">Title</label><input id="ct" name="title" required></div><div><label for="cu">Link (https://...)</label><input id="cu" name="url" type="url" required></div></div>
 <div class="two"><div><label for="cc">Category</label><select id="cc" name="category"><option value="Business">Business</option><option value="Design &amp; Arts">Design &amp; Arts</option><option value="Law &amp; Policy">Law &amp; Policy</option><option value="Science &amp; Health">Science &amp; Health</option><option value="Social Impact">Social Impact</option><option value="Tech &amp; Data">Tech &amp; Data</option><option value="Other">Other</option></select></div>
 <div><label for="cd">Deadline (text)</label><input id="cd" name="deadline" placeholder="e.g. 30 Nov 2026"></div></div>
-<label for="cx">Short description</label><input id="cx" name="description"><p><button>Add competition</button></p></form></details></section>
+<label for="cx">Short description</label><input id="cx" name="description">
+<label class="check"><input type="checkbox" name="online" value="1"> Entered entirely online</label><p><button>Add competition</button></p></form></details></section>
 
 <section class="sec" id="faculty"><h2>Professor verification <span class="count">{{ profq|length }}{{ "" if profs_all else " waiting" }}</span></h2>
 <p class="muted">Compare each person with the official NTHU listing (open their page, or find them on the department's faculty list) before you decide. An NTHU email alone is not proof. Rejecting, asking for more information and suspending need a reason; the person sees it.</p>

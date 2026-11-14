@@ -1096,3 +1096,6 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 @media (prefers-reduced-motion:reduce){.t-mock{animation:none}.t-cur .t-arrow,.t-cur .t-finger,.t-cap{transition:none}}
 .t-cur .t-cap{left:24px;top:6px}.t-cur.touch .t-cap{left:20px;top:14px}.t-cur.flip .t-cap{left:auto;right:8px;top:26px}
 #lf .kinds{width:fit-content;max-width:100%}
+/* "Online" filter chip and card tag */
+#ccats .chip-online{display:inline-flex;align-items:center;gap:.35rem}#ccats .chip-online svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8}
+.pill.online{background:var(--ok-bg);color:var(--ok-ink)}

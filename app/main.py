@@ -1134,11 +1134,11 @@ def add_source(url: str = Form(...), user=Depends(me), s: Session = Depends(get_
 
 @app.post("/admin/competition")
 def add_competition(title: str = Form(...), url: str = Form(...), category: str = Form("Other"), deadline: str = Form(""),
-                    description: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+                    description: str = Form(""), online: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
     if url.startswith("http") and not s.exec(select(Competition).where(Competition.url == url)).first():
         s.add(Competition(title=title[:150], url=url, category=category, deadline=deadline[:60], description=description[:300],
-                          source="admin", needs_review=False)); s.commit()
+                          source="admin", needs_review=False, online=bool(online), online_checked=True)); s.commit()
     return go("/admin")
 
 @app.post("/admin/program")

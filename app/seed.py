@@ -22,11 +22,16 @@ SEED = [
  ("Google Solution Challenge", "Tech & Data", "https://developers.google.com/community/gdsc-solution-challenge", "Build an app for the UN SDGs. Developers plus designers and subject experts."),
  ("NSTC Undergraduate Research Grant (大專學生研究計畫)", "Science & Health", "https://www.nstc.gov.tw", "Taiwan's national grant for undergraduate research projects, all fields. Needs an advisor."),
 ]
+ONLINE_URLS = {"https://www.kaggle.com/competitions", "https://www.contest.comap.com", "https://developers.google.com/community/gdsc-solution-challenge",
+               "https://www.jamesdysonaward.org", "https://competition.adesignaward.com"}   # entered entirely online
 def seed():
     with Session(engine) as s:
         for title, cat, url, desc in SEED:
-            if not s.exec(select(Competition).where(Competition.url == url)).first():
-                s.add(Competition(title=title, category=cat, url=url, source="curated", deadline=A, description=desc, needs_review=False))
+            c = s.exec(select(Competition).where(Competition.url == url)).first()
+            if not c:
+                s.add(Competition(title=title, category=cat, url=url, source="curated", deadline=A, description=desc, needs_review=False, online=url in ONLINE_URLS, online_checked=True))
+            elif not c.online_checked:
+                c.online, c.online_checked = url in ONLINE_URLS, True; s.add(c)
         s.commit()
 
 STARTER = [

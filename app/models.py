@@ -80,6 +80,8 @@ class Competition(SQLModel, table=True):
     category: str = "Other"
     description: str = ""
     verified_at: Optional[NaiveDatetime] = None   # when an admin last checked it against the official site
+    online: bool = False          # can be entered entirely online (shown under the "Online" filter)
+    online_checked: bool = False  # the scraper has looked at the page for this
 
 PROJECT_KINDS = ["Competition", "Startup", "Research", "Side project", "Club or event", "Other"]
 

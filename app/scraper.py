@@ -64,7 +64,8 @@ def devpost():
     for h in r.json().get("hackathons", []):
         if not devpost_ok(h): continue
         DEVPOST_URLS.add(h["url"])
-        yield dict(title=h["title"], url=h["url"], deadline=h.get("submission_period_dates", ""))
+        loc = ((h.get("displayed_location") or {}).get("location") or "")
+        yield dict(title=h["title"], url=h["url"], deadline=h.get("submission_period_dates", ""), online=loc.strip().lower() == "online")
 
 def prune_devpost():
     """Remove scraped Devpost entries that are no longer listed as online/Taiwan (ended, or in person abroad),
@@ -90,7 +91,8 @@ def page_items(page):
     own = urlparse(page).netloc.endswith("nthu.edu.tw")   # another school's internal selections aren't open to NTHU students
     for a in soup.select("a[href]"):
         t = re.sub(r"\s+", " ", a.get_text(" ", strip=True))
-        if is_competition(t) and (own or not re.search(r"系內|校內|院內", t)): yield dict(title=t[:200], url=urljoin(page, a["href"]), deadline="")
+        if is_competition(t) and (own or not re.search(r"系內|校內|院內", t)):
+            yield dict(title=t[:200], url=urljoin(page, a["href"]), deadline="", online=bool(re.search(r"[（(]\s*線上\s*[）)]|線上賽|online", t, re.I)))
 
 # ---------- 獎金獵人 bhuntr ----------
 BH_INDEX = "https://bhuntr.com/sitemap_v2.xml"
@@ -109,6 +111,9 @@ NOT_CONTEST = ["申請展", "駐村", "駐館",               # exhibition and r
                "FITI", "U-start", "大專學生研究計畫"]       # funding programs: they're on the Funding page
 # hosted abroad is fine only if it's entered online and nobody has to travel for a round
 ONLINE = re.compile(r"線上|網路投稿|online|上傳|電子檔|數位檔|e-?mail|電子郵件|平台提交|投稿平台|提交平台|網站提交|Picter|Zealous", re.I)
+# "Online" tag: work is handed in online and no part takes place somewhere (a venue, a final, posting it in)
+ONLINE_ENTRY = re.compile(r"線上投稿|線上提交|線上繳交|線上上傳|上傳至|上傳作品|作品上傳|線上賽|線上競賽|線上進行|線上評選|網路投稿|online|電子檔|數位檔|e-?mail投稿|以e-?mail|寄至.{0,30}@|投稿平台|提交平台|Picter|Zealous", re.I)
+PHYSICAL = re.compile(r"實體|現場|報到|決賽地點|活動地點|比賽地點|競賽地點|賽事地點|場地|會場|踩街|遊行|郵寄|掛號|親送|郵戳|寄送.{0,6}作品|紙本|面試|簡報.{0,4}答辯|出席")
 IN_PERSON = re.compile(r"實體決賽|現場決賽|親自出席|須親臨|現場參賽|須到場|親赴|實體參與|必須出席|現場評選|現場答辯")
 OTHER_SCHOOL = re.compile(r"(臺大|台大|政大|成大|陽明交大|交大|師大|中央大學|中興|中山大學|中正大學|東海|輔大|北科大|台科大|臺科大)學生")
 
@@ -162,8 +167,24 @@ def bh_item(url, ev, now=None):
     d = find_deadline(desc, today)
     if not d and any(deadline_dates(desc)) and all(x < today for x in deadline_dates(desc)): return None   # every deadline it states has passed
     deadline = d.isoformat() if d else ""
+    text = f"{kw} {desc}"
+    online = bool(ONLINE_ENTRY.search(text)) and not PHYSICAL.search(text)
     c = categorize(name)   # the title says what it's about; bhuntr's tags are broad, so they only fill in when the title doesn't
-    return dict(title=name[:200], url=url, deadline=deadline, description=desc[:300], category=c if c != "Other" else categorize(kw))
+    return dict(title=name[:200], url=url, deadline=deadline, description=desc[:300], category=c if c != "Other" else categorize(kw), online=online)
+
+def bh_recheck(limit=BH_PER_RUN):
+    """Set the Online tag on bhuntr competitions saved before it existed: open each page once more."""
+    with Session(engine) as s:
+        rows = s.exec(select(Competition).where(Competition.source == "bhuntr", Competition.online_checked == False).limit(limit)).all()
+        for c in rows:
+            try:
+                ev = bh_event(get(c.url).text)
+                if ev:
+                    desc = re.sub(r"\s+", " ", ev.get("description") or ""); text = f"{ev.get('keywords') or ''} {desc}"
+                    c.online = bool(ONLINE_ENTRY.search(text)) and not PHYSICAL.search(text)
+                c.online_checked = True; s.add(c); s.commit()
+            except Exception as e: log.warning("bhuntr recheck %s: %s", c.url, e)
+            time.sleep(1)
 
 def bhuntr():
     if not allowed(BH_INDEX): raise RuntimeError("robots.txt does not allow reading the sitemap")
@@ -175,6 +196,7 @@ def bhuntr():
         seen = set(s.exec(select(ScrapeSeen.url)).all())
         have = set(s.exec(select(Competition.url)).all())
     fresh = sorted(((pub, u) for u, (t, pub) in listed.items() if pub >= oldest and u not in seen and u not in have), reverse=True)   # newest first
+    bh_recheck()
     for pub, u in fresh[:BH_PER_RUN]:
         item = None
         try:
@@ -210,9 +232,14 @@ def _save(name, items):
     with Session(engine) as s:
         titles = {_norm(t) for t in s.exec(select(Competition.title)).all()}
         for it in items:
-            if not it.get("title") or s.exec(select(Competition).where(Competition.url == it["url"])).first() or _norm(it["title"]) in titles: continue
+            if not it.get("title"): continue
+            old = s.exec(select(Competition).where(Competition.url == it["url"])).first()
+            if old:
+                if "online" in it and old.source == name and not old.verified_at: old.online, old.online_checked = it["online"], True; s.add(old)
+                continue
+            if _norm(it["title"]) in titles: continue
             it.setdefault("category", categorize(it["title"]))
-            s.add(Competition(source=name, **it)); titles.add(_norm(it["title"])); new += 1
+            s.add(Competition(source=name, online_checked="online" in it, **it)); titles.add(_norm(it["title"])); new += 1
         s.commit()
     return new
 
