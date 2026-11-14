@@ -22,6 +22,12 @@ SEED = [
  ("Google Solution Challenge", "Tech & Data", "https://developers.google.com/community/gdsc-solution-challenge", "Build an app for the UN SDGs. Developers plus designers and subject experts."),
  ("NSTC Undergraduate Research Grant (大專學生研究計畫)", "Science & Health", "https://www.nstc.gov.tw", "Taiwan's national grant for undergraduate research projects, all fields. Needs an advisor."),
 ]
+# Taiwan competitions with known dates (deadline, online). Checked against the official site.
+TW_SEED = [
+ ("DeployAI — An AI Case Competition", "Tech & Data", "https://www.deployai-case.com/",
+  "AI case competition by Celadon Partners with NTHU University Science Park and NTHU Startup Garage. Teams of 3-4 students from any university and major; 11-day remote build sprint, in-person finals at NTHU. NT$100,000 first prize.",
+  "2026-10-27", False),
+]
 ONLINE_URLS = {"https://www.kaggle.com/competitions", "https://www.contest.comap.com", "https://developers.google.com/community/gdsc-solution-challenge",
                "https://www.jamesdysonaward.org", "https://competition.adesignaward.com"}   # entered entirely online
 def seed():
@@ -32,6 +38,9 @@ def seed():
                 s.add(Competition(title=title, category=cat, url=url, source="curated", deadline=A, description=desc, needs_review=False, online=url in ONLINE_URLS, online_checked=True))
             elif not c.online_checked:
                 c.online, c.online_checked = url in ONLINE_URLS, True; s.add(c)
+        for title, cat, url, desc, deadline, online in TW_SEED:
+            if not s.exec(select(Competition).where(Competition.url == url)).first():
+                s.add(Competition(title=title, category=cat, url=url, source="curated", deadline=deadline, description=desc, needs_review=False, online=online, online_checked=True))
         s.commit()
 
 STARTER = [

@@ -27,9 +27,16 @@ log = logging.getLogger("scraper")
 
 # Taiwan pages that post competitions for university students as plain HTML links (checked Nov 2026)
 TW_PAGES = [
+    # NTHU boards that forward competitions to students (robots.txt allows; lists are plain HTML)
+    "https://dsa.site.nthu.edu.tw/p/403-1266-6890-1.php?Lang=zh-tw",          # 清大 學務處課外活動組 一般公告
+    "https://dcs.site.nthu.edu.tw/p/403-1174-3304-1.php?Lang=zh-tw",          # 清大 資工系 活動競賽 (TSMC CareerHack, company hackathons)
+    "https://career-ctm.site.nthu.edu.tw/p/403-1380-4770-1.php?Lang=zh-tw",   # 清大 科管院 職涯
+    "https://ene.site.nthu.edu.tw/p/403-1180-3119-1.php?Lang=zh-tw",          # 清大 工科系 公告
+    # elsewhere in Taiwan
     "https://activity.sa.ntnu.edu.tw/category/activity/",            # 臺師大 課外活動指導組: 【競賽資訊】 posts from across Taiwan
     "https://www.csie.ntnu.edu.tw/index.php/category/competition/",  # 臺師大 資工系: competitions category
 ]
+PAGE_DETAILS = 15   # new posts opened per board per run, to read the deadline
 # a link names a competition if it has one of these words, and none of the words for results, scholarships or reports
 KEYWORDS = ["競賽", "比賽", "徵件", "徵稿", "徵選", "黑客松", "挑戰賽", "大賽", "創業", "提案", "選拔", "hackathon", "competition", "contest", "challenge", "pitch", "award"]
 NOT = ["獎學金", "榮獲", "獲獎", "得獎", "奪", "恭喜", "賀", "成果", "頒獎", "名單", "結果", "公告得獎", "scholarship", "winners", "congrat"]
@@ -89,10 +96,32 @@ def page_items(page):
     if not allowed(page): raise RuntimeError("robots.txt does not allow reading this page")
     soup = BeautifulSoup(get(page).text, "html.parser")
     own = urlparse(page).netloc.endswith("nthu.edu.tw")   # another school's internal selections aren't open to NTHU students
+    with Session(engine) as s:
+        listed = set(s.exec(select(Competition.url)).all())
+        seen = set(s.exec(select(ScrapeSeen.url)).all())
+    opened = 0
     for a in soup.select("a[href]"):
-        t = re.sub(r"\s+", " ", a.get_text(" ", strip=True))
-        if is_competition(t) and (own or not re.search(r"系內|校內|院內", t)):
-            yield dict(title=t[:200], url=urljoin(page, a["href"]), deadline="", online=bool(re.search(r"[（(]\s*線上\s*[）)]|線上賽|online", t, re.I)))
+        t = re.sub(r"\s+", " ", a.get_text(" ", strip=True)); url = urljoin(page, a["href"])
+        if not is_competition(t) or (not own and re.search(r"系內|校內|院內", t)): continue
+        item = dict(title=t[:200], url=url, deadline="", online=bool(re.search(r"[（(]\s*線上\s*[）)]|線上賽|online", t, re.I)))
+        if url in listed: yield item; continue   # already listed: nothing to open
+        if url in seen: continue                 # looked at before and left out (deadline passed, or a duplicate)
+        if opened >= PAGE_DETAILS: continue      # the rest next run
+        opened += 1
+        try:
+            info = post_info(get(url).text)
+        except Exception as e:
+            log.warning("post %s: %s", url, e); continue
+        with Session(engine) as s: s.add(ScrapeSeen(url=url, kept=info is not None)); s.commit()
+        if info: yield {**item, **info, "online": item["online"] or info["online"]}
+
+def post_info(html):
+    """Deadline and Online tag from an announcement's own page; None when every deadline it states has passed."""
+    from .fundscan import page_text, find_deadline, deadline_dates
+    text = page_text(html)[:20000]; today = (datetime.now(timezone.utc) + timedelta(hours=8)).date()
+    d = find_deadline(text, today); dates = deadline_dates(text)
+    if not d and dates and all(x < today for x in dates): return None
+    return dict(deadline=d.isoformat() if d else "", online=bool(ONLINE_ENTRY.search(text)) and not PHYSICAL.search(text))
 
 # ---------- 獎金獵人 bhuntr ----------
 BH_INDEX = "https://bhuntr.com/sitemap_v2.xml"
