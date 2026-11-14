@@ -273,6 +273,10 @@ def tour_data(lang, user=None):
         return d
     from .whatsnew import tour_steps
     tours = {k: [one(s) for s in v] for k, v in TOURS.items()}
+    for k, first in (("student", "skills"), ("prof", "p_status")):   # sign-up steps: not counted for someone already logged in
+        ks = [x["key"] for x in tours[k]]
+        if first in ks:
+            for x in tours[k][:ks.index(first)]: x["pre"] = True
     tours["new"] = tour_steps("prof" if user and user.role == "faculty" else "student", lang)   # every announced feature with a step, automatically
     return dict(tours=tours, labels=LABELS["zh" if zh else "en"],
                 verified=bool(user and user.is_faculty), uid=user.id if user else 0)

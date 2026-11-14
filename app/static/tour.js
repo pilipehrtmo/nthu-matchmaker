@@ -256,7 +256,8 @@
     if (g !== gen) return;
     if (i < 0) { if (spot) spot.classList.remove("on"); hideCursor(); return resume(st, S, L); }
     if (i !== st.i) { st = { ...read(), i, via: st.via === S[i].key ? st.via : null }; write(st); }
-    const s = S[i], main = S.filter(x => !x.alt), num = Math.max(1, S.slice(0, i + 1).filter(x => !x.alt).length), last = s.act === "done";
+    const counts = x => !x.alt && !(D.uid && x.pre);   // logged in: the sign-up steps aren't part of your count
+    const s = S[i], main = S.filter(counts), num = Math.max(1, S.slice(0, i + 1).filter(counts).length), last = s.act === "done";
     const t = s.sel ? await waitFor(() => find(s.sel), 2500, g) : null;
     if (g !== gen) return;
     mainEl = focusEl = t;
