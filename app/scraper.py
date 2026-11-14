@@ -96,15 +96,17 @@ def page_items(page):
 BH_INDEX = "https://bhuntr.com/sitemap_v2.xml"
 BH_MAX_AGE = 180         # days: competitions posted earlier than this are almost all closed
 BH_PER_RUN = 80          # competition pages opened per run (new ones only), about one a second
-YOUNG = ["國小", "國中", "高中", "高職", "幼兒", "兒童", "國高中"]
+YOUNG = ["國小", "國中", "高中", "高職", "幼兒", "兒童", "國高中", "小學生", "中學生"]
 GROWN = ["大學", "大專", "研究所", "研究生", "社會人士", "社會組", "不限", "一般民眾", "青年", "成人", "公開組", "全民"]
-GROWN_TITLE = ["大學生", "大專", "研究生", "社會", "青年", "不限", "全民", "公開"]
+GROWN_TITLE = ["大學生", "大專", "研究生", "社會人士", "社會組", "社會大眾", "青年", "不限", "全民", "公開組"]
 # held in Taiwan: the text names a Taiwan place, body or currency (bhuntr also lists galleries and awards abroad)
 TW = re.compile(r"台灣|臺灣|中華民國|新臺幣|新台幣|全國|國內|台北|臺北|新北|桃園|新竹|苗栗|台中|臺中|彰化|南投|雲林|嘉義|台南|臺南|高雄|屏東|宜蘭|花蓮|台東|臺東|基隆|澎湖|金門|馬祖|"
                 r"教育部|文化部|經濟部|環境部|數位發展部|交通部|衛生福利部|衛福部|國科會|農業部|勞動部|內政部|客家委員會|原住民族委員會|青年發展署|市政府|縣政府|國立|大專|大學")
 ABROAD = re.compile(r"義大利|德國|法國|英國|美國|日本|韓國|波蘭|希臘|保加利亞|西班牙|荷蘭|加拿大|澳洲|阿拉斯加|慕尼黑|邁阿密|阿爾勒|索菲亞|紐約|倫敦|巴黎|pixiv|Gallery", re.I)
 SPORT = ["馬拉松", "路跑", "健走", "超馬", "鐵人"]   # races to sign up for, not competitions to build a team for
-NOT_CONTEST = ["申請展", "駐村", "駐館"]               # exhibition and residency applications
+NOT_CONTEST = ["申請展", "駐村", "駐館",               # exhibition and residency applications
+               "教材教法", "教師", "健康促進學校", "輔導團",  # for teachers and schools
+               "FITI", "U-start", "大專學生研究計畫"]       # funding programs: they're on the Funding page
 # hosted abroad is fine only if it's entered online and nobody has to travel for a round
 ONLINE = re.compile(r"線上|網路投稿|online|上傳|電子檔|數位檔|e-?mail|電子郵件|平台提交|投稿平台|提交平台|網站提交|Picter|Zealous", re.I)
 IN_PERSON = re.compile(r"實體決賽|現場決賽|親自出席|須親臨|現場參賽|須到場|親赴|實體參與|必須出席|現場評選|現場答辯")
@@ -160,7 +162,8 @@ def bh_item(url, ev, now=None):
     d = find_deadline(desc, today)
     if not d and any(deadline_dates(desc)) and all(x < today for x in deadline_dates(desc)): return None   # every deadline it states has passed
     deadline = d.isoformat() if d else ""
-    return dict(title=name[:200], url=url, deadline=deadline, description=desc[:300], category=categorize(f"{name} {kw}"))
+    c = categorize(name)   # the title says what it's about; bhuntr's tags are broad, so they only fill in when the title doesn't
+    return dict(title=name[:200], url=url, deadline=deadline, description=desc[:300], category=c if c != "Other" else categorize(kw))
 
 def bhuntr():
     if not allowed(BH_INDEX): raise RuntimeError("robots.txt does not allow reading the sitemap")
@@ -183,15 +186,17 @@ def bhuntr():
         if item: yield item
         time.sleep(1)
 
-CATS = [("Social Impact", ["social", "sdg", "sustainab", "永續", "公益", "impact", "社會創新", "志工", "環保"]),
-        ("Law & Policy", ["law", "moot", "policy", "法律", "法學", "政策", "模擬法庭"]),
-        ("Design & Arts", ["design", "設計", "art", "藝術", "film", "photo", "music", "影片", "攝影", "繪畫", "插畫", "文學", "寫作", "徵文", "音樂", "動畫", "漫畫"]),
-        ("Science & Health", ["bio", "health", "science", "醫", "科學", "chem", "climate", "環境", "健康", "長照"]),
-        ("Business", ["startup", "business", "pitch", "創業", "創新", "entrepreneur", "finance", "marketing", "行銷", "商業", "金融"]),
-        ("Tech & Data", ["hackathon", "ai ", " ai", "data", "code", "黑客松", "程式", "software", "robot", "人工智慧", "資料", "數據", "資訊", "半導體", "ic "])]
+# first match wins; English words match whole words only ("art" isn't in "smart")
+CATS = [("Tech & Data", ["hackathon", "ai", "data", "code", "coding", "software", "robot", "robotics", "app", "黑客松", "程式", "編程", "人工智慧", "資料", "數據", "資訊", "資通", "半導體", "機器人", "無人機", "量子", "軟體", "電腦", "ai創新", "大數據"]),
+        ("Law & Policy", ["law", "moot", "policy", "法律", "法學", "政策", "模擬法庭", "法創"]),
+        ("Science & Health", ["bio", "health", "science", "chem", "climate", "醫", "科學", "環境", "健康", "長照", "天文", "生醫"]),
+        ("Design & Arts", ["design", "art", "arts", "film", "photo", "photography", "music", "設計", "藝術", "影片", "影像", "短片", "微電影", "攝影", "迷因", "梗圖", "繪畫", "插畫", "文學", "寫作", "徵文", "音樂", "動畫", "漫畫", "書法", "詩", "建築", "播客", "短影音"]),
+        ("Business", ["startup", "business", "pitch", "entrepreneur", "finance", "marketing", "創業", "創新", "行銷", "商業", "金融", "個案", "經營", "募資"]),
+        ("Social Impact", ["social", "sdg", "sustainability", "impact", "永續", "公益", "社會創新", "志工", "環保", "關懷"])]
 def categorize(title: str) -> str:
-    t = f" {title.lower()} "
-    return next((c for c, ks in CATS if any(k in t for k in ks)), "Other")
+    t = title.lower()
+    def hit(k): return re.search(rf"(?<![a-z]){re.escape(k)}(?![a-z])", t) if k.isascii() else k in t
+    return next((c for c, ks in CATS if any(hit(k) for k in ks)), "Other")
 
 SOURCES = {"bhuntr": bhuntr, "devpost": devpost}
 
@@ -220,8 +225,11 @@ def prune_titles():
         for c in s.exec(select(Competition).where((Competition.source == "bhuntr") | Competition.source.like("page:%"))).all():
             if c.verified_at or c.id in saved: continue
             t = c.title
-            bad = any(x in t for x in SPORT + NOT_CONTEST) or bool(OTHER_SCHOOL.search(t)) or (c.source.startswith("page:") and "nthu.edu.tw" not in c.source and re.search(r"系內|校內|院內", t))
+            kids = c.source == "bhuntr" and any(y in t for y in YOUNG) and not any(g in t for g in GROWN_TITLE)
+            bad = kids or any(x in t for x in SPORT + NOT_CONTEST) or bool(OTHER_SCHOOL.search(t)) or (c.source.startswith("page:") and "nthu.edu.tw" not in c.source and re.search(r"系內|校內|院內", t))
             if bad: s.delete(c); gone += 1
+            else:
+                k = categorize(c.title); c.category = k if k != "Other" else categorize(c.description[:300]); s.add(c)   # keep categories in step with the rules
         s.commit()
     return gone
 
