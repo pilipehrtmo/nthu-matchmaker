@@ -41,7 +41,7 @@
 const list=$("#plist"),cards=$$("#plist .pcard"),P=new URLSearchParams(location.search);
 const st={dept:P.get("dept")||"",hours:P.get("hours")||"",ptag:P.get("ptag")||"",k:P.get("kind")||"",sort:P.get("sort")||($("#f-sort option[value=match]")?"match":"deadline"),cat:P.get("cat2")||"",role:P.get("role")||"",tags:(P.get("tags")||"").split(",").filter(Boolean),q:P.get("q")||"",c:P.get("cat")||""};
 const q=$(".search input"),form=$(".search");q.value=st.q;
-const count=(arr)=>{const m=new Map();arr.forEach(v=>v&&m.set(v,(m.get(v)||0)+1));return[...m].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))};
+const count=(arr)=>{const m=new Map();arr.forEach(v=>v&&m.set(v,(m.get(v)||0)+1));return[...m].sort((a,b)=>(a[0]==="Other")-(b[0]==="Other")||b[1]-a[1]||a[0].localeCompare(b[0]))};   // "Other" always last
 // fill the menus from the projects on the page
 const cats=count(cards.map(c=>c.dataset.cat)),roles=count(cards.flatMap(c=>c.dataset.roles.split("|"))),tags=count(cards.flatMap(c=>c.dataset.skills.split(",").map(t=>t.trim()))).slice(0,14);
 const L={{ ((G.STARTUP_CATEGORIES + G.RESEARCH_FIELDS + ["Business", "Design & Arts", "Law & Policy", "Science & Health", "Social Impact", "Tech & Data", "Other"])|map("tr")|list|tojson if lang == "zh" else "[]") }}, LK={{ ((G.STARTUP_CATEGORIES + G.RESEARCH_FIELDS + ["Business", "Design & Arts", "Law & Policy", "Science & Health", "Social Impact", "Tech & Data", "Other"])|tojson if lang == "zh" else "[]") }};

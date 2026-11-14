@@ -117,7 +117,7 @@ def funding(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     progs = s.exec(select(Program).where(Program.active == True).order_by(Program.sort)).all()
     mine = s.exec(select(Project).where(Project.owner_id == user.id, Project.kind.in_(["Startup", "Research"]))).all() if user else []
     track = {r.item_id: r.status for r in s.exec(select(SavedItem).where(SavedItem.user_id == user.id, SavedItem.kind == "program")).all()} if user else {}
-    fields = sorted({c.strip() for p in progs for c in (p.categories or "").split(",") if c.strip()})
+    fields = sorted({c.strip() for p in progs for c in (p.categories or "").split(",") if c.strip()}, key=lambda c: (c.lower() == "other", c))   # "Other" always last
     return render(req, "funding.html", user, progs=progs, mine=mine, track=track, fields=fields)
 
 @app.post("/save/program/{iid}/track", dependencies=[limited("track", 120, 3600)])

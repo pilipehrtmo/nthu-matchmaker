@@ -618,7 +618,7 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         d = days_left(prog.next_deadline)
         if d is not None and 0 <= d <= 30 and (prog.for_kind not in soon or d < soon[prog.for_kind][1]): soon[prog.for_kind] = (short_name(prog.name), d)
     allc = s.exec(select(Competition).order_by(Competition.needs_review, Competition.id.desc())).all()
-    cats = sorted({c.category for c in allc})
+    cats = sorted({c.category for c in allc}, key=lambda c: (c == "Other", c))   # "Other" always last
     from .opps import comp_status, saved_ids
     rank = {"closing": 0, "open": 1, "unknown": 2, "past": 3}
     comps = sorted(allc[:300], key=lambda c: (rank[comp_status(c)[0]], comp_status(c)[2] if comp_status(c)[2] is not None else 9999, -c.id))
