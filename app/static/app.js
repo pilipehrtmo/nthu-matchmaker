@@ -51,8 +51,44 @@
   // if the network fails, fall back to a normal page load
   document.addEventListener("htmx:sendError", () => { document.documentElement.classList.remove("loading"); location.reload(); });
 
+  // ---------- password fields: eye button to show or hide what was typed ----------
+  const EYE_OPEN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_SHUT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.9 10.9 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6A17.4 17.4 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  const zh = () => document.documentElement.lang.startsWith("zh");
+  const eyeLabel = shown => shown ? (zh() ? "隱藏密碼" : "Hide password") : (zh() ? "顯示密碼" : "Show password");
+  function addEyes(root) {
+    root.querySelectorAll("input[type=password]:not([data-eye])").forEach(inp => {
+      inp.dataset.eye = "1";
+      const wrap = document.createElement("span"); wrap.className = "pw-wrap";
+      inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "pw-eye"; b.innerHTML = EYE_SHUT;
+      b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", eyeLabel(false)); b.title = eyeLabel(false);
+      if (inp.id) b.setAttribute("aria-controls", inp.id);
+      wrap.appendChild(b);
+    });
+  }
+  document.addEventListener("click", e => {
+    const b = e.target.closest(".pw-eye"); if (!b) return;
+    const inp = b.parentNode.querySelector("input"); if (!inp) return;
+    const show = inp.type === "password";
+    const at = [inp.selectionStart, inp.selectionEnd];
+    inp.type = show ? "text" : "password";
+    b.innerHTML = show ? EYE_OPEN : EYE_SHUT;
+    b.setAttribute("aria-pressed", String(show)); b.setAttribute("aria-label", eyeLabel(show)); b.title = eyeLabel(show);
+    if (document.activeElement === inp) try { inp.setSelectionRange(at[0], at[1]); } catch (err) {}
+  });
+  // hide again before sending, so the browser's password manager still sees a password field
+  document.addEventListener("submit", e => {
+    e.target.querySelectorAll("input[data-eye]").forEach(inp => {
+      inp.type = "password"; const b = inp.parentNode.querySelector(".pw-eye");
+      if (b) { b.innerHTML = EYE_SHUT; b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", eyeLabel(false)); b.title = eyeLabel(false); }
+    });
+  }, true);
+
   // ---------- set up each page: first load and every page swapped in ----------
   function setup(root) {
+    addEyes(root);
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .12 });
     root.querySelectorAll(".card,.seatcard,.steps li,.chip,.reveal,.hero").forEach((el, i) => {
       if (el.classList.contains("rv")) return;

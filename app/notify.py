@@ -16,6 +16,7 @@ from .config import BASE_URL
 
 EMAIL_PREFS = ["off", "daily", "important", "instant"]
 IMPORTANT = {"review_request", "remark_submitted", "remark_reopened", "removed", "app_decision", "deadline", "faculty_status"}   # "important": these right away, the rest in the daily summary
+ALWAYS = {"application", "lab_application"}   # a new applicant: the project or opening owner is always emailed, whatever their email setting
 MERGE = timedelta(minutes=10)
 
 
@@ -31,8 +32,12 @@ def notify(s, user_ids, kind, text, link, project_id=None, actor=None, instant_o
     s.commit()
     if instant_ok and sent:
         prefs = ["instant", "important"] if kind in IMPORTANT else ["instant"]
-        for u in s.exec(select(User).where(User.id.in_(sent), User.email_pref.in_(prefs), User.banned == False)).all():
-            _mail_later(u.email, "NTHU Matchmaker: " + text[:80], f"{text}\n\nOpen it: {BASE_URL}{link}\n\nYou get these emails because of your notification email setting on your profile.")
+        q = select(User).where(User.id.in_(sent), User.banned == False)
+        if kind not in ALWAYS: q = q.where(User.email_pref.in_(prefs))
+        for u in s.exec(q).all():
+            why = ("You get this email because someone applied to something you posted." if kind in ALWAYS
+                   else "You get these emails because of your notification email setting on your profile.")
+            _mail_later(u.email, "NTHU Matchmaker: " + text[:80], f"{text}\n\nOpen it: {BASE_URL}{link}\n\n{why}")
             for n in s.exec(select(Notification).where(Notification.user_id == u.id, Notification.link == link, Notification.emailed_at == None)).all():
                 n.emailed_at = now; s.add(n)
         s.commit()

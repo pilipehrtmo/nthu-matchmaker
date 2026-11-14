@@ -1099,3 +1099,11 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 /* "Online" filter chip and card tag */
 #ccats .chip-online{display:inline-flex;align-items:center;gap:.35rem}#ccats .chip-online svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8}
 .pill.online{background:var(--ok-bg);color:var(--ok-ink)}
+
+/* password show/hide eye */
+.pw-wrap{position:relative;display:block}
+.pw-wrap input{padding-right:2.9rem}
+.pw-eye{position:absolute;top:50%;right:.3rem;transform:translateY(-50%);width:2.4rem;height:2.4rem;min-width:0;padding:0;margin:0;border:0;border-radius:8px;background:transparent;color:var(--mut);display:grid;place-items:center;cursor:pointer;box-shadow:none}
+.pw-eye:hover{color:var(--ink);background:var(--soft)}
+.pw-eye:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
+.pw-eye svg{width:1.2rem;height:1.2rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}

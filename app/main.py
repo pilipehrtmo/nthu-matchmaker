@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
 from sqlmodel import Session, select, delete, func
+from sqlalchemy.exc import IntegrityError
 from starlette.middleware.sessions import SessionMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from .config import *
@@ -313,19 +314,21 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
     if not EMAIL_RE.match(email): return back("Please enter a valid email address.")
     if len(name) < 2: return back("Please enter your full name.")
-    if s.exec(select(User).where(User.email == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.")
+    if s.exec(select(User).where(func.lower(User.email) == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.")
     if role == "faculty":
         if not (nthu_email(email) or academic_email(email)):
             return back("Use your institutional email: an NTHU address such as name@cs.nthu.edu.tw or name@gapp.nthu.edu.tw, or, for a joint or visiting appointment, your university or institute address.")
         if title not in TITLES and not (title == "Other academic appointment" and title_other.strip()): return back("Choose your academic title, or write it in the box under Other.")
         if len(dept) < 2: return back("Enter your department.")
         if page and not nthu_url(page): return back("The link must be an official page on nthu.edu.tw, such as your department's faculty list. Leave it empty if you don't have one yet.")
+        if s.exec(select(User).where(User.role == "faculty", User.faculty_status != "rejected", func.lower(User.name) == name.lower(), func.lower(User.faculty) == dept.lower())).first():
+            return back("A professor account with this name and department already exists. If it's yours, log in or use Forgot password; otherwise contact an admin.")
         sid = ""
     else:
         if STUDENT_EMAIL_RULE == "nthu" and not nthu_email(email) and email not in ADMIN_EMAILS:
             return back("Use your NTHU email to sign up, for example s114123456@m114.nthu.edu.tw or your @gapp.nthu.edu.tw address.")
         if not SID.match(sid): return back("Enter your student ID (6 to 12 letters or digits).")
-        if s.exec(select(User).where(User.student_id == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.")
+        if s.exec(select(User).where(func.upper(func.trim(User.student_id)) == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.")
     err = password_problem(password, email, name)
     if err: return back(err)
     if password != password2: return back("The two passwords are not the same.")
@@ -337,7 +340,11 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
         u.title = title if title in TITLES else re.sub(r"\s+", " ", title_other).strip()[:60]
         u.faculty_evidence = evidence.replace("\r", "").strip()[:1000]
     else: u.faculty = dept   # department or major, shown on the profile and used by the Department filter
-    s.add(u); s.add(SignupLog(email=email, ip="-", allowed=True)); s.commit(); s.refresh(u)
+    s.add(u); s.add(SignupLog(email=email, ip="-", allowed=True))
+    try: s.commit()
+    except IntegrityError:   # two sign-ups with the same email or student ID at the same moment: the database keeps only one
+        s.rollback(); return back("That email or student ID already has an account. Log in instead, or use Forgot password.")
+    s.refresh(u)
     note(f"signup:{ip_of(req)}")
     if role == "faculty":
         from .profverify import new_application
