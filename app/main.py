@@ -74,7 +74,8 @@ async def lifespan(app):
     if DEMO_DATA:
         from .demo_data import seed_demo; seed_demo(); print(">>> DEMO MODE: sample teams loaded into a separate database. Do not share this server with real users.")
     warm(); sch = BackgroundScheduler()
-    sch.add_job(run_scrapers); sch.add_job(run_scrapers, "cron", hour=3); sch.add_job(purge_logs, "cron", hour=4)
+    sch.add_job(run_scrapers); sch.add_job(run_scrapers, "cron", hour="*/6", minute=17)   # competitions: every 6 hours
+    sch.add_job(purge_logs, "cron", hour=4)
     if PUBLIC and os.getenv("KEEP_AWAKE", "1") == "1": sch.add_job(keep_awake, "interval", minutes=10)
     from .notify import send_digests, send_reminders   # 00:00 UTC = 08:00 Taiwan time
     sch.add_job(send_reminders, "cron", hour=0, minute=0); sch.add_job(send_digests, "cron", hour=0, minute=5)
@@ -1103,7 +1104,7 @@ def extra_admin(s):
     stats = dict(users=len(allu), unverified=sum(1 for u in allu if not u.verified and not u.banned and not u.is_admin), reports=len(reps),
                  review=len(s.exec(select(Competition).where(Competition.needs_review == True)).all()))
     return dict(stats=stats, admin_ids={u.id for u in allu if u.is_admin}, reports=reps, info=info, pages=s.exec(select(SourcePage)).all(),
-                slogs=s.exec(select(ScrapeLog).order_by(ScrapeLog.at.desc()).limit(10)).all())
+                slogs=s.exec(select(ScrapeLog).order_by(ScrapeLog.at.desc()).limit(20)).all())
 
 @app.get("/admin")
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):

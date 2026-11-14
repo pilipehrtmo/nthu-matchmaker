@@ -172,6 +172,12 @@ class SourcePage(SQLModel, table=True):   # announcement pages the scraper scans
     url: str = Field(unique=True)
     active: bool = True
 
+class ScrapeSeen(SQLModel, table=True):   # competition pages the scraper already opened (kept or skipped), so each is fetched once
+    id: Optional[int] = Field(default=None, primary_key=True)
+    url: str = Field(unique=True)
+    kept: bool = False
+    at: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
 class ScrapeLog(SQLModel, table=True):    # health of each scraper source
     id: Optional[int] = Field(default=None, primary_key=True)
     source: str

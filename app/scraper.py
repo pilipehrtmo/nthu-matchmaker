@@ -1,66 +1,192 @@
-"""Each source is a small generator; add a function and register it in SOURCES."""
-import logging, urllib.robotparser as rp
+"""Competition sources. Each source is a small generator registered in SOURCES; run_scrapers() runs them all
+(at start-up and every 6 hours) and adds what's new as "not checked by an admin yet".
+
+Taiwan sources:
+  * bhuntr   - 獎金獵人 (bhuntr.com), Taiwan's largest competition listing. Read through its public sitemap
+               (robots.txt allows crawling and points to it) and the schema.org Event data on each competition page.
+               Only competitions open to university students or adults are kept; kids-only ones are skipped.
+  * pages    - announcement pages that list competitions as plain links (built-in TW_PAGES, the NTHU_PAGES setting,
+               and pages an admin adds on the admin page). Links whose text names a competition are kept.
+  * devpost  - upcoming online hackathons (worldwide, open to Taiwan students).
+Deadlines are only stored when a page really states one; otherwise the date shows as "Date not confirmed".
+"""
+import json, logging, re, time, urllib.robotparser as rp
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlparse, urljoin
 import httpx
 from bs4 import BeautifulSoup
 from sqlmodel import Session, select
 from .db import engine
-from .models import Competition, SourcePage, ScrapeLog
-from .config import NTHU_PAGES, KEYWORDS
-UA = "NTHU-Matchmaker/0.1 (student project)"
+from .models import Competition, SourcePage, ScrapeLog, ScrapeSeen
+from .config import NTHU_PAGES
+UA = "NTHU-Matchmaker/0.1 (student project; lists competitions for NTHU students)"
+HDRS = {"User-Agent": UA, "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8"}
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("scraper")
 
-def allowed(url: str) -> bool:
-    p = urlparse(url); r = rp.RobotFileParser(f"{p.scheme}://{p.netloc}/robots.txt")
-    try: r.read()
-    except Exception: return False
-    return r.can_fetch(UA, url)
+# Taiwan pages that post competitions for university students as plain HTML links (checked Nov 2026)
+TW_PAGES = [
+    "https://activity.sa.ntnu.edu.tw/category/activity/",            # 臺師大 課外活動指導組: 【競賽資訊】 posts from across Taiwan
+    "https://www.csie.ntnu.edu.tw/index.php/category/competition/",  # 臺師大 資工系: competitions category
+]
+# a link names a competition if it has one of these words, and none of the words for results, scholarships or reports
+KEYWORDS = ["競賽", "比賽", "徵件", "徵稿", "徵選", "黑客松", "挑戰賽", "大賽", "創業", "提案", "選拔", "hackathon", "competition", "contest", "challenge", "pitch", "award"]
+NOT = ["獎學金", "榮獲", "獲獎", "得獎", "奪", "恭喜", "賀", "成果", "頒獎", "名單", "結果", "公告得獎", "scholarship", "winners", "congrat"]
 
+def allowed(url: str) -> bool:
+    """robots.txt says we may read this page (RFC 9309: no robots.txt (4xx) means allowed; a server error means not now)."""
+    p = urlparse(url)
+    try: r = httpx.get(f"{p.scheme}://{p.netloc}/robots.txt", headers=HDRS, timeout=15, follow_redirects=True)
+    except httpx.HTTPError as e: raise RuntimeError(f"could not reach {p.netloc} ({type(e).__name__})")
+    if r.status_code >= 500: return False
+    if r.status_code >= 400: return True
+    parser = rp.RobotFileParser(); parser.parse(r.text.splitlines())
+    return parser.can_fetch(UA, url)
+
+def is_competition(text: str) -> bool:
+    t = text.lower()
+    return len(text) >= 6 and any(k.lower() in t for k in KEYWORDS) and not any(k.lower() in t for k in NOT)
+
+def get(url, **kw):
+    r = httpx.get(url, headers=HDRS, timeout=25, follow_redirects=True, **kw); r.raise_for_status(); return r
+
+# ---------- devpost ----------
 def devpost():
-    r = httpx.get("https://devpost.com/api/hackathons", params={"status[]": "upcoming"},
-                  headers={"User-Agent": UA}, timeout=20)
+    r = httpx.get("https://devpost.com/api/hackathons", params={"status[]": "upcoming"}, headers=HDRS, timeout=20)
     for h in r.json().get("hackathons", []):
         yield dict(title=h["title"], url=h["url"], deadline=h.get("submission_period_dates", ""))
 
+# ---------- announcement pages ----------
 def pages():
     with Session(engine) as s: db = [p.url for p in s.exec(select(SourcePage).where(SourcePage.active == True)).all()]
-    return list(dict.fromkeys(list(NTHU_PAGES) + db))
+    return list(dict.fromkeys(TW_PAGES + list(NTHU_PAGES) + db))
 
-def nthu_pages():
-    for page in pages():
-        if not allowed(page): log.warning("robots.txt blocks %s", page); continue
-        soup = BeautifulSoup(httpx.get(page, headers={"User-Agent": UA}, timeout=20).text, "html.parser")
-        for a in soup.select("a[href]"):
-            t = a.get_text(strip=True)
-            if t and any(k.lower() in t.lower() for k in KEYWORDS):
-                yield dict(title=t, url=urljoin(page, a["href"]), deadline="")
+def page_items(page):
+    if not allowed(page): raise RuntimeError("robots.txt does not allow reading this page")
+    soup = BeautifulSoup(get(page).text, "html.parser")
+    for a in soup.select("a[href]"):
+        t = re.sub(r"\s+", " ", a.get_text(" ", strip=True))
+        if is_competition(t): yield dict(title=t[:200], url=urljoin(page, a["href"]), deadline="")
 
-CATS = [("Social Impact", ["social", "sdg", "sustainab", "永續", "公益", "impact"]),
-        ("Law & Policy", ["law", "moot", "policy", "法律", "法學", "政策"]),
-        ("Design & Arts", ["design", "設計", "art", "藝術", "film", "photo", "music"]),
-        ("Science & Health", ["bio", "health", "science", "醫", "科學", "chem", "climate", "環境"]),
-        ("Business", ["startup", "business", "pitch", "創業", "創新", "entrepreneur", "finance", "marketing"]),
-        ("Tech & Data", ["hackathon", "ai ", "data", "code", "黑客松", "程式", "software", "robot"])]
+# ---------- 獎金獵人 bhuntr ----------
+BH_INDEX = "https://bhuntr.com/sitemap_v2.xml"
+BH_MAX_AGE = 180         # days: competitions posted earlier than this are almost all closed
+BH_PER_RUN = 80          # competition pages opened per run (new ones only), about one a second
+YOUNG = ["國小", "國中", "高中", "高職", "幼兒", "兒童", "國高中"]
+GROWN = ["大學", "大專", "研究所", "研究生", "社會人士", "社會組", "不限", "一般民眾", "青年", "成人", "公開組", "全民"]
+GROWN_TITLE = ["大學生", "大專", "研究生", "社會", "青年", "不限", "全民", "公開"]
+# held in Taiwan: the text names a Taiwan place, body or currency (bhuntr also lists galleries and awards abroad)
+TW = re.compile(r"台灣|臺灣|中華民國|新臺幣|新台幣|全國|國內|台北|臺北|新北|桃園|新竹|苗栗|台中|臺中|彰化|南投|雲林|嘉義|台南|臺南|高雄|屏東|宜蘭|花蓮|台東|臺東|基隆|澎湖|金門|馬祖|"
+                r"教育部|文化部|經濟部|環境部|數位發展部|交通部|衛生福利部|衛福部|國科會|農業部|勞動部|內政部|客家委員會|原住民族委員會|青年發展署|市政府|縣政府|國立|大專|大學")
+ABROAD = re.compile(r"義大利|德國|法國|英國|美國|日本|韓國|波蘭|希臘|保加利亞|西班牙|荷蘭|加拿大|澳洲|阿拉斯加|慕尼黑|邁阿密|阿爾勒|索菲亞|紐約|倫敦|巴黎|pixiv|Gallery", re.I)
+SPORT = ["馬拉松", "路跑", "健走", "超馬", "鐵人"]   # races to sign up for, not competitions to build a team for
+OTHER_SCHOOL = re.compile(r"(臺大|台大|政大|成大|陽明交大|交大|師大|中央大學|中興|中山大學|中正大學|東海|輔大|北科大|台科大|臺科大)學生")
+
+def bh_list(xml):
+    """(competition page URL, title, publication date) for every competition in a bhuntr sitemap."""
+    out = []
+    for block in re.findall(r"<url>(.*?)</url>", xml, re.S):
+        loc = re.search(r"<loc>https://bhuntr\.com/competitions/([a-z0-9]+)</loc>", block)
+        if not loc: continue
+        title = re.search(r"<news:title><!\[CDATA\[(.*?)\]\]></news:title>", block, re.S)
+        pub = re.search(r"<news:publication_date>(\d{4}-\d{2}-\d{2})", block)
+        out.append((f"https://bhuntr.com/tw/competitions/{loc.group(1)}", title.group(1).strip() if title else "", pub.group(1) if pub else ""))
+    return out
+
+def bh_sitemaps(index_xml, today):
+    """This year's competition sitemap (and last year's in January), then the 'latest' one."""
+    locs = re.findall(r"<loc>([^<]+)</loc>", index_xml)
+    want = [f"_contest_{today.year}.xml"] + ([f"_contest_{today.year - 1}.xml"] if today.month == 1 else []) + ["_contest_latest.xml"]
+    return [u for w in want for u in locs if u.endswith(w)]
+
+def bh_event(html):
+    """The schema.org Event on a competition page, or None."""
+    for tag in BeautifulSoup(html, "html.parser").select('script[type="application/ld+json"]'):
+        try: data = json.loads(tag.string or "")
+        except Exception: continue
+        for x in (data.get("@graph", [data]) if isinstance(data, dict) else data):
+            if isinstance(x, dict) and x.get("@type") == "Event": return x
+    return None
+
+def bh_item(url, ev, now=None):
+    """Turn a bhuntr Event into a Competition row, or None to skip it (kids only, or already closed).
+    The deadline comes only from the description ("報名截止：2026/12/21"). The Event's endDate is the end of the
+    whole event (or, often, just the time of the request), so it's used only to drop competitions that are over."""
+    from .fundscan import find_deadline, deadline_dates
+    now = now or datetime.now(timezone.utc); today = (now + timedelta(hours=8)).date()
+    name = (ev.get("name") or "").strip(); kw = ev.get("keywords") or ""; desc = re.sub(r"\s+", " ", ev.get("description") or "").strip()
+    # for school children only: a school level in the tags or title, and nothing that opens it to university students or
+    # adults (in the title only words for people count: "清華大學" as an organiser doesn't make a camp open to students)
+    if any(y in f"{kw} {name}" for y in YOUNG) and not (any(g in kw for g in GROWN) or any(g in name for g in GROWN_TITLE)): return None
+    if any(x in f"{name} {kw}" for x in SPORT): return None
+    if OTHER_SCHOOL.search(name): return None                                    # only for another university's students
+    if ABROAD.search(name) or not TW.search(f"{name} {kw} {desc}"): return None   # held abroad
+    end = ev.get("endDate") or ""
+    try:
+        e = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        if e.tzinfo is None: e = e.replace(tzinfo=timezone.utc)
+        if abs((e - now).total_seconds()) > 3 * 3600 and e < now: return None   # the whole event is over
+    except ValueError: pass
+    d = find_deadline(desc, today)
+    if not d and any(deadline_dates(desc)) and all(x < today for x in deadline_dates(desc)): return None   # every deadline it states has passed
+    deadline = d.isoformat() if d else ""
+    return dict(title=name[:200], url=url, deadline=deadline, description=desc[:300], category=categorize(f"{name} {kw}"))
+
+def bhuntr():
+    if not allowed(BH_INDEX): raise RuntimeError("robots.txt does not allow reading the sitemap")
+    today = (datetime.now(timezone.utc) + timedelta(hours=8)).date(); oldest = (today - timedelta(days=BH_MAX_AGE)).isoformat()
+    listed = {}
+    for sm in bh_sitemaps(get(BH_INDEX).text, today):
+        for u, t, pub in bh_list(get(sm).text): listed.setdefault(u, (t, pub))
+    with Session(engine) as s:
+        seen = set(s.exec(select(ScrapeSeen.url)).all())
+        have = set(s.exec(select(Competition.url)).all())
+    fresh = sorted(((pub, u) for u, (t, pub) in listed.items() if pub >= oldest and u not in seen and u not in have), reverse=True)   # newest first
+    for pub, u in fresh[:BH_PER_RUN]:
+        item = None
+        try:
+            ev = bh_event(get(u).text)
+            if ev: item = bh_item(u, ev)
+        except Exception as e:
+            log.warning("bhuntr %s: %s", u, e); continue   # try again next run
+        with Session(engine) as s: s.add(ScrapeSeen(url=u, kept=item is not None)); s.commit()
+        if item: yield item
+        time.sleep(1)
+
+CATS = [("Social Impact", ["social", "sdg", "sustainab", "永續", "公益", "impact", "社會創新", "志工", "環保"]),
+        ("Law & Policy", ["law", "moot", "policy", "法律", "法學", "政策", "模擬法庭"]),
+        ("Design & Arts", ["design", "設計", "art", "藝術", "film", "photo", "music", "影片", "攝影", "繪畫", "插畫", "文學", "寫作", "徵文", "音樂", "動畫", "漫畫"]),
+        ("Science & Health", ["bio", "health", "science", "醫", "科學", "chem", "climate", "環境", "健康", "長照"]),
+        ("Business", ["startup", "business", "pitch", "創業", "創新", "entrepreneur", "finance", "marketing", "行銷", "商業", "金融"]),
+        ("Tech & Data", ["hackathon", "ai ", " ai", "data", "code", "黑客松", "程式", "software", "robot", "人工智慧", "資料", "數據", "資訊", "半導體", "ic "])]
 def categorize(title: str) -> str:
-    t = title.lower()
+    t = f" {title.lower()} "
     return next((c for c, ks in CATS if any(k in t for k in ks)), "Other")
 
-SOURCES = {"devpost": devpost, "nthu": nthu_pages}
+SOURCES = {"bhuntr": bhuntr, "devpost": devpost}
 
 def _note(name, count, error=""):
     with Session(engine) as s: s.add(ScrapeLog(source=name, count=count, error=error[:200])); s.commit()
 
+def _norm(t): return re.sub(r"[\s\W_]+", "", (t or "").lower())
+
+def _save(name, items):
+    new = 0
+    with Session(engine) as s:
+        titles = {_norm(t) for t in s.exec(select(Competition.title)).all()}
+        for it in items:
+            if not it.get("title") or s.exec(select(Competition).where(Competition.url == it["url"])).first() or _norm(it["title"]) in titles: continue
+            it.setdefault("category", categorize(it["title"]))
+            s.add(Competition(source=name, **it)); titles.add(_norm(it["title"])); new += 1
+        s.commit()
+    return new
+
 def run_scrapers():
-    for name, fn in SOURCES.items():
-        if name == "nthu" and not pages(): _note(name, 0, "no pages configured: add one on the admin page"); continue
+    jobs = list(SOURCES.items()) + [(f"page:{urlparse(p).netloc}", (lambda p=p: page_items(p))) for p in pages()]
+    for name, fn in jobs:
         try: items = list(fn())
-        except Exception as e: log.error("source %s failed: %s", name, e); _note(name, 0, str(e)); continue
-        if not items: log.warning("source %s returned 0 items", name); _note(name, 0, "returned 0 items (blocked, empty, or layout changed)"); continue
-        new = 0
-        with Session(engine) as s:
-            for it in items:
-                if not s.exec(select(Competition).where(Competition.url == it["url"])).first():
-                    s.add(Competition(source=name, category=categorize(it["title"]), **it)); new += 1
-            s.commit()
+        except Exception as e: log.error("source %s failed: %s", name, e); _note(name, 0, f"{type(e).__name__}: {e}"); continue
+        new = _save(name, items)
+        # bhuntr opens only pages it hasn't seen, so 0 new is normal once it has caught up
+        if not items and name != "bhuntr": log.warning("source %s returned 0 items", name); _note(name, 0, "returned 0 items (blocked, empty, or layout changed)"); continue
         _note(name, new); log.info("source %s: %d items, %d new", name, len(items), new)
