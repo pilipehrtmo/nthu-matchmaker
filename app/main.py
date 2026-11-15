@@ -194,7 +194,14 @@ def render(req, name, user=None, **ctx):
             inbox = attention(s, user)["total"]   # the same count the dashboard / Activity page shows
             from .notify import unread
             bell = unread(s, user.id)
-    return tpl(req).TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, "bell": bell, "lang": pick_lang(req), **ctx})
+            if req.session.get("seasoned") != user.id and has_activity(s, user.id): req.session["seasoned"] = user.id
+    newbie = bool(user) and req.session.get("seasoned") != (user.id if user else None)   # "How it works" / "Replay the tutorial" only until they've done something
+    return tpl(req).TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, "bell": bell, "lang": pick_lang(req), "newbie": newbie, **ctx})
+def has_activity(s, uid):   # applied for a seat or position, posted a project, opening, thread or comment
+    for model, col in ((Application, Application.user_id), (Project, Project.owner_id), (OpeningApp, OpeningApp.user_id),
+                       (Opening, Opening.owner_id), (Post, Post.author_id), (Comment, Comment.author_id)):
+        if s.exec(select(model.id).where(col == uid).limit(1)).first(): return True
+    return False
 def go(url): return RedirectResponse(url, status_code=303)
 def kind_of(pr):   # older projects have no kind saved: infer it from the competition link
     return pr.kind or ("Competition" if pr.competition_id else "Side project")

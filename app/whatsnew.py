@@ -16,12 +16,9 @@ def I(key, kind, roles, icon, en, zh, cta, href, step=None): return dict(key=key
 RELEASES = [
     dict(id="2026-11-13", date=datetime(2026, 11, 13, 9, 0), items=[
         I("tour", "Feature", "all", "compass",
-          ("Guided tutorial", "A step-by-step tour that points at the real buttons: create an account, add your skills, apply for a seat. Professors get their own tour. Replay it any time from the menu under your name."),
-          ("互動式導覽", "一步步指著真正的按鈕：建立帳號、加上技能、申請職位。教授也有專屬導覽。隨時可以從你名字下方的選單重播。"),
-          ("Replay the tutorial", "重播導覽"), "replay",
-          step=dict(path=r".*", sel=".nme summary|.tabbar a[href='/profile']", need=".nme",
-                    en=("Replay any time", "The tutorial is in the menu under your name: Replay the tutorial."),
-                    zh=("隨時重播", "導覽在你名字下方的選單裡：「重播導覽」。"))),
+          ("Guided tutorial", "A step-by-step tour that points at the real buttons: create an account, add your skills, apply for a seat. Professors get their own tour. Replay it any time with the button below."),
+          ("互動式導覽", "一步步指著真正的按鈕：建立帳號、加上技能、申請職位。教授也有專屬導覽。隨時可以按下方按鈕重播。"),
+          ("Replay the tutorial", "重播導覽"), "replay"),
         I("checklist", "Feature", "all", "checklist",
           ("Getting started checklist", "Your first steps, ticked off from what you've really done. Each one links to the right page, with a Guide me button if you want help."),
           ("新手上路清單", "你的第一步，會依你實際完成的事自動打勾。每一項都連到對應頁面，需要時可以按「帶我做」。"),
