@@ -14,6 +14,7 @@ SHOW_LINK = os.getenv("SHOW_LINK", "0") == "1" and not PUBLIC   # DEMO ONLY, nev
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 DEMO_DATA = os.getenv("DEMO_DATA", "0") == "1"   # run-demo.bat: realistic sample teams, separate demo.db
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")   # https://www.brevo.com: free email API over HTTPS (Render blocks SMTP)
+CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "nthumatchmaker@gmail.com")   # shown on the admin's public page for reports and complaints
 MAIL_FROM = os.getenv("MAIL_FROM", os.getenv("SMTP_FROM", "nthumatchmaker@gmail.com"))   # must be a sender verified in Brevo
 # Email verification is switched on only when email can really be sent from the server
 REQUIRE_VERIFY = os.getenv("REQUIRE_EMAIL_VERIFY", "auto")

@@ -248,6 +248,7 @@ HANDLE_RE = re.compile(r"^[a-z0-9._-]{3,30}$")
 def verify_required() -> bool:   # only ask people to verify when the server can really send email
     return REQUIRE_VERIFY == "1" or (REQUIRE_VERIFY == "auto" and bool(BREVO_API_KEY))
 templates.env.globals["verify_required"] = verify_required
+templates.env.globals["CONTACT_EMAIL"] = CONTACT_EMAIL
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 def make_link(s, u, kind, hours):
