@@ -1620,6 +1620,8 @@
     "Entered entirely online": "完全線上參加",
     "A professor account with this name and department already exists. If it's yours, log in or use Forgot password; otherwise contact an admin.": "已有相同姓名與系所的教師帳號。如果是你的帳號，請登入或使用「忘記密碼」；否則請聯絡管理員。",
     "That email or student ID already has an account. Log in instead, or use Forgot password.": "這個信箱或學號已經有帳號。請直接登入，或使用「忘記密碼」。",
-    "Research project": "研究專題"
+    "Research project": "研究專題",
+    "Show me how · Student": "帶我操作 · 學生",
+    "Show me how · Professor": "帶我操作 · 教授"
   }
 }

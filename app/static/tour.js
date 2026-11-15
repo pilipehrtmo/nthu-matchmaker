@@ -330,6 +330,12 @@
         }, 0);
       };
       t.addEventListener("click", pick); cleanup.push(() => t.removeEventListener("click", pick));
+    } else if (s.act === "pick" && t) {   // every option is highlighted; any one they choose lets them go on
+      const b = btn(L.next, "sm", next), ok = moved => {
+        const c = t.querySelector("input[type=radio]:checked"); b.disabled = !c; hint.textContent = c ? L.chosen : L.choose;
+        if (c && moved) { if (layer.dataset.demo === "running") { layer.dataset.demo = "stop"; paused = false; } focusEl = c.closest(".kind") || t; moveTo(focusEl, gen); kick(); }
+      };
+      ok(false); const on = () => setTimeout(() => ok(true), 0); t.addEventListener("change", on); cleanup.push(() => t.removeEventListener("change", on));
     } else if (s.act === "click" && t) {
       hint.textContent = L.press;
       const on = () => { if (t.closest("a,.pcard")) write({ ...read(), i: nextIdx }); else setTimeout(next, 60); };
@@ -350,7 +356,7 @@
       if (innerWidth !== lastW || innerHeight !== lastH) { lastW = innerWidth; lastH = innerHeight; if (focusEl && !paused) reveal(focusEl, g, sheetH()); }
       if (!(mainEl && document.body.contains(mainEl))) mainEl = find(s.sel);
       if (!(focusEl && document.body.contains(focusEl))) focusEl = mainEl;
-      spotOn(s.act === "role" ? mainEl : focusEl);   // a choice: keep every option lit while the cursor points at each
+      spotOn(s.act === "role" || s.act === "pick" ? mainEl : focusEl);   // a choice: keep every option lit while the cursor points at each
       const f = focusEl || mainEl;   // the panel stays next to what the cursor is showing; it glides only when that changes
       if (f !== lastF) { tip.classList.add("t-glide"); clearTimeout(glide); glide = setTimeout(() => tip.classList.remove("t-glide"), 420); lastF = f; }
       placeTip(f, tip, mainEl);

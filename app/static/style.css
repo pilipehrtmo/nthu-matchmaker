@@ -971,7 +971,7 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .howto li{counter-increment:h;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:.9rem 1rem .9rem 3.1rem;position:relative}
 .howto li::before{content:counter(h);position:absolute;left:1rem;top:.9rem;width:1.5rem;height:1.5rem;border-radius:50%;background:var(--pri-soft);color:var(--pri-ink);display:grid;place-items:center;font-weight:700;font-size:.85rem}
 .howto li b{display:block}.howto li span{color:var(--mut);font-size:.92rem}
-.howto-a{display:flex;gap:1rem;align-items:center;margin:.8rem 0 0}
+.howto-a{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin:.8rem 0 0}
 @media (max-width:720px){.howto ol{grid-template-columns:1fr}}
 .start-top{display:flex;justify-content:space-between;align-items:center}.start-top h2{margin:0;font-size:1.1rem}.start-top button{width:auto}
 .start-l{list-style:none;padding:0;margin:.7rem 0 .4rem}.start-l li{display:flex;gap:.8rem;align-items:center;padding:.6rem 0;border-top:1px solid var(--line)}
@@ -1107,3 +1107,8 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .pw-eye:hover{color:var(--ink);background:var(--soft)}
 .pw-eye:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
 .pw-eye svg{width:1.2rem;height:1.2rem;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* homepage: second "Show me how" button (professor) */
+.btn.soft{background:var(--pri-soft);color:var(--pri-ink);border:1px solid color-mix(in srgb,var(--pri) 35%,transparent)}
+.btn.soft:hover{background:color-mix(in srgb,var(--pri) 18%,var(--pri-soft))}
+@media (max-width:560px){.howto-a .btn{flex:1 1 100%;justify-content:center;text-align:center}}

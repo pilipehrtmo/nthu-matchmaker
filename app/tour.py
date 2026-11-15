@@ -9,7 +9,7 @@ Fields of a step:
   key       unique name; data-tour="student:skills" starts the student tour there
   path      regex on the URL path;  q / unless: text the query string must / must not contain
   need      CSS selector that must exist on the page;  via: only reachable by skipping to it
-  sel       element to highlight ("a|b": first visible wins);  act: next / input / check / click / submit / go / done
+  sel       element to highlight ("a|b": first visible wins);  act: next / input / check / pick / role / click / submit / go / done
   go        page to send someone back to when they wandered off;  href: where an act=go button leads
   skip      key of the step "Skip this step" jumps to (default: the next step)
   warn      the step creates real data: say so
@@ -139,9 +139,26 @@ STUDENT = [
     S("track", r"^/activity$", "#apps-sent", "next",
       ("Your applications", "Each one shows Pending, Accepted or Not accepted. You can edit or withdraw a pending one."),
       ("你的申請", "每一份都會顯示等待中、已接受或未接受。等待中的申請可以修改或撤回。"), go="/activity", demo=[dict(sel="#apps-sent", do="point", en="Applications you sent", zh="你送出的申請")]),
-    S("done", r"^/activity$", "#onboard|#apps-sent|h1", "done",
-      ("You're ready", "That's the whole flow. When you find a seat that fits, press Apply for this seat and send your note for real."),
-      ("準備好了", "這就是完整流程。找到適合的職位時，按「申請這個職位」並真正送出你的留言。"), go="/activity"),
+    # ---- optional: lead your own project
+    S("topost", r"^/activity$", '.npost[href="/projects/new"]|a.post[href="/projects/new"]', "go",
+      ("Or lead your own project", "Have an idea? Post a project and list the teammates you need. Let's look at the form."),
+      ("或自己帶一個專案", "有想法嗎？刊登專案並列出你需要的隊友。我們來看看表單。"), href="/projects/new", go="/activity",
+      sect="done", sect_label=("Skip — I'll just apply", "略過，我只想申請")),
+    S("s_proj", r"^/projects/new$", "#t", "next",
+      ("Title", "A short, clear title, for example \"Hackathon team: AI for campus health\"."),
+      ("標題", "簡短清楚的標題，例如「黑客松隊伍：校園健康 AI」。"), need="#f", go="/projects/new"),
+    S("s_kind", r"^/projects/new$", "#f .kinds", "pick",
+      ("What kind of project?", "Pick the one that fits: a competition, a startup, research, a side project, a club or event, or something else. The form then asks only what matters for that type."),
+      ("哪一種專案？", "選最符合的一種：競賽、新創、研究、課外專案、社團或活動，或其他。表單接著只會問這個類型需要的資訊。"), need="#f", go="/projects/new"),
+    S("s_seats", r"^/projects/new$", "#add", "next",
+      ("Seats", "Add one seat for each teammate you need: the role, the skills and any requirements. Students see their match % for every seat."),
+      ("職位", "每需要一位隊友就加一個職位：角色、技能和要求。同學會看到自己在每個職位的配對度。"), need="#f", go="/projects/new"),
+    S("s_publish", r"^/projects/new$", "#f .formacts button", "submit",
+      ("Publish", "When the form is complete, press Publish project."),
+      ("發布", "表單填好後，按「發布專案」。"), need="#f", go="/projects/new", warn=W_PROJECT, skip="done"),
+    S("done", r"^/(activity|projects/(new|\d+))$", "#onboard|#apps-sent|h1", "done",
+      ("You're ready", "That's the whole flow. Apply for a seat that fits, or post your own project, for real whenever you're ready."),
+      ("準備好了", "這就是完整流程。準備好時，就去申請適合的職位，或真正刊登你自己的專案。"), go="/activity"),
 ]
 
 PROF = [
@@ -271,6 +288,7 @@ def tour_data(lang, user=None):
         d = {k: v for k, v in st.items() if k not in ("en", "zh", "warn")}
         d["title"], d["text"] = st["zh" if zh else "en"]
         if st.get("warn"): d["warn"] = st["warn"][1 if zh else 0]
+        if st.get("sect_label"): d["sect_label"] = st["sect_label"][1 if zh else 0]
         if st.get("demo"):   # demonstration actions: captions and sample text in the page's language
             d["demo"] = [{k: v for k, v in dict(a, text=a.get("zh" if zh else "en", ""), value=(a.get("value_zh") if zh and a.get("value_zh") else a.get("value", ""))).items()
                           if k not in ("en", "zh", "value_zh")} for a in st["demo"]]

@@ -6,7 +6,7 @@
 <li><b>Sign up</b><span>with your student ID. Takes a minute.</span></li>
 <li><b>Add your skills</b><span>Every seat then shows how well you fit.</span></li>
 <li><b>Apply for a seat</b><span>Write one short note. You see the lead's contact once you're accepted.</span></li></ol>
-<p class="howto-a"><button type="button" class="btn" data-tour="start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Show me how · 2 min</button><a class="btn ghost" href="/signup">Create an account</a><button type="button" class="linkbtn sm" data-tour="prof:p_start">Professor? Take the professor tour</button></p></section>
+<p class="howto-a"><button type="button" class="btn" data-tour="start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Show me how · Student</button><button type="button" class="btn soft" data-tour="prof:p_start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Show me how · Professor</button><a class="btn ghost" href="/signup">Create an account</a></p></section>
 {% else %}{{ onboard_card(onboarding(user)) }}{% endif %}
 <div class="chips" id="kinds" role="tablist" aria-label="Project type"><button type="button" class="chip {{ 'on' if not kind }}" data-k="">All projects</button>
 {% for k in kinds %}<button type="button" class="chip {{ 'on' if kind == k }}" data-k="{{ k }}">{{ "Research project" if k == "Research" else k }}</button>{% endfor %}</div>
