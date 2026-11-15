@@ -195,7 +195,7 @@ def render(req, name, user=None, **ctx):
             from .notify import unread
             bell = unread(s, user.id)
             if req.session.get("seasoned") != user.id and has_activity(s, user.id): req.session["seasoned"] = user.id
-    newbie = bool(user) and req.session.get("seasoned") != (user.id if user else None)   # "How it works" / "Replay the tutorial" only until they've done something
+    newbie = bool(user) and not user.is_admin and req.session.get("seasoned") != user.id   # "How it works" / "Replay the tutorial" only until they've done something
     return tpl(req).TemplateResponse(req, name, {"user": user, "csrf": req.session["csrf"], "theme": theme, "inbox": inbox, "bell": bell, "lang": pick_lang(req), "newbie": newbie, **ctx})
 def has_activity(s, uid):   # applied for a seat or position, posted a project, opening, thread or comment
     for model, col in ((Application, Application.user_id), (Project, Project.owner_id), (OpeningApp, OpeningApp.user_id),

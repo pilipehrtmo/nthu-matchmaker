@@ -38,7 +38,7 @@ def items_for(s, u):
 
 def onboarding(u):
     """For templates: None once everything is done, else dict(kind, items, done, total)."""
-    if not u: return None
+    if not u or u.is_admin: return None   # admin accounts get no tutorial or checklist
     with Session(engine) as s:
         kind, items = items_for(s, u)
     done = sum(1 for i in items if i["done"])
