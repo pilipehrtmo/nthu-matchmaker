@@ -9,7 +9,7 @@
 <p class="howto-a"><button type="button" class="btn" data-tour="start"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Show me how · 2 min</button><a class="btn ghost" href="/signup">Create an account</a><button type="button" class="linkbtn sm" data-tour="prof:p_start">Professor? Take the professor tour</button></p></section>
 {% else %}{{ onboard_card(onboarding(user)) }}{% endif %}
 <div class="chips" id="kinds" role="tablist" aria-label="Project type"><button type="button" class="chip {{ 'on' if not kind }}" data-k="">All projects</button>
-{% for k in kinds %}<button type="button" class="chip {{ 'on' if kind == k }}" data-k="{{ k }}">{{ k }}</button>{% endfor %}</div>
+{% for k in kinds %}<button type="button" class="chip {{ 'on' if kind == k }}" data-k="{{ k }}">{{ "Research project" if k == "Research" else k }}</button>{% endfor %}</div>
 <div class="frow"><span class="fcount vh" id="f-count" aria-live="polite"></span><button type="button" class="ficon" id="f-clear" hidden aria-label="Clear filters" title="Clear filters"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m5 5v6m4-6v6"/></svg></button><details class="fpanel" id="fpanel"><summary class="fbtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Sort and filters<span class="fdot" id="fdot" hidden></span></summary><div class="fpop">
 <div class="fbar" id="fbar">
 <label class="fsel"><span>Sort</span><select id="f-sort">{% if user %}<option value="match">Best match for me</option>{% endif %}<option value="deadline">Deadline soonest</option><option value="new">Newest</option><option value="open">Most open seats</option></select></label>

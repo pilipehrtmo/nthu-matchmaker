@@ -77,7 +77,7 @@ def tour_steps(role, lang):
                               **({"need": st["need"]} if st.get("need") else {})))
     if steps:
         steps.append(dict(key="wn_done", path=r".*", sel="", act="done", title="That's what's new" if not zh else "新功能就是這些",
-                          text="You can open What's new again from the menu under your name." if not zh else "你可以從名字下方的選單再次打開「最新功能」。", alt=True))
+                          text="It shows up again whenever we add something new." if not zh else "之後有新功能時，它會再出現。", alt=True))
     return steps
 
 def latest_release():
