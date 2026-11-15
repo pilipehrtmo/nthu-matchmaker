@@ -18,7 +18,7 @@ services:
       - key: BASE_URL
         value: https://nthu-matchmaker.onrender.com
       - key: ADMIN_EMAILS
-        value: yeepilipe@gmail.com
+        value: nthumatchmaker@gmail.com
       - key: MATCH_MODE
         value: hybrid           # no embedding model on the free plan, so this falls back to skill-tag overlap
       - key: SMTP_HOST
