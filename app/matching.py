@@ -8,6 +8,12 @@ RANKER_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "ranker.jobl
 import threading
 _lock = threading.Lock(); _model = None; _cache = {}
 
+def _cross(user, owner):
+    """1.0 when the two people come from different departments (the linked department when there is one, else the typed text)."""
+    from .departments import key
+    if not (owner and key(user) and key(owner)): return 0.0
+    return 1.0 if key(user) != key(owner) else 0.0
+
 def load_now():
     """Load the embedding model (slow the first time). Returns True if it is available."""
     global _model
@@ -59,7 +65,7 @@ def score(student_text, student_tags, seat_text, seat_tags, hours_ok, cross):
 
 def match_pct(user, role, project, owner):
     hours_ok = min(user.hours / max(project.hours_per_week, 1), 1.0)
-    cross = 1.0 if user.faculty and owner and owner.faculty and user.faculty.lower() != owner.faculty.lower() else 0.0
+    cross = _cross(user, owner)
     s = score(f"{user.skills}. {user.bio}", user.skills, f"{role.name}. {role.skills}", role.skills, hours_ok, cross)
     return int(round(100 * min(max(s, 0.0), 1.0)))
 

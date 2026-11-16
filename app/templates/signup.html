@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block body %}{% set f = form or {} %}<div class="authwrap"><h1>Create your account</h1>
+{% extends "base.html" %}{% from "_dept.html" import dept_picker with context %}{% block body %}{% set f = form or {} %}<div class="authwrap"><h1>Create your account</h1>
 <p class="muted tourlinks"><button type="button" class="linkbtn tourlink" data-tour="student:role">New student? Fill it in step by step</button><button type="button" class="linkbtn tourlink" data-tour="prof:p_role">Professor? Guide me</button></p>
 <p class="muted">Already have one? <a href="/login">Log in</a>. Other students see your full name; only admins see your student ID and email.</p>
 {% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
@@ -12,9 +12,10 @@
 <div class="r-student"><label for="s">Student ID</label><input id="s" name="student_id" inputmode="numeric" pattern="[0-9]{9}" minlength="9" maxlength="9" autocomplete="off" placeholder="e.g. 115006212" title="Exactly 9 digits, for example 115006212" aria-describedby="sidh" value="{{ f.get('sid', '') }}"><p class="muted fine" id="sidh">9 digits, as on your student card.</p></div>
 <div class="r-faculty" hidden><label for="ti">Academic title</label><select id="ti" name="title">{% for t in titles %}<option value="{{ t }}" {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}<option value="Other academic appointment" {{ "selected" if f.get("title") == "Other academic appointment" }}>Other academic appointment</option></select></div></div>
 <div class="r-faculty" id="tiow" hidden><label for="tio">Your title</label><input id="tio" name="title_other" maxlength="60" value="{{ f.get('title_other', '') }}" placeholder="e.g. Project Assistant Professor"></div>
-<label for="dp" id="dplabel">Department or major</label><input id="dp" name="dept" list="colleges" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science" autocomplete="organization-title">
-<datalist id="colleges">{% for c in G.NTHU_COLLEGES %}<option value="{{ c }}">{% endfor %}</datalist>
-<p class="muted fine r-student">Shown on your profile and used to filter projects by department. You can change it later.</p>
+<div class="r-faculty" hidden><label for="dp" id="dplabel">Department</label><input id="dp" name="dept" list="colleges" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science" autocomplete="organization-title">
+<datalist id="colleges">{% for g, opts in DEP.groups(lang) %}{% for v, l in opts %}{% if not v.startswith("c:") %}<option value="{{ l }}">{% endif %}{% endfor %}{% endfor %}</datalist></div>
+<div class="r-student">{{ dept_picker(cur=f.get("dept_sel", ""), track=f.get("dept_track", ""), other=f.get("dept_other", ""), wid="dpw") }}
+<p class="muted fine">Shown on your profile and used to filter projects by department. You can change it later.</p></div>
 <div class="r-faculty" hidden>
 <label for="pg">Official NTHU faculty page <small class="muted">(recommended)</small></label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
 <p class="muted fine">Your entry on your department's faculty list, or your page on nthu.edu.tw. We open it and compare your name, title, department and email with what it shows. If you don't have one yet, leave it empty and add a note below.</p>
@@ -28,7 +29,7 @@
 </div>
 <script>
 (()=>{const sync=()=>{const fac=document.querySelector("input[name=role]:checked").value==="faculty";
- document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>{e.hidden=fac;const i=e.querySelector("input");if(i)i.required=!fac});document.getElementById("dp").required=fac;document.getElementById("dplabel").textContent=fac?"Department":"Department or major (optional)";const ti=document.getElementById("ti"),tw=document.getElementById("tiow");tw.hidden=!fac||ti.value!=="Other academic appointment";document.getElementById("tio").required=!tw.hidden;
+ document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>{e.hidden=fac;const i=e.querySelector("input:not([data-opt])");if(i)i.required=!fac});document.getElementById("dp").required=fac;const ti=document.getElementById("ti"),tw=document.getElementById("tiow");tw.hidden=!fac||ti.value!=="Other academic appointment";document.getElementById("tio").required=!tw.hidden;
  document.getElementById("ehint").hidden=!fac;document.getElementById("elabel").textContent=fac?"Institutional email":"Email"};
  document.getElementById("ti").addEventListener("change",sync);
  document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})();

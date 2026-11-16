@@ -10,7 +10,12 @@ class User(SQLModel, table=True):
     handle: str = Field(unique=True, index=True)
     name: str = ""
     student_id: str = Field(default="", index=True)   # admin-only
-    faculty: str = ""
+    faculty: str = ""     # department or major as the person typed it (kept as it is; see departments.py)
+    faculty_orig: str = ""   # the free text before the first department link (never changed afterwards)
+    dept_id: str = ""        # linked department: unit id, "c:<college>" or "" (departments.py)
+    dept_track: str = ""     # IBP track, only with dept_id "thc-ibp"
+    dept_status: str = ""    # "" / ok / review / other / kept
+    dept_src: str = ""       # user / admin / migration
     hours: int = 4
     verified: bool = False
     bio: str = ""

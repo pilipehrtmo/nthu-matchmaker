@@ -246,3 +246,17 @@ document.addEventListener("change", e => {
   if (file) out.textContent = big ? (f.dataset.toobig || "This file is over 25 MB. Choose a smaller one.") : file.name + " · " + (file.size / 1048576).toFixed(1) + " MB";
   f.setCustomValidity(big ? (f.dataset.toobig || "This file is over 25 MB.") : "");
 });
+
+/* Department picker: show the IBP track or the "Other" box only for those choices. */
+(function () {
+  function sync(sel) {
+    const box = sel.closest("[data-deptpick]"); if (!box) return;
+    box.querySelectorAll(".dsub").forEach(d => {
+      const on = d.dataset.for === sel.value; d.hidden = !on;
+      const f = d.querySelector("select, input"); if (f) f.required = on;
+    });
+  }
+  document.addEventListener("change", e => { if (e.target.matches && e.target.matches("[data-deptpick] select[name=dept_sel]")) sync(e.target); });
+  const all = () => document.querySelectorAll("[data-deptpick] select[name=dept_sel]").forEach(sync);
+  document.addEventListener("DOMContentLoaded", all); document.addEventListener("htmx:afterSettle", all); all();
+})();

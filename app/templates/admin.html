@@ -5,7 +5,7 @@
 <div class="stat"><b>{{ stats.unverified }}</b><span>To verify</span></div>
 <div class="stat"><b>{{ stats.reports }}</b><span>Open reports</span></div>
 <div class="stat"><b>{{ stats.review }}</b><span>Competitions to review</span></div></div>
-<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#faculty">Professor verification{% if profq and not profs_all %} ({{ profq|length }}){% endif %}</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
+<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#faculty">Professor verification{% if profq and not profs_all %} ({{ profq|length }}){% endif %}</a><a class="chip" href="#depts">Departments to check{% if deptq %} ({{ deptq|length }}){% endif %}</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
 
 <section class="sec" id="reports"><h2>Reports <span class="count">{{ stats.reports }}</span></h2>
 {% for r in reports %}<div class="card" style="margin:.6rem 0"><div class="meta"><span class="pill">{{ r.kind }}</span><span>Reason: {{ r.reason }}</span></div>
@@ -57,6 +57,17 @@
 {% if x.hist %}<details class="pq-hist"><summary>Audit log</summary><ol>{% for h in x.hist %}<li>{{ h.created.strftime("%Y-%m-%d %H:%M") }} · {{ PROF_HIST.get(h.action, h.action) }}{% if h.status_from != h.status_to %} · {{ h.status_from or "new" }} → {{ h.status_to }}{% endif %} · {% if not h.actor_id %}automatic{% elif h.actor_id == u.id %}the applicant{% else %}{{ names_by_id.get(h.actor_id, "admin #" ~ h.actor_id) }}{% endif %}{% if h.reason %}<br><small class="muted">{{ h.reason }}</small>{% endif %}</li>{% endfor %}</ol></details>{% endif %}
 </td></tr>{% endfor %}</table></div>
 {% else %}<p class="muted">{{ "No professor accounts yet." if profs_all else "No one is waiting." }}</p>{% endif %}</section>
+<section class="sec" id="depts"><h2>Departments to check <span class="count">{{ deptq|length }}</span></h2>
+<p class="muted">Profiles whose department could not be linked safely: older free-text entries that could mean more than one department, and students who picked "Other / not listed". Link each one, or leave it as typed. What they typed is always kept.</p>
+{% if dflash %}<p class="{{ 'box ok' if dflash[0] == 'ok' else 'err' }}" role="status">{{ dflash[1] }}</p>{% endif %}
+{% if deptq %}<div class="tw"><table class="deptq"><tr><th>Person</th><th>What they typed</th><th>Why</th><th>Link to</th></tr>
+{% for u in deptq %}<tr id="dq{{ u.id }}"><td><b><a href="/u/{{ u.handle }}">{{ u|dn }}</a></b><br><small class="muted">{{ "Professor" if u.role == "faculty" else "Student" }}</small></td>
+<td>{{ u.faculty or "–" }}{% if u.faculty_orig and u.faculty_orig != u.faculty %}<br><small class="muted">Originally: {{ u.faculty_orig }}</small>{% endif %}</td>
+<td>{% if u.dept_status == "other" %}Picked "Other / not listed"{% else %}Older entry{% if DEP.legacy_note(u.faculty) %}: {{ DEP.legacy_note(u.faculty) }}{% else %} with no exact match{% endif %}{% endif %}</td>
+<td><form method="post" action="/admin/dept/{{ u.id }}" class="acts"><input type="hidden" name="csrf" value="{{ csrf }}"><label class="vh" for="dc{{ u.id }}">Department for {{ u|dn }}</label><select id="dc{{ u.id }}" name="choice"><option value="">Choose…</option>
+{% for g, opts in DEP.groups(lang, admin=True) %}<optgroup label="{{ g }}">{% for v, l in opts %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</optgroup>{% endfor %}</select>
+<button class="sm" name="action" value="link">Link</button><button class="sm ghost" name="action" value="keep">Leave as typed</button></form></td></tr>{% endfor %}</table></div>
+{% else %}<p class="muted">Nothing to check.</p>{% endif %}</section>
 
 <section class="sec" id="programs"><h2>Funding programs</h2>
 <p class="muted">Shown on /funding and in each startup or research project's readiness check. When a call is announced, set its deadline (YYYY-MM-DD) so the countdown appears.</p>

@@ -251,6 +251,13 @@ def verify_required() -> bool:   # only ask people to verify when the server can
 templates.env.globals["verify_required"] = verify_required
 templates.env.globals["CONTACT_EMAIL"] = CONTACT_EMAIL
 templates.env.globals["vdata"] = V.client_data
+from . import departments as DEP
+@pass_context
+def dept_filter(ctx, u): return DEP.display(u, ctx.get("lang", "en")) if u else ""   # linked department in the reader's language, else the text as typed
+templates.env.filters["dept"] = dept_filter
+templates.env.globals.update(DEP=DEP)
+
+set_dept, relink_text = DEP.set_dept, DEP.relink_text
 
 def make_link(s, u, kind, hours):
     t, h = new_token(); s.add(AuthToken(user_id=u.id, kind=kind, token_hash=h, expires=expires_in(hours))); s.commit()
@@ -314,10 +321,11 @@ def signup_page(req: Request, user=Depends(me)):
 @app.post("/signup")
 def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), password: str = Form(""),
            password2: str = Form(""), role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), title_other: str = Form(""),
-           evidence: str = Form(""), s: Session = Depends(get_session)):
+           evidence: str = Form(""), dept_sel: str = Form(""), dept_track: str = Form(""), dept_other: str = Form(""), s: Session = Depends(get_session)):
     email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = re.sub(r"\s+", "", student_id)
     role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
-    back = lambda err: render(req, "signup.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence))
+    back = lambda err: render(req, "signup.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence,
+                                                                                 dept_sel=dept_sel, dept_track=dept_track, dept_other=dept_other))
     # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
     w = wait_left(f"signup:{ip_of(req)}", 200, 3600)
     if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
@@ -339,6 +347,8 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
             return back("Use your NTHU email to sign up, for example s114123456@m114.nthu.edu.tw or your @gapp.nthu.edu.tw address.")
         if not SID.match(sid): return back("Your student ID must be exactly 9 digits, for example 115006212.")
         if s.exec(select(User).where(func.upper(func.trim(User.student_id)) == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.")
+        dept_fields, derr = DEP.choose(dept_sel, dept_track, dept_other)
+        if derr: return back(derr)
     err = password_problem(password, email, name)
     if err: return back(err)
     if password != password2: return back("The two passwords are not the same.")
@@ -349,7 +359,8 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
         u.role, u.faculty, u.faculty_url = "faculty", dept, page
         u.title = title if title in TITLES else re.sub(r"\s+", " ", title_other).strip()[:60]
         u.faculty_evidence = evidence.replace("\r", "").strip()[:1000]
-    else: u.faculty = dept   # department or major, shown on the profile and used by the Department filter
+        relink_text(u, dept)
+    elif dept_fields: set_dept(u, dept_fields)   # department from the list (or Other, which waits for an admin)
     s.add(u); s.add(SignupLog(email=email, ip="-", allowed=True))
     try: s.commit()
     except IntegrityError:   # two sign-ups with the same email or student ID at the same moment: the database keeps only one
@@ -478,7 +489,8 @@ def _strip_old(v): return (v or "").strip().lstrip("@~").lower()
 
 @app.post("/profile")
 async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""), skills: str = Form(""),
-                 contact: str = Form(""), faculty: str = Form(""), hours: int = Form(4), user=Depends(me), s: Session = Depends(get_session)):
+                 contact: str = Form(""), faculty: str = Form(""), hours: int = Form(4), dept_sel: str = Form(""), dept_track: str = Form(""),
+                 dept_other: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     form = await req.form()
     name = " ".join(name.split())
@@ -494,19 +506,26 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
         if problem and clean.lower() != _strip_old(getattr(user, f)): errs.append(problem)   # an older handle left unchanged is kept
     try: links = {f: clean_link(f, str(form.get(f, ""))) for f, *_ in PRO_LINKS}
     except LinkError as e: errs.append(str(e)); links = {}
+    dept_fields = None
+    if user.role != "faculty":
+        dept_fields, derr = DEP.choose(dept_sel, dept_track, dept_other)
+        errs.append(derr)
     errs = [e for e in errs if e]
     if errs:   # show the form again with what they typed (nothing is saved)
         for f in ("instagram", "line", "discord"): setattr(user, f, str(form.get(f, "")).strip()[:100])
         user.name, user.bio, user.skills = name, bio, ", ".join(skill_list)
-        user.contact, user.faculty = contact, faculty
+        user.contact = contact
+        if user.role == "faculty": user.faculty = faculty
         for f in ("competitions", "past_projects", "awards"): setattr(user, f, str(form.get(f, "")))
         s.expunge(user)
-        return render(req, "profile.html", user, error=errs[0], errors=errs)
+        return render(req, "profile.html", user, error=errs[0], errors=errs, dform=dict(sel=dept_sel, track=dept_track, other=dept_other))
     for f, v in handles.items(): setattr(user, f, v)
     for f, v in links.items(): setattr(user, f, v)
     if name != user.name: user.handle = slugify(s, name, user.id)   # the web address follows the name
     user.name, user.bio, user.contact = name, bio, clean_contact(contact, 100)
-    if not (user.role == "faculty" and user.faculty_status in ("verified", "suspended")): user.faculty = faculty.strip()[:40]   # a verified department changes only through an admin
+    if user.role == "faculty":
+        if user.faculty_status not in ("verified", "suspended"): relink_text(user, faculty.strip()[:60])   # a verified department changes only through an admin
+    elif dept_fields: set_dept(user, dept_fields)   # nothing chosen = the department stays as it is
     user.hours = max(1, min(hours, 60))
     user.skills = ",".join(sorted({t.lower() for t in skill_list}))
     for f in ("competitions", "past_projects", "awards"):   # one item per line, at most 10 lines of 200 characters
@@ -525,6 +544,7 @@ def profile_cv(file: UploadFile = File(...), user=Depends(me), s: Session = Depe
     try:
         out = parse_cv(file.filename or "", data, known)
         out["skills"] = [t for t in out.get("skills", []) if len(t) <= V.MAX_SKILL_LEN][:V.MAX_SKILLS]   # the profile accepts at most 20
+        out["dept_id"] = DEP.guess(out.get("faculty", ""))   # only an exact official name; otherwise the picker is left alone
         return out
     except CVError as e: return JSONResponse({"error": str(e)}, status_code=400)
     finally: del data
@@ -669,7 +689,7 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
                         .where(Application.status == "accepted", (Application.user_id == user.id) | (Project.owner_id == user.id))).first() is not None
         start = dict(skills=bool(user.skills.strip()), act=applied or posted, joined=joined)
         if all(start.values()): start = None
-    return render(req, "board.html", user, start=start, recs=recs, depts=sorted({(r["owner"].faculty or "").strip() for r in rows if r["owner"] and (r["owner"].faculty or "").strip()}), rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
+    return render(req, "board.html", user, start=start, recs=recs, depts=sorted({DEP.display(r["owner"], pick_lang(req)) for r in rows if r["owner"] and DEP.display(r["owner"], pick_lang(req))}), rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
 
 RESEARCH_PLAN = [("objectives", 800), ("methodology", 800), ("outcomes", 600)]
 PITCH_FIELDS = [("tagline", 140), ("problem", 600), ("audience", 400), ("solution", 600), ("progress", 600), ("needs", 300), ("metrics", 200)]
@@ -1168,11 +1188,35 @@ def extra_admin(s):
     return dict(stats=stats, admin_ids={u.id for u in allu if u.is_admin}, reports=reps, info=info, pages=s.exec(select(SourcePage)).all(),
                 slogs=s.exec(select(ScrapeLog).order_by(ScrapeLog.at.desc()).limit(20)).all())
 
+@app.post("/admin/dept/{uid}")
+def admin_dept(req: Request, uid: int, choice: str = Form(""), action: str = Form("link"), user=Depends(me), s: Session = Depends(get_session)):
+    """Department review queue: link the profile to a department, or leave it as typed. The typed text is never changed."""
+    if not (user and user.is_admin): raise HTTPException(403)
+    u = s.get(User, uid)
+    if not u: raise HTTPException(404)
+    who = u.name or u.handle
+    if action == "keep":
+        u.dept_status, u.dept_src = "kept", "admin"
+        req.session["dflash"] = ["ok", f"{who}: left as typed, without a department."]
+    else:
+        picked = DEP.admin_choice(choice)
+        if not picked:
+            req.session["dflash"] = ["err", f"{who}: choose a department from the list first."]
+            return go("/admin#depts")
+        if not (u.faculty_orig or "").strip() and (u.faculty or "").strip(): u.faculty_orig = u.faculty
+        u.dept_id, u.dept_track = picked
+        u.dept_status, u.dept_src = "ok", "admin"
+        req.session["dflash"] = ["ok", f"{who}: linked to {DEP.label(*picked)}."]
+    print(f">>> DEPT REVIEW by admin {user.id}: user {u.id} {action} {choice}".strip())
+    s.add(u); s.commit()
+    return go("/admin#depts")
+
 @app.get("/admin")
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
     return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None), cflash=req.session.pop("cflash", None),
         profq=profverify.queue(s, req.query_params.get("profs", "open")), profs_all=req.query_params.get("profs") == "all",
+        deptq=s.exec(select(User).where(User.dept_status.in_(DEP.REVIEW_STATES)).order_by(User.id)).all(), dflash=req.session.pop("dflash", None),
         perr=req.query_params.get("perr", ""), names_by_id={u.id: u.name or u.handle for u in s.exec(select(User).where(User.is_admin == True)).all()}, programs=s.exec(select(Program).order_by(Program.sort)).all(),
         logs=s.exec(select(SignupLog).order_by(SignupLog.at.desc()).limit(100)).all(),
         review=s.exec(select(Competition).where(Competition.needs_review == True)).all(), storage=storage_info(s), **extra_admin(s))

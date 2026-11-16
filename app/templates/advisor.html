@@ -3,7 +3,7 @@
 <div class="dbshell"><nav class="dbnav" aria-label="Professor workspace"><a href="#top" class="on">Dashboard</a><a href="#projects">My projects</a><a href="#students">My students</a><a href="#positions">Lab openings</a><a href="/profile#research">Profile settings</a></nav>
 <div class="dbbody" id="top">
 <div class="dbhead"><div class="dbhello">
-<p class="dbeye">{{ user.title or "Professor" }}{% if user.faculty %} · {{ user.faculty }}{% endif %} · {% if user.is_faculty %}<span class="dbok">Verified</span>{% else %}<span class="dbwarn">Not verified yet</span>{% endif %}</p>
+<p class="dbeye">{{ user.title or "Professor" }}{% if user|dept %} · {{ user|dept }}{% endif %} · {% if user.is_faculty %}<span class="dbok">Verified</span>{% else %}<span class="dbwarn">Not verified yet</span>{% endif %}</p>
 <h1>{% if lang == "zh" %}{{ greet }}，<span class="dbname">{{ user|dn }} {{ honor }}</span>{% else %}{{ greet }}, <span class="dbname">{{ honor }} {{ user|dn }}.</span>{% endif %}</h1>
 <p class="dbsub">{% if n_attn == 1 %}1 thing is waiting for you. Everything else is on track.{% elif n_attn %}{{ n_attn }} things are waiting for you. Everything else is on track.{% else %}Nothing is waiting for you right now.{% endif %}</p></div>
 <div class="dbacts">{% if user.is_faculty %}<a class="btn" href="/openings/new">Post a research position</a>{% endif %}<a class="btn ghost" href="/u/{{ user.handle }}">Your public page</a></div></div>
@@ -47,7 +47,7 @@
 <a class="dbopen" href="/projects/{{ x.p.id }}#supervision">Open →</a></div>{% endfor %}</div>
 {% else %}<p class="muted dbempty">You don't supervise a project yet. Students add an advisor seat to their project and you apply for it, or you can <a href="/">browse projects that need an advisor</a>.</p>{% endif %}</section>
 <section class="dbcard" id="students"><div class="dbcard-h"><h2>My students</h2><small class="muted">{{ ns.rows|length }} on the projects you supervise</small></div>
-{% if ns.rows %}<ul class="dbstud">{% for u, p in ns.rows %}<li><a href="/u/{{ u.handle }}">{{ pic(u, "av sm") }}<span class="dbrow-m"><b>{{ u|dn }}</b><small>{{ u.faculty or "NTHU" }} · {{ p.title }}{% if u.id == p.owner_id %} · lead{% endif %}</small></span></a></li>{% endfor %}</ul>
+{% if ns.rows %}<ul class="dbstud">{% for u, p in ns.rows %}<li><a href="/u/{{ u.handle }}">{{ pic(u, "av sm") }}<span class="dbrow-m"><b>{{ u|dn }}</b><small>{{ u|dept or "NTHU" }} · {{ p.title }}{% if u.id == p.owner_id %} · lead{% endif %}</small></span></a></li>{% endfor %}</ul>
 {% else %}<p class="muted dbempty">No students yet. They appear here once a team accepts you as their advisor.</p>{% endif %}</section>
 </div>
 

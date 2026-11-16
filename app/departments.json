@@ -1,15 +1,20 @@
 {
- "version": "2026-11-16",
+ "version": "2026-11-16b",
  "sources": {
-  "zh": "https://www.nthu.edu.tw/units/education",
-  "en": "https://nthu-en.site.nthu.edu.tw/p/404-1003-77287.php"
+  "units": "https://www.nthu.edu.tw/units/education",
+  "enpage": "https://nthu-en.site.nthu.edu.tw/p/404-1003-77287.php",
+  "curr": "https://curricul.site.nthu.edu.tw/p/406-1208-290466,r7880.php",
+  "cos": "https://cos.nthu.edu.tw/article-graduate.html",
+  "qtam": "https://qtam.site.nthu.edu.tw/",
+  "ibp": "https://ibp.nthu.edu.tw/faq.html"
  },
  "rules": {
-  "master": "Chinese 教學單位 page decides which units exist; English page supplies official English names",
-  "en_status": "official = from the NTHU English page (spelling typos fixed, noted); proposed = our translation, not an official NTHU name",
-  "college_only": "every college and the cross-college group has a 'department not chosen yet' option",
-  "other": "'Other / not listed' keeps the typed text and creates a pending admin review item, never a department record",
-  "phased_out": "active=false: kept for mapping old data, hidden from the new-user dropdown"
+  "existence": "A unit is included when an official NTHU list shows it as a degree-granting unit (教學單位 page or the course-offering list); centres and course-only codes are left out",
+  "en_name": "English name precedence: the unit's own site when checked, then the Division of Curriculum course list (current), then the English page (older). Other official forms are kept in en_other_official",
+  "en_status": "official = copied from an official NTHU source (obvious typos fixed, each noted); proposed = our wording, shown as such",
+  "college_only": "every college has a 'department not chosen yet' option",
+  "other": "'Other / not listed' keeps the typed text and creates a pending admin review item, never a department",
+  "phased_out": "active=false: kept for legacy mapping, hidden from the new-user dropdown"
  },
  "colleges": [
   {
@@ -17,6 +22,7 @@
    "zh": "理學院",
    "en": "College of Science",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -24,6 +30,7 @@
    "zh": "工學院",
    "en": "College of Engineering",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -31,6 +38,7 @@
    "zh": "原子科學院",
    "en": "College of Nuclear Science",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -38,6 +46,7 @@
    "zh": "人文社會學院",
    "en": "College of Humanities and Social Sciences",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -45,13 +54,16 @@
    "zh": "生命科學暨醫學院",
    "en": "College of Life Sciences and Medicine",
    "en_status": "official",
-   "kind": "college"
+   "en_source": "enpage",
+   "kind": "college",
+   "note": "Course list writes 'College of Life Science and Medicine'; kept the English page form, which matches the college's bachelor program name"
   },
   {
    "id": "eecs",
    "zh": "電機資訊學院",
    "en": "College of Electrical Engineering and Computer Science",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -59,6 +71,7 @@
    "zh": "科技管理學院",
    "en": "College of Technology Management",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -66,6 +79,7 @@
    "zh": "竹師教育學院",
    "en": "College of Education",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -73,6 +87,7 @@
    "zh": "藝術學院",
    "en": "College of Arts",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -80,27 +95,33 @@
    "zh": "台北政經學院",
    "en": "Taipei School of Economics and Political Science",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
    "id": "sus",
    "zh": "永續學院",
    "en": "College of Sustainability",
-   "en_status": "proposed",
-   "kind": "college"
+   "en_status": "official",
+   "en_source": "curr",
+   "kind": "college",
+   "note": "Not on the English page (it predates the college); named on the Chinese list, the course list and the college's own site"
   },
   {
    "id": "semi",
    "zh": "半導體研究學院",
    "en": "College of Semiconductor Research",
    "en_status": "official",
-   "kind": "college"
+   "en_source": "curr",
+   "kind": "college",
+   "note": "Course list calls it 半導體學院; no degree programs listed under it"
   },
   {
    "id": "thc",
    "zh": "清華學院",
    "en": "Tsing Hua College",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "college"
   },
   {
@@ -108,13 +129,23 @@
    "zh": "教務處（跨院學程）",
    "en": "Office of Academic Affairs (cross-college programs)",
    "en_status": "official",
+   "en_source": "curr",
+   "kind": "cross_college"
+  },
+  {
+   "id": "univ",
+   "zh": "全校不分院",
+   "en": "University-wide programs",
+   "en_status": "official",
+   "en_source": "curr",
    "kind": "cross_college"
   },
   {
    "id": "legacy",
    "zh": "合校過渡單位（停招）",
-   "en": "Units to be phased out",
+   "en": "Units to be Phased out",
    "en_status": "official",
+   "en_source": "curr",
    "kind": "phased_out"
   }
  ],
@@ -127,7 +158,12 @@
    "zh": "數學系",
    "en": "Department of Mathematics",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "sci-phys",
@@ -137,7 +173,12 @@
    "zh": "物理學系",
    "en": "Department of Physics",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "sci-chem",
@@ -147,7 +188,12 @@
    "zh": "化學系",
    "en": "Department of Chemistry",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "sci-stat",
@@ -156,9 +202,16 @@
    ],
    "zh": "統計與數據科學研究所",
    "en": "Institute of Statistics and Data Science",
-   "en_status": "proposed",
+   "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "English page still lists the older name 'Institute of Statistics'"
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Institute of Statistics (English page, older name)"
+   ]
   },
   {
    "id": "sci-astr",
@@ -168,7 +221,12 @@
    "zh": "天文研究所",
    "en": "Institute of Astronomy",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "sci-bs",
@@ -178,7 +236,12 @@
    "zh": "理學院學士班",
    "en": "Interdisciplinary Program of Sciences",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "als",
@@ -187,11 +250,16 @@
     "nuc"
    ],
    "zh": "先進光源科技學位學程",
-   "en": "Degree Program in Advanced Light Source Technology",
-   "en_status": "proposed",
+   "en": "Program of Science and Technology of Synchrotron Light Source",
+   "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Listed under both 理學院 and 原子科學院: one record, two colleges",
-   "review": true
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "note": "One record, two colleges: the Chinese list places it under both 理學院 and 原子科學院; the course list only under 理學院",
+   "review": "multi_college"
   },
   {
    "id": "sci-cms",
@@ -201,7 +269,12 @@
    "zh": "計算與建模科學研究所",
    "en": "Institute of Computational and Modeling Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "sci-qtam",
@@ -209,9 +282,14 @@
     "sci"
    ],
    "zh": "量子科技暨尖端材料博士學位學程",
-   "en": "Ph.D. Program in Quantum Technology and Advanced Materials",
-   "en_status": "proposed",
-   "active": true
+   "en": "Graduate Program of Quantum Technology and Advanced Materials",
+   "en_status": "official",
+   "en_source": "qtam",
+   "active": true,
+   "listed_on": [
+    "units"
+   ],
+   "note": "Not on the course list yet; name from the program's own site"
   },
   {
    "id": "eng-che",
@@ -219,10 +297,17 @@
     "eng"
    ],
    "zh": "化學工程學系",
-   "en": "Chemical Engineering",
+   "en": "Department of Chemical Engineering",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Official English name has no 'Department of'"
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Chemical Engineering (English page)"
+   ]
   },
   {
    "id": "eng-pme",
@@ -230,10 +315,17 @@
     "eng"
    ],
    "zh": "動力機械工程學系",
-   "en": "Power Mechanical Engineering",
+   "en": "Department of Power Mechanical Engineering",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Official English name has no 'Department of'"
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Power Mechanical Engineering (English page)"
+   ]
   },
   {
    "id": "eng-mse",
@@ -241,10 +333,17 @@
     "eng"
    ],
    "zh": "材料科學工程學系",
-   "en": "Materials Science Engineering",
+   "en": "Department of Materials Science and Engineering",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Official English name has no 'Department of'"
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Materials Science Engineering (English page)"
+   ]
   },
   {
    "id": "eng-ieem",
@@ -252,10 +351,14 @@
     "eng"
    ],
    "zh": "工業工程與工程管理學系",
-   "en": "Industrial Engineering and Engineering Management",
+   "en": "Department of Industrial Engineering and Engineering Management",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Official English name has no 'Department of'"
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eng-ieem-ex",
@@ -263,9 +366,15 @@
     "eng"
    ],
    "zh": "工業工程與工程管理學系碩士在職專班",
-   "en": "In-service Master's Program in Industrial Engineering and Engineering Management",
+   "en": "In-service Master's Program, Department of Industrial Engineering and Engineering Management",
    "en_status": "proposed",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "note": "The course list gives only the department's name for this program; 'In-service Master's Program' is our wording"
   },
   {
    "id": "eng-nems",
@@ -273,10 +382,17 @@
     "eng"
    ],
    "zh": "奈米工程與微系統研究所",
-   "en": "Nanoengineering and Microsystems",
+   "en": "Institute of NanoEngineering and MicroSystems",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Official English name has no 'Institute of'"
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Nanoengineering and Microsystems (English page)"
+   ]
   },
   {
    "id": "eng-bme",
@@ -284,10 +400,17 @@
     "eng"
    ],
    "zh": "生物醫學工程研究所",
-   "en": "Biomedical Engineering",
+   "en": "Institute of Biomedical Engineering",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Official English name has no 'Institute of'"
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Biomedical Engineering (English page)"
+   ]
   },
   {
    "id": "eng-bs",
@@ -297,17 +420,27 @@
    "zh": "工學院學士班",
    "en": "Interdisciplinary Program of Engineering",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
-   "id": "eng-afm",
+   "id": "eng-pfmi",
    "colleges": [
     "eng"
    ],
    "zh": "前瞻功能材料產業博士學位學程",
-   "en": "Industrial Ph.D. Program in Advanced Functional Materials",
-   "en_status": "proposed",
-   "active": true
+   "en": "Ph.D. Program in Prospective Functional Materials Industry",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eng-space",
@@ -316,8 +449,27 @@
    ],
    "zh": "太空工程研究所",
    "en": "Institute of Space Engineering",
-   "en_status": "proposed",
-   "active": true
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
+  },
+  {
+   "id": "eng-iimt",
+   "colleges": [
+    "eng"
+   ],
+   "zh": "智慧製造技術產業碩士專班",
+   "en": "Industrial Technology Graduate Program of Intelligent Manufacturing Technology",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
   },
   {
    "id": "nuc-ess",
@@ -327,7 +479,12 @@
    "zh": "工程與系統科學系",
    "en": "Department of Engineering and System Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "nuc-bmes",
@@ -335,10 +492,14 @@
     "nuc"
    ],
    "zh": "生醫工程與環境科學系",
-   "en": "Department of Biomedical Engineering and Environmental Science",
+   "en": "Department of Biomedical Engineering and Environmental Sciences",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Typo fixed: the English page writes 'Envionmental'"
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "nuc-nes",
@@ -348,7 +509,12 @@
    "zh": "核子工程與科學研究所",
    "en": "Institute of Nuclear Engineering and Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "nuc-aes",
@@ -358,7 +524,12 @@
    "zh": "分析與環境科學研究所",
    "en": "Institute of Analytical and Environmental Sciences",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "nuc-bs",
@@ -368,7 +539,12 @@
    "zh": "原子科學院學士班",
    "en": "Interdisciplinary Program of Nuclear Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "nuc-est",
@@ -378,8 +554,12 @@
    "zh": "環境科技博士學位學程(台灣聯合大學系統)",
    "en": "International Ph.D. Program in Environmental Science and Technology (University System of Taiwan)",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Typo fixed: the English page writes 'Internaional'"
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-cl",
@@ -389,7 +569,12 @@
    "zh": "中國文學系",
    "en": "Department of Chinese Literature",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-fl",
@@ -399,7 +584,12 @@
    "zh": "外國語文學系",
    "en": "Department of Foreign Languages and Literature",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-hist",
@@ -409,7 +599,12 @@
    "zh": "歷史研究所",
    "en": "Institute of History",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-ling",
@@ -419,7 +614,12 @@
    "zh": "語言學研究所",
    "en": "Institute of Linguistics",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-anth",
@@ -429,7 +629,12 @@
    "zh": "人類學研究所",
    "en": "Institute of Anthropology",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-soc",
@@ -439,7 +644,12 @@
    "zh": "社會學研究所",
    "en": "Institute of Sociology",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-phil",
@@ -449,7 +659,12 @@
    "zh": "哲學研究所",
    "en": "Institute of Philosophy",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-twl",
@@ -459,7 +674,12 @@
    "zh": "台灣文學研究所",
    "en": "Institute of Taiwan Literature",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-tws",
@@ -467,11 +687,17 @@
     "hss"
    ],
    "zh": "台灣研究教師在職進修碩士學位班",
-   "en": "Graduate Program on Taiwan Studies",
+   "en": "Graduate Program of Taiwan Studies for In-service Teachers",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Matched to the English page by position and meaning; please confirm",
-   "review": true
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Graduate Program on Taiwan Studies (English page)"
+   ]
   },
   {
    "id": "hss-bs",
@@ -481,7 +707,12 @@
    "zh": "人文社會學院學士班",
    "en": "Interdisciplinary Program of Humanities and Social Sciences",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-iacs",
@@ -491,7 +722,12 @@
    "zh": "亞際文化研究國際碩士學位學程(台灣聯合大學系統)",
    "en": "International Master's Program in Inter-Asia Cultural Studies (University System of Taiwan)",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-sino",
@@ -499,9 +735,14 @@
     "hss"
    ],
    "zh": "華文文學研究所",
-   "en": "Graduate Institute of Sinophone Literatures",
-   "en_status": "proposed",
-   "active": true
+   "en": "Institute of Sinophone Studies",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "hss-clc",
@@ -509,9 +750,31 @@
     "hss"
    ],
    "zh": "華語文碩士學位學程",
-   "en": "Master's Program in Chinese Language and Culture",
+   "en": "Master Program of Chinese Language and Culture",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Master's Program in Chinese Language and Culture (English page)"
+   ]
+  },
+  {
+   "id": "hss-eamw",
+   "colleges": [
+    "hss"
+   ],
+   "zh": "東亞與現代世界形成國際研究生博士學位學程",
+   "en": "International Ph.D. Program in East Asia and the Making of the Modern World",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
   },
   {
    "id": "lsm-ls",
@@ -521,7 +784,12 @@
    "zh": "生命科學系",
    "en": "Department of Life Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-ms",
@@ -531,7 +799,12 @@
    "zh": "醫學科學系",
    "en": "Department of Medical Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-mcb",
@@ -541,7 +814,12 @@
    "zh": "分子與細胞生物研究所",
    "en": "Institute of Molecular and Cellular Biology",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-mm",
@@ -551,7 +829,12 @@
    "zh": "分子醫學研究所",
    "en": "Institute of Molecular Medicine",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-bsb",
@@ -561,7 +844,12 @@
    "zh": "生物資訊與結構生物研究所",
    "en": "Institute of Bioinformatics and Structural Biology",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-bt",
@@ -571,7 +859,12 @@
    "zh": "生物科技研究所",
    "en": "Institute of Biotechnology",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-sn",
@@ -581,7 +874,12 @@
    "zh": "系統神經科學研究所",
    "en": "Institute of Systems Neuroscience",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-bs",
@@ -591,7 +889,12 @@
    "zh": "生命科學暨醫學院學士班",
    "en": "Interdisciplinary Program of Life Sciences and Medicine",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-in",
@@ -599,10 +902,17 @@
     "lsm"
    ],
    "zh": "跨領域神經科學博士學位學程(台灣聯合大學系統)",
-   "en": "International Ph.D. Program in Interdisciplinary Neuroscience (University System of Taiwan)",
+   "en": "Ph.D. Program in Interdisciplinary Neuroscience (University System of Taiwan)",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Typo and capitals fixed: the English page writes 'Internaional Ph.D. program in Interdisciplinary neuroscience'"
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "International Ph.D. program in Interdisciplinary neuroscience (English page)"
+   ]
   },
   {
    "id": "lsm-pbm",
@@ -610,9 +920,14 @@
     "lsm"
    ],
    "zh": "學士後醫學系",
-   "en": "Department of Post-Baccalaureate Medicine",
-   "en_status": "proposed",
-   "active": true
+   "en": "Tsing Hua School of Medicine",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-pm",
@@ -620,9 +935,17 @@
     "lsm"
    ],
    "zh": "精準醫療博士學位學程",
-   "en": "Precision Medicine Ph.D. Program",
+   "en": "Ph.D. Program in Precision Medicine",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Precision Medicine Ph.D. Program (English page)"
+   ]
   },
   {
    "id": "lsm-mi",
@@ -630,9 +953,14 @@
     "lsm"
    ],
    "zh": "醫學資訊碩士學位學程",
-   "en": "Master's Program in Medical Informatics",
-   "en_status": "proposed",
-   "active": true
+   "en": "Master Program in Medical Informatics",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "lsm-bti",
@@ -640,9 +968,14 @@
     "lsm"
    ],
    "zh": "生技產業博士學位學程",
-   "en": "Industrial Ph.D. Program in Biotechnology",
-   "en_status": "proposed",
-   "active": true
+   "en": "Ph.D. Program in Bioindustrial Technology",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eecs-cs",
@@ -652,7 +985,12 @@
    "zh": "資訊工程學系",
    "en": "Department of Computer Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eecs-ee",
@@ -662,7 +1000,12 @@
    "zh": "電機工程學系",
    "en": "Department of Electrical Engineering",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eecs-com",
@@ -672,7 +1015,12 @@
    "zh": "通訊工程研究所",
    "en": "Institute of Communications Engineering",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eecs-ele",
@@ -682,7 +1030,12 @@
    "zh": "電子工程研究所",
    "en": "Institute of Electronics Engineering",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eecs-isa",
@@ -692,7 +1045,12 @@
    "zh": "資訊系統與應用研究所",
    "en": "Institute of Information Systems and Applications",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eecs-pho",
@@ -702,7 +1060,12 @@
    "zh": "光電工程研究所",
    "en": "Institute of Photonics Technologies",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "eecs-sec",
@@ -711,8 +1074,14 @@
    ],
    "zh": "資訊安全研究所",
    "en": "Institute of Information Security",
-   "en_status": "proposed",
-   "active": true
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "note": "Course list repeats a word ('Institute of Institute of …'); fixed"
   },
   {
    "id": "eecs-bs",
@@ -720,9 +1089,17 @@
     "eecs"
    ],
    "zh": "電機資訊學院學士班",
-   "en": "Interdisciplinary Program of Electrical Engineering and Computer Science",
+   "en": "Undergraduate Program of Electrical Engineering and Computer Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Interdisciplinary Program of Electrical Engineering and Computer Science (English page)"
+   ]
   },
   {
    "id": "eecs-phd",
@@ -730,9 +1107,88 @@
     "eecs"
    ],
    "zh": "光電博士學位學程(台灣聯合大學系統)",
-   "en": "International Ph.D. Program in Photonics (University System of Taiwan)",
+   "en": "Ph.D. Program in Photonics (University System of Taiwan)",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "International Ph.D. program in Photonics (English page)"
+   ]
+  },
+  {
+   "id": "eecs-isic",
+   "colleges": [
+    "eecs"
+   ],
+   "zh": "國際半導體暨IC設計產業人才專班",
+   "en": "International Semiconductor and IC Design Program",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "eecs-rddm",
+   "colleges": [
+    "eecs"
+   ],
+   "zh": "半導體元件及製程產業研發碩士專班",
+   "en": "Industrial Technology R&D Master Program on Semiconductor Devices and Manufacturing Process",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "eecs-rdic",
+   "colleges": [
+    "eecs"
+   ],
+   "zh": "積體電路設計產業研發碩士專班",
+   "en": "Industrial Technology R&D Master Program on IC Design",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "eecs-rdpe",
+   "colleges": [
+    "eecs"
+   ],
+   "zh": "電力電子產業研發碩士專班",
+   "en": "Industrial Technology R&D Master Program on Power Electronics",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ],
+   "note": "Course list writes the Chinese name as 產業研發碩士電力電子"
+  },
+  {
+   "id": "eecs-snhc",
+   "colleges": [
+    "eecs"
+   ],
+   "zh": "社群網路與人智計算國際研究生博士學位學程",
+   "en": "Social Networks and Human-Centered Computing Program",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
   },
   {
    "id": "tm-qf",
@@ -742,7 +1198,12 @@
    "zh": "計量財務金融學系",
    "en": "Department of Quantitative Finance",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "tm-econ",
@@ -752,7 +1213,12 @@
    "zh": "經濟學系",
    "en": "Department of Economics",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "tm-itm",
@@ -762,7 +1228,12 @@
    "zh": "科技管理研究所",
    "en": "Institute of Technology Management",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "tm-mba",
@@ -770,9 +1241,17 @@
     "tm"
    ],
    "zh": "經營管理碩士在職專班(MBA)",
-   "en": "MBA",
+   "en": "Institute of Business Administration",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "MBA (English page)"
+   ]
   },
   {
    "id": "tm-law",
@@ -782,7 +1261,12 @@
    "zh": "科技法律研究所",
    "en": "Institute of Law for Science and Technology",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "tm-emba",
@@ -790,9 +1274,17 @@
     "tm"
    ],
    "zh": "高階經營管理碩士在職專班(EMBA)",
-   "en": "EMBA",
+   "en": "Executive Master of Business Administration",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "EMBA (English page)"
+   ]
   },
   {
    "id": "tm-bs",
@@ -802,7 +1294,12 @@
    "zh": "科技管理學院學士班",
    "en": "Interdisciplinary Program of Management and Technology",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "tm-imba",
@@ -810,9 +1307,17 @@
     "tm"
    ],
    "zh": "國際專業管理碩士班(IMBA)",
-   "en": "IMBA",
+   "en": "International Master of Business Administration",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "IMBA (English page)"
+   ]
   },
   {
    "id": "tm-ss",
@@ -822,7 +1327,12 @@
    "zh": "服務科學研究所",
    "en": "Institute of Service Science",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "tm-mfb",
@@ -830,9 +1340,17 @@
     "tm"
    ],
    "zh": "財務金融碩士在職專班(MFB)",
-   "en": "MFB",
+   "en": "Master Program of Finance and Banking",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "MFB (English page)"
+   ]
   },
   {
    "id": "tm-mpm",
@@ -840,9 +1358,17 @@
     "tm"
    ],
    "zh": "公共政策與管理碩士在職專班(MPM)",
-   "en": "MPM",
+   "en": "Master Program of Public Policy and Management",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "MPM (English page)"
+   ]
   },
   {
    "id": "tm-demba",
@@ -850,11 +1376,15 @@
     "tm"
    ],
    "zh": "高階經營管理雙聯碩士在職專班(Dual EMBA)",
-   "en": "Dual EMBA",
-   "en_status": "proposed",
+   "en": "NTHU-UTA Dual EMBA Degree Program",
+   "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "English page lists 'EMBA Shenzhen'; not certain it is the same program",
-   "review": true
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "note": "Course list calls it EMBA雙聯學位學程"
   },
   {
    "id": "tm-hba",
@@ -862,9 +1392,46 @@
     "tm"
    ],
    "zh": "健康政策與經營管理碩士在職專班(HBA)",
-   "en": "In-service Master's Program in Health Policy and Management (HBA)",
-   "en_status": "proposed",
-   "active": true
+   "en": "Master Program of Health Policy and Business Administration",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
+  },
+  {
+   "id": "tm-emm",
+   "colleges": [
+    "tm"
+   ],
+   "zh": "高階經營管理馬來西亞境外碩士在職專班",
+   "en": "Executive Master of Business Administration in Malaysia",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "tm-ems",
+   "colleges": [
+    "tm"
+   ],
+   "zh": "高階經營管理深圳境外碩士在職專班",
+   "en": "Executive Master of Business Administration in Shenzhen",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr",
+    "enpage"
+   ],
+   "en_other_official": [
+    "EMBA Shenzhen (English page)"
+   ]
   },
   {
    "id": "edu-elt",
@@ -874,7 +1441,12 @@
    "zh": "教育與學習科技學系",
    "en": "Department of Education and Learning Technology",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-ece",
@@ -884,7 +1456,12 @@
    "zh": "幼兒教育學系",
    "en": "Department of Early Childhood Education",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-se",
@@ -894,7 +1471,12 @@
    "zh": "特殊教育學系",
    "en": "Department of Special Education",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-epc",
@@ -904,7 +1486,12 @@
    "zh": "教育心理與諮商學系",
    "en": "Department of Educational Psychology and Counseling",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-kin",
@@ -914,8 +1501,12 @@
    "zh": "運動科學系",
    "en": "Department of Kinesiology",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Capital K fixed: the English page writes 'kinesiology'"
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-lst",
@@ -925,7 +1516,12 @@
    "zh": "學習科學與科技研究所",
    "en": "Institute of Learning Sciences and Technologies",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-mse",
@@ -935,7 +1531,12 @@
    "zh": "數理教育研究所",
    "en": "Graduate Institute of Mathematics and Science Education",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-twl",
@@ -945,7 +1546,12 @@
    "zh": "臺灣語言研究與教學研究所",
    "en": "Institute of Taiwan Languages and Language Teaching",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-ei",
@@ -955,7 +1561,12 @@
    "zh": "英語教學系",
    "en": "Department of English Instruction",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-ecr",
@@ -965,7 +1576,12 @@
    "zh": "環境與文化資源學系",
    "en": "Department of Environmental and Cultural Resources",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-ecse",
@@ -973,9 +1589,14 @@
     "edu"
    ],
    "zh": "學前特殊教育碩士在職學位學程",
-   "en": "In-service Master's Program in Early Childhood Special Education",
-   "en_status": "proposed",
-   "active": true
+   "en": "Master Program in Early Childhood Special Education",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-bs",
@@ -985,7 +1606,12 @@
    "zh": "竹師教育學院學士班",
    "en": "Interdisciplinary Program of Education",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-wal",
@@ -993,9 +1619,14 @@
     "edu"
    ],
    "zh": "華德福教育碩士在職學位學程",
-   "en": "In-service Master's Program in Waldorf Education",
-   "en_status": "proposed",
-   "active": true
+   "en": "Master’s Program in Waldorf Education",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-steam",
@@ -1003,9 +1634,14 @@
     "edu"
    ],
    "zh": "竹師教育學院跨領域STEAM教育碩士在職專班",
-   "en": "In-service Master's Program in Interdisciplinary STEAM Education",
-   "en_status": "proposed",
-   "active": true
+   "en": "Master Program in Interdisciplinary STEAM Education",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "edu-sgp",
@@ -1013,9 +1649,15 @@
     "edu"
    ],
    "zh": "心理與諮商碩士新加坡境外在職專班",
-   "en": "In-service Master's Program in Psychology and Counseling (Singapore)",
-   "en_status": "proposed",
-   "active": true
+   "en": "Master’s Program in Psychology and Counseling, Singapore",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "note": "Course list calls it 新加坡心諮碩班境外專班"
   },
   {
    "id": "edu-phd",
@@ -1023,9 +1665,99 @@
     "edu"
    ],
    "zh": "竹師教育學院博士班",
-   "en": "Ph.D. Program, College of Education",
-   "en_status": "proposed",
-   "active": true
+   "en": "Ph.D. Program in Education Sciences",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
+  },
+  {
+   "id": "edu-ecr-ex",
+   "colleges": [
+    "edu"
+   ],
+   "zh": "環境與文化資源學系社區與社會學習領域碩士在職專班",
+   "en": "In-service Master Program of Community Development and Social Studies, Department of Environmental and Cultural Resources",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ],
+   "note": "Course list cuts the name off after 'Department of Environme'; completed with the department's name"
+  },
+  {
+   "id": "edu-ece-ex",
+   "colleges": [
+    "edu"
+   ],
+   "zh": "幼兒教育學系碩士在職專班",
+   "en": "Master Program in Early Childhood Education for In-service Practitioners",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "edu-elt-ex",
+   "colleges": [
+    "edu"
+   ],
+   "zh": "教育與學習科技學系碩士在職專班",
+   "en": "In-service Master Program, Department of Education and Learning Technology",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "edu-mse-ex",
+   "colleges": [
+    "edu"
+   ],
+   "zh": "數理教育研究所碩士在職專班",
+   "en": "Mathematics & Science Education Master Inservice Program",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "edu-epc-ex",
+   "colleges": [
+    "edu"
+   ],
+   "zh": "教育心理與諮商學系碩士在職專班",
+   "en": "In-service Master Program of Educational Psychology and Counseling",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "edu-kin-ex",
+   "colleges": [
+    "edu"
+   ],
+   "zh": "運動科學系碩士在職專班",
+   "en": "In-Service Master Program of Kinesiology",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
   },
   {
    "id": "arts-mus",
@@ -1035,7 +1767,12 @@
    "zh": "音樂學系",
    "en": "Department of Music",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "arts-ad",
@@ -1045,7 +1782,12 @@
    "zh": "藝術與設計學系",
    "en": "Department of Arts and Design",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "arts-bs",
@@ -1055,9 +1797,12 @@
    "zh": "藝術學院學士班",
    "en": "Interdisciplinary Program of Technology and Art",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "Matched by the 'Interdisciplinary Program of …' pattern; please confirm",
-   "review": true
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "arts-ita",
@@ -1065,31 +1810,84 @@
     "arts"
    ],
    "zh": "科技藝術研究所",
-   "en": "Institute of Technology and Art",
-   "en_status": "proposed",
-   "active": true
+   "en": "Graduate Institute of Art and Technology",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
-   "id": "tsep",
+   "id": "arts-ad-ex",
+   "colleges": [
+    "arts"
+   ],
+   "zh": "藝術與設計學系美勞教師碩士在職專班",
+   "en": "In-service Master Program of Arts Education for Teachers",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "arts-mus-ex",
+   "colleges": [
+    "arts"
+   ],
+   "zh": "音樂學系音樂碩士在職專班",
+   "en": "In-service Master Program in Music",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "arts-phd",
+   "colleges": [
+    "arts"
+   ],
+   "zh": "藝術跨域博士班",
+   "en": "Ph.D. Program in Interdisciplinary Arts",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
+  },
+  {
+   "id": "tsep-ma",
    "colleges": [
     "tsep"
    ],
-   "zh": "台北政經學院",
-   "en": "Taipei School of Economics and Political Science",
+   "zh": "台北政經學院碩士班",
+   "en": "Master's Program in Political Economy",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "The college has no departments listed; the college itself is the choice"
+   "listed_on": [
+    "curr"
+   ]
   },
   {
-   "id": "semi",
+   "id": "tsep-phd",
    "colleges": [
-    "semi"
+    "tsep"
    ],
-   "zh": "半導體研究學院",
-   "en": "College of Semiconductor Research",
+   "zh": "台北政經學院博士班",
+   "en": "Doctoral Program in Political Economy",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
-   "note": "The college has no departments listed; the college itself is the choice"
+   "listed_on": [
+    "curr"
+   ]
   },
   {
    "id": "sus-st",
@@ -1097,9 +1895,30 @@
     "sus"
    ],
    "zh": "永續科技碩士學位學程",
-   "en": "Master's Program in Sustainability Technology",
-   "en_status": "proposed",
-   "active": true
+   "en": "Master's Program in Sustainable Technology",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
+  },
+  {
+   "id": "sus-isdc",
+   "colleges": [
+    "sus"
+   ],
+   "zh": "永續經營與氣候政策研究所",
+   "en": "Institute of Sustainable Development and Climate Policy",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr",
+    "cos"
+   ],
+   "note": "Established; first intake in academic year 115 (2026). Not on the Chinese 教學單位 page yet. Its Chinese name says 經營 (management), but both the course list and the college's own site use 'Sustainable Development' in English"
   },
   {
    "id": "thc-bs",
@@ -1107,9 +1926,17 @@
     "thc"
    ],
    "zh": "清華學院學士班",
-   "en": "Tsing Hua Interdisciplinary Program",
+   "en": "Interdisciplinary Program of Tsing Hua",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "Tsing Hua Interdisciplinary Program (English page)"
+   ]
   },
   {
    "id": "thc-ibp",
@@ -1117,15 +1944,53 @@
     "thc"
    ],
    "zh": "清華學院國際學士班",
-   "en": "International Bachelor Degree Program (IBP)",
+   "en": "Tsing Hua College International Bachelor Degree Program (IBP)",
    "en_status": "official",
+   "en_source": "curr",
    "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "International Bachelor Degree Program (English page)"
+   ],
+   "note": "Tracks belong to IBP under Tsing Hua College; they are not regular departments. From year 2 each track's fees go through a partner college (IBP FAQ), but the student stays in IBP",
    "tracks": [
     {
      "id": "eecs",
-     "zh": "電機資訊",
-     "en": "Electrical Engineering and Computer Science",
-     "en_status": "official"
+     "zh": "電機資訊科技",
+     "en": "Electrical Engineering & Computer Science",
+     "en_status": "official",
+     "en_source": "ibp"
+    },
+    {
+     "id": "bm",
+     "zh": "商業管理",
+     "en": "Business Management",
+     "en_status": "official",
+     "en_source": "ibp"
+    },
+    {
+     "id": "et",
+     "zh": "工程技術",
+     "en": "Engineering Technology",
+     "en_status": "official",
+     "en_source": "ibp"
+    },
+    {
+     "id": "es",
+     "zh": "教育科學",
+     "en": "Education Sciences",
+     "en_status": "official",
+     "en_source": "ibp"
+    },
+    {
+     "id": "cl",
+     "zh": "華語與專業學科（甲組）",
+     "en": "International Chinese Language with Multiple Disciplines (Group A)",
+     "en_status": "official",
+     "en_source": "ibp"
     }
    ]
   },
@@ -1135,9 +2000,17 @@
     "oaa"
    ],
    "zh": "跨院國際博士班學位學程",
-   "en": "International Intercollegiate PhD Program",
+   "en": "International Intercollegiate Ph.D. Program",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "International Intercollegiate PhD Program (English page)"
+   ]
   },
   {
    "id": "oaa-ims",
@@ -1145,9 +2018,17 @@
     "oaa"
    ],
    "zh": "跨院國際碩士學位學程",
-   "en": "International Intercollegiate MS Program",
+   "en": "International Intercollegiate Master Program",
    "en_status": "official",
-   "active": true
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ],
+   "en_other_official": [
+    "International Intercollegiate MS Program (English page)"
+   ]
   },
   {
    "id": "oaa-smem",
@@ -1155,9 +2036,14 @@
     "oaa"
    ],
    "zh": "智慧製造跨院高階主管碩士在職學位學程",
-   "en": "Executive Master's Program in Smart Manufacturing (Cross-college)",
-   "en_status": "proposed",
-   "active": true
+   "en": "Executive Cross-Discipline Master Program for Intelligent Manufacturing",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "oaa-sbm",
@@ -1165,9 +2051,14 @@
     "oaa"
    ],
    "zh": "智慧生醫博士學位學程",
-   "en": "Ph.D. Program in Smart Biomedicine",
-   "en_status": "proposed",
-   "active": true
+   "en": "Ph.D. Program in Biomedical Artificial Intelligence",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
   },
   {
    "id": "oaa-rs",
@@ -1175,9 +2066,28 @@
     "oaa"
    ],
    "zh": "藥品與醫材法規科學碩士在職學位學程",
-   "en": "In-service Master's Program in Regulatory Science for Drugs and Medical Devices",
-   "en_status": "proposed",
-   "active": true
+   "en": "MS in Regulatory Affairs for Drugs & Medical Devices",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "units",
+    "curr"
+   ]
+  },
+  {
+   "id": "univ-tigp",
+   "colleges": [
+    "univ"
+   ],
+   "zh": "國際研究生學位學程",
+   "en": "Taiwan International Graduate Program",
+   "en_status": "official",
+   "en_source": "curr",
+   "active": true,
+   "listed_on": [
+    "curr"
+   ]
   },
   {
    "id": "old-as",
@@ -1187,7 +2097,12 @@
    "zh": "應用科學系",
    "en": "Department of Applied Science",
    "en_status": "official",
-   "active": false
+   "en_source": "enpage",
+   "active": false,
+   "listed_on": [
+    "units",
+    "enpage"
+   ]
   },
   {
    "id": "old-am",
@@ -1197,7 +2112,12 @@
    "zh": "應用數學系",
    "en": "Department of Applied Mathematics",
    "en_status": "official",
-   "active": false
+   "en_source": "enpage",
+   "active": false,
+   "listed_on": [
+    "units",
+    "enpage"
+   ]
   },
   {
    "id": "old-cll",
@@ -1207,7 +2127,12 @@
    "zh": "中國語文學系",
    "en": "Department of Chinese Language and Literature",
    "en_status": "official",
-   "active": false
+   "en_source": "enpage",
+   "active": false,
+   "listed_on": [
+    "units",
+    "enpage"
+   ]
   },
   {
    "id": "old-hre",
@@ -1217,18 +2142,28 @@
    "zh": "人力資源與數位學習科技研究所",
    "en": "Graduate Institute of Human Resource and eLearning Technology",
    "en_status": "official",
-   "active": false
+   "en_source": "enpage",
+   "active": false,
+   "listed_on": [
+    "units",
+    "enpage"
+   ]
   }
  ],
- "excluded_non_degree_units": [
+ "excluded": [
   "通識教育中心",
   "體育室",
+  "軍訓",
   "語文中心",
   "住宿書院",
   "英語教育中心",
+  "華語中心",
+  "師資培育中心",
+  "台灣人工智慧學程聯盟",
   "合校停招系所聯合辦事處",
   "教務處(院級)",
-  "each college's own 學院 row (offered as 'college, department not chosen yet')"
+  "遠距/微學分/校際/抵免 course codes",
+  "each college's own 學院 row (offered as 'department not chosen yet')"
  ],
  "legacy_aliases": {
   "IBP EECS": {
@@ -1239,15 +2174,7 @@
    "unit": "eecs-ee"
   },
   "College of Semiconductor Research": {
-   "unit": "semi"
-  },
-  "EECS": {
-   "college": "eecs",
-   "review": "Could also mean the IBP EECS track or 電機資訊學院學士班"
-  },
-  "Electrical Engineering and Computer Science": {
-   "college": "eecs",
-   "review": "Could also mean 電機資訊學院學士班"
+   "college": "semi"
   },
   "Humanities and Social Sciences": {
    "college": "hss"
@@ -1260,6 +2187,12 @@
   },
   "College of Life Sciences and Medicine": {
    "college": "lsm"
+  },
+  "EECS": {
+   "review": "Ambiguous: could be the EECS college, 電機資訊學院學士班, or the IBP EECS track"
+  },
+  "Electrical Engineering and Computer Science": {
+   "review": "Ambiguous: could be the EECS college, 電機資訊學院學士班, or the IBP EECS track"
   }
  }
 }

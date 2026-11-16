@@ -120,7 +120,9 @@ def verification_submit(req: Request, page: str = Form(""), title: str = Form(""
     if page and not nthu_url(page): return _back(req, "The link must be an official page on nthu.edu.tw, such as your department's faculty list.")
     if not t: return _back(req, "Choose your academic title, or write it in the box under Other.")
     if len(dept) < 2: return _back(req, "Enter your department.")
-    user.faculty_url, user.title, user.faculty = page, t, dept
+    user.faculty_url, user.title = page, t
+    from .departments import relink_text
+    relink_text(user, dept)   # the typed text is stored as it is; an exact official name is linked, anything else goes to the admin's department queue
     user.faculty_evidence = evidence.replace("\r", "").strip()[:1000]
     if st == "more_info": set_status(s, user, "pending", "resubmitted", user.id, "Sent the information again.")
     else: audit(s, user, "resubmitted", user.id, "pending", "pending", "Updated the information.")

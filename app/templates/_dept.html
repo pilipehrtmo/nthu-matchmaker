@@ -1,0 +1,15 @@
+{% macro dept_picker(cur="", track="", other="", legacy="", status="", wid="dpick", optional=True) %}<div class="deptpick" id="{{ wid }}" data-deptpick>
+<label for="dsel">Department or major{% if optional %} <small class="muted">(optional)</small>{% endif %}</label>
+<select id="dsel" name="dept_sel" aria-describedby="dselh">
+<option value="">{{ "Keep it as it is" if legacy else "Choose your department…" }}</option>
+{% for g, opts in DEP.groups(lang) %}<optgroup label="{{ g }}">{% for v, l in opts %}<option value="{{ v }}" {{ "selected" if v == cur }}>{{ l }}</option>{% endfor %}</optgroup>
+{% endfor %}<optgroup label="{{ 'Not in the list' }}"><option value="other" {{ "selected" if cur == "other" }}>Other / not listed</option>{% if legacy or cur %}<option value="none">No department</option>{% endif %}</optgroup>
+</select>
+<p class="muted fine" id="dselh">Pick your department, or your college if you haven't chosen one yet. IBP students pick their track next.</p>
+<div class="dsub" data-for="thc-ibp" {{ "hidden" if cur != "thc-ibp" }}><label for="dtr">IBP track</label><select id="dtr" name="dept_track" data-opt>
+<option value="">Choose your track…</option>{% for v, l in DEP.tracks(lang) %}<option value="{{ v }}" {{ "selected" if v == track }}>{{ l }}</option>{% endfor %}</select></div>
+<div class="dsub" data-for="other" {{ "hidden" if cur != "other" }}><label for="dot">Your department or major</label><input id="dot" name="dept_other" data-opt maxlength="60" value="{{ other }}" placeholder="e.g. Exchange student, Department of Geography" aria-describedby="doth">
+<p class="muted fine" id="doth">An admin checks it and links it to the right department. Until then your profile shows what you typed.</p></div>
+{% if legacy %}<p class="muted fine dlegacy">On your profile now: <b>{{ legacy }}</b>. Pick it from the list to link it, or leave this as it is.</p>{% endif %}
+{% if status in ("review", "other") %}<p class="muted fine dlegacy">An admin will check your department soon.</p>{% endif %}
+</div>{% endmacro %}

@@ -24,7 +24,7 @@
 {% for r in recs %}<a class="rec" href="/projects/{{ r.p.id }}"><b>{{ r.p.title }}</b><small>{{ r.reason }}</small><span class="pill match">{{ r.score }}% match</span></a>{% endfor %}</div></section>{% endif %}
 <div class="projects" id="plist">{% for r in rows %}{% set filled = r.total - r.roles|length %}<article class="card link pcard {{ 'k-comp' if kind_of(r.p) == 'Competition' }}"
  data-kind="{{ kind_of(r.p) }}" data-cat="{{ r.p.category or (comp_cat.get(r.p.competition_id, '') if r.p.competition_id else '') }}" data-days="{{ r.days if r.days is not none else 99999 }}"
- data-new="{{ r.p.created.timestamp()|int }}" data-score="{{ r.score or 0 }}" data-open="{{ r.roles|length }}" data-dept="{{ (r.owner.faculty or '')|trim if r.owner else '' }}" data-hours="{{ r.p.hours_per_week or 0 }}"
+ data-new="{{ r.p.created.timestamp()|int }}" data-score="{{ r.score or 0 }}" data-open="{{ r.roles|length }}" data-dept="{{ r.owner|dept if r.owner else '' }}" data-hours="{{ r.p.hours_per_week or 0 }}"
  data-roles="{{ r.roles|map(attribute='name')|map('lower')|map('trim')|join('|') }}" data-skills="{{ r.roles|map(attribute='skills')|join(',')|lower }}"
  data-ptags="{{ parse_tags(r.p.tags)|map(attribute=0)|join('|') }}" data-text="{{ (r.p.tags|replace(':', ' ')|replace(',', ' ')) ~ ' ' ~ (r.p.title ~ ' ' ~ r.p.description ~ ' ' ~ r.p.category ~ ' ' ~ (r.roles|map(attribute='name')|join(' ')) ~ ' ' ~ (r.roles|map(attribute='skills')|join(' ')) ~ ' ' ~ (r.owner|dn))|lower }}">
 <div class="ctop"><span class="kindb">{{ kind_of(r.p) }}{% if r.p.category %} · {{ r.p.category }}{% endif %}</span>{% if user and r.score is not none %}<span class="match"><b>{{ r.score }}%</b> match</span>{% endif %}</div>

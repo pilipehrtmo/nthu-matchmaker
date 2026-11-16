@@ -24,7 +24,7 @@
 {% if is_owner or (user and user.is_admin and apps) %}<section class="card" id="applicants"><h2>Applicants {% if apps %}<span class="count">{{ apps|length }}</span>{% endif %}</h2>
 {% if not apps %}<p class="muted">No applications yet.</p>{% endif %}
 <div class="apps">{% for a, u in apps %}<div class="app">{{ pic(u, "av") }}<div class="app-main">
-<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{% if u.faculty %} <small class="muted">{{ u.faculty }}</small>{% endif %}</span>
+<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{% if u|dept %} <small class="muted">{{ u|dept }}</small>{% endif %}</span>
 <span class="badge b-{{ a.status }}">{{ {"closed": "Positions filled", "withdrawn": "Withdrawn"}.get(a.status, a.status|capitalize) }}</span></div>
 {% set sk = u.skills.split(",") if u.skills else [] %}{% if sk %}<div>{% for t in sk if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in o.skills.lower().split(',') }}">{{ keep(t.strip()) }}</span>{% endfor %}</div>{% endif %}
 {{ pro_links(u, compact=True) }}
@@ -36,7 +36,7 @@
 </div>
 
 <aside class="oside">
-<a class="card oprof" href="/u/{{ prof.handle }}">{{ pic(prof, "av xl") }}<b>{{ prof|dn }}</b><span class="muted">{{ prof.title or "Professor" }}</span>{% if prof.faculty %}<span class="muted">{{ prof.faculty }}</span>{% endif %}{% if prof.lab_name %}<span>{{ prof.lab_name }}</span>{% endif %}<span class="pill fac">✔ Verified NTHU faculty</span></a>
+<a class="card oprof" href="/u/{{ prof.handle }}">{{ pic(prof, "av xl") }}<b>{{ prof|dn }}</b><span class="muted">{{ prof.title or "Professor" }}</span>{% if prof|dept %}<span class="muted">{{ prof|dept }}</span>{% endif %}{% if prof.lab_name %}<span>{{ prof.lab_name }}</span>{% endif %}<span class="pill fac">✔ Verified NTHU faculty</span></a>
 {% if not is_owner %}<section class="card oapply">
 {% if not user %}<p><a href="/login">Log in</a> to apply.</p>
 {% elif user.role == "faculty" %}<p class="muted">Research positions are for students.</p>
