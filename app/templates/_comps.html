@@ -36,7 +36,6 @@ function compApply(){const rank={closing:0,open:1,unknown:2,past:3};
 cmore.onclick=()=>{cs.more=!cs.more;compApply();if(!cs.more)$("#comps").scrollIntoView({block:"start"})};
 let ctm;cq.addEventListener("input",()=>{clearTimeout(ctm);ctm=setTimeout(()=>{cs.q=cq.value;cs.more=false;compApply()},120)});
 $("#c-st").onchange=e=>{cs.st=e.target.value;cs.more=false;compApply()};$("#c-sort").onchange=e=>{cs.sort=e.target.value;compApply()};
-clist.addEventListener("submit",async e=>{const f=e.target.closest(".savef");if(!f)return;e.preventDefault();const b=f.querySelector("button");
- try{const r=await fetch(f.action,{method:"POST",body:new FormData(f),headers:{"x-fetch":"1"}});if(!r.ok)throw 0;const j=await r.json();b.setAttribute("aria-pressed",j.saved);f.closest(".comp").dataset.saved=j.saved?"1":"0";if(cs.st==="saved")compApply()}catch(_){f.submit()}});
+document.addEventListener("mm:saved",e=>{if(clist.contains(e.detail.form))compApply()});
 compApply()})();
 </script>

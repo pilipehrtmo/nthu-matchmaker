@@ -86,9 +86,49 @@
     });
   }, true);
 
+  // ---------- admin page: sections that open and close (remembered on this device) ----------
+  const foldKey = id => "mm-fold-" + id;
+  function setFold(btn, open, instant) {
+    const body = document.getElementById(btn.getAttribute("aria-controls")); if (!body) return;
+    if (instant) { body.classList.add("noanim"); requestAnimationFrame(() => requestAnimationFrame(() => body.classList.remove("noanim"))); }
+    btn.setAttribute("aria-expanded", String(open)); body.classList.toggle("open", open);
+    if (open) body.removeAttribute("inert"); else body.setAttribute("inert", "");
+  }
+  document.addEventListener("click", e => {
+    const jump = e.target.closest('a[href^="#"]');   // a shortcut to a closed section opens it
+    if (jump) { const fb = document.querySelector(`.foldbtn[data-fold="${jump.getAttribute("href").slice(1)}"]`); if (fb && fb.getAttribute("aria-expanded") !== "true") setFold(fb, true); }
+    const b = e.target.closest(".foldbtn"); if (!b) return;
+    const open = b.getAttribute("aria-expanded") !== "true"; setFold(b, open);
+    try { localStorage.setItem(foldKey(b.dataset.fold), open ? "1" : "0"); } catch (err) {}
+  });
+  const restoreFolds = root => root.querySelectorAll(".foldbtn").forEach(b => {
+    let v = null; try { v = localStorage.getItem(foldKey(b.dataset.fold)); } catch (err) {}
+    if (v === "1") setFold(b, true, true);
+  });
+
+  // ---------- Save buttons on lists (competitions, funding): no page reload ----------
+  // Runs in the capture phase so the site's page-loading (htmx boost) never sends the same form a second time.
+  document.addEventListener("submit", async e => {
+    const f = e.target.closest && e.target.closest("form.savef"); if (!f) return;
+    e.preventDefault(); e.stopPropagation();
+    const b = f.querySelector("button"); if (!b || b.dataset.busy) return;
+    const was = b.getAttribute("aria-pressed") === "true";
+    b.dataset.busy = "1"; b.setAttribute("aria-pressed", String(!was)); b.classList.remove("pop"); void b.offsetWidth; if (!was) b.classList.add("pop");   // show it at once
+    try {
+      const r = await fetch(f.action, { method: "POST", body: new FormData(f), headers: { "x-fetch": "1" } });
+      if (r.status === 401) { location.href = "/login"; return; }
+      if (!r.ok) throw 0;
+      const j = await r.json(), on = !!j.saved;
+      b.setAttribute("aria-pressed", String(on)); b.title = on ? b.dataset.on || "Saved" : b.dataset.off || "Save";
+      const card = f.closest("[data-saved]"); if (card) card.dataset.saved = on ? "1" : "0";
+      document.dispatchEvent(new CustomEvent("mm:saved", { detail: { form: f, saved: on } }));
+    } catch (err) { b.setAttribute("aria-pressed", String(was)); b.classList.remove("pop"); }
+    finally { delete b.dataset.busy; }
+  }, true);
+
   // ---------- set up each page: first load and every page swapped in ----------
   function setup(root) {
-    addEyes(root);
+    addEyes(root); restoreFolds(root);
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .12 });
     root.querySelectorAll(".card,.seatcard,.steps li,.chip,.reveal,.hero").forEach((el, i) => {
       if (el.classList.contains("rv")) return;

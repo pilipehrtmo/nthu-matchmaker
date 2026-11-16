@@ -242,7 +242,7 @@ def name_handles():   # one-time: users who still have a random "student-xxxxxx"
             if u.name.strip(): u.handle = slugify(s, u.name, u.id); s.commit()
 
 # ---------- auth ----------
-SID = re.compile(r"^[A-Za-z0-9]{6,12}$")
+SID = re.compile(r"^\d{9}$")   # NTHU student IDs are exactly 9 digits, e.g. 115006212
 HANDLE_RE = re.compile(r"^[a-z0-9._-]{3,30}$")
 
 def verify_required() -> bool:   # only ask people to verify when the server can really send email
@@ -314,7 +314,7 @@ def signup_page(req: Request, user=Depends(me)):
 def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), password: str = Form(""),
            password2: str = Form(""), role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), title_other: str = Form(""),
            evidence: str = Form(""), s: Session = Depends(get_session)):
-    email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = student_id.strip().upper()
+    email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = re.sub(r"\s+", "", student_id)
     role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
     back = lambda err: render(req, "signup.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence))
     # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
@@ -335,7 +335,7 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     else:
         if STUDENT_EMAIL_RULE == "nthu" and not nthu_email(email) and email not in ADMIN_EMAILS:
             return back("Use your NTHU email to sign up, for example s114123456@m114.nthu.edu.tw or your @gapp.nthu.edu.tw address.")
-        if not SID.match(sid): return back("Enter your student ID (6 to 12 letters or digits).")
+        if not SID.match(sid): return back("Your student ID must be exactly 9 digits, for example 115006212.")
         if s.exec(select(User).where(func.upper(func.trim(User.student_id)) == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.")
     err = password_problem(password, email, name)
     if err: return back(err)

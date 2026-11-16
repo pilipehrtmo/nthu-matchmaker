@@ -231,7 +231,6 @@
     "Enter a business plan or social-impact competition from the list on the home page to get feedback.": "從首頁清單挑一個創業計畫或社會影響力競賽參加，取得回饋。",
     "Enter your account's email and we will send you a link to set a new password. This also works if your account was made before the site had passwords.": "輸入你帳號的 email，我們會寄一個重設密碼的連結給你。如果你的帳號是在網站有密碼功能之前建立的，也適用。",
     "Enter your department.": "請輸入你的系所。",
-    "Enter your student ID (6 to 12 letters or digits).": "請輸入你的學號（6 到 12 個英文字母或數字）。",
     "Experience": "經驗",
     "Experience in": "經驗領域",
     "FITI Innovation & Startup Incentive Program": "FITI 創新創業激勵計畫",
@@ -1624,6 +1623,11 @@
     "Show me how · Student": "帶我操作 · 學生",
     "Show me how · Professor": "帶我操作 · 教授",
     "Contact the admins": "聯絡管理員",
-    "Reports, complaints or questions about NTHU Matchmaker? Email us and we'll get back to you.": "對 NTHU Matchmaker 有檢舉、申訴或問題嗎？寄信給我們，我們會回覆你。"
+    "Reports, complaints or questions about NTHU Matchmaker? Email us and we'll get back to you.": "對 NTHU Matchmaker 有檢舉、申訴或問題嗎？寄信給我們，我們會回覆你。",
+    "Your student ID must be exactly 9 digits, for example 115006212.": "學號必須是 9 位數字，例如 115006212。",
+    "9 digits, as on your student card.": "9 位數字，與學生證上的相同。",
+    "e.g. 115006212": "例如 115006212",
+    "Exactly 9 digits, for example 115006212": "必須是 9 位數字，例如 115006212",
+    "recent runs": "次最近執行"
   }
 }

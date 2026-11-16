@@ -1115,3 +1115,31 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 
 /* admin public page: contact box instead of projects */
 .admincontact{margin-top:1.2rem}.admincontact h2{margin:0 0 .4rem}.admincontact p{margin:.3rem 0}.admincontact .btn{margin-top:.4rem;word-break:break-all}
+
+/* Save buttons: purple when saved, a small pop when you save */
+.savebtn{transition:background .2s ease,border-color .2s ease,color .2s ease,transform .15s ease}
+.savebtn:hover{border-color:var(--pri);color:var(--pri)}
+.savebtn[aria-pressed=true]{background:var(--pri);border-color:var(--pri);color:var(--on-pri)}
+.savebtn[aria-pressed=true] svg{fill:currentColor}
+.savebtn.pop{animation:savepop .38s cubic-bezier(.3,1.5,.5,1)}
+@keyframes savepop{0%{transform:scale(1)}40%{transform:scale(1.22)}100%{transform:scale(1)}}
+.savebtn[data-busy]{cursor:progress}
+@media (prefers-reduced-motion:reduce){.savebtn{transition:none}.savebtn.pop{animation:none}}
+
+/* admin: sections that open and close */
+.foldsec .sec-h{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.foldsec .sec-h h2{margin:0}
+.foldbtn{display:inline-flex;align-items:center;gap:.45rem;background:var(--card);color:var(--pri-ink);border:1px solid var(--line);border-radius:999px;padding:.42rem .95rem;font-weight:600;font-size:.92rem;min-height:2.4rem;transition:background .2s,border-color .2s,box-shadow .2s}
+.foldbtn:hover{background:var(--pri-soft);border-color:color-mix(in srgb,var(--pri) 40%,transparent);filter:none}
+.foldbtn:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.foldbtn svg{width:1.05rem;height:1.05rem;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .3s ease}
+.foldbtn[aria-expanded=true] svg{transform:rotate(180deg)}
+.foldbtn .fb-hide,.foldbtn[aria-expanded=true] .fb-show{display:none}.foldbtn[aria-expanded=true] .fb-hide{display:inline}
+.fold{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .38s cubic-bezier(.4,0,.2,1),opacity .3s ease}
+.fold.open{grid-template-rows:1fr;opacity:1}
+.fold>.fold-in{overflow:hidden;min-height:0}
+.fold.open>.fold-in{padding-top:.9rem}
+.fold>.fold-in{transition:padding-top .38s cubic-bezier(.4,0,.2,1)}
+.fold.noanim,.fold.noanim>.fold-in{transition:none}
+@media (prefers-reduced-motion:reduce){.fold,.fold>.fold-in,.foldbtn svg{transition:none}}
+.trackf[hidden]{display:none}

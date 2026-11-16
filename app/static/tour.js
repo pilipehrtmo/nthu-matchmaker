@@ -308,9 +308,9 @@
     else if (s.act === "done") btn(L.done, "sm", end);
     else if (s.act === "go") btn(L.go, "sm", () => { write({ ...read(), i: nextIdx, floor: nextIdx, via: null }); restore(); location.href = s.href; });
     else if (s.act === "input" && t) {
-      const b = btn(L.next, "sm", next), ok = () => { b.disabled = !t.value.trim(); hint.textContent = b.disabled ? L.fill : ""; };
+      const b = btn(L.next, "sm", next), ok = () => { b.disabled = !t.value.trim() || (t.pattern && !t.checkValidity()); hint.textContent = b.disabled ? L.fill : ""; };
       ok(); t.addEventListener("input", ok); cleanup.push(() => t.removeEventListener("input", ok));
-      const enter = e => { if (e.key === "Enter" && t.value.trim() && t.tagName !== "TEXTAREA") { e.preventDefault(); next(); } };
+      const enter = e => { if (e.key === "Enter" && t.value.trim() && !(t.pattern && !t.checkValidity()) && t.tagName !== "TEXTAREA") { e.preventDefault(); next(); } };
       t.addEventListener("keydown", enter); cleanup.push(() => t.removeEventListener("keydown", enter));
     } else if (s.act === "check" && t) {
       const box = t.querySelector("input[type=checkbox],input[type=radio]") || t, b = btn(L.next, "sm", next);

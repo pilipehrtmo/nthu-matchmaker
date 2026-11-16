@@ -21,7 +21,7 @@
 <p class="muted fine pcheck">{% if p.check_status == "unreachable" %}<span class="warn-txt">Couldn't open the official page on {{ p.checked_at.strftime("%Y-%m-%d") }}. Check it there.</span>
 {% elif p.checked_at %}Checked automatically {{ p.checked_at.strftime("%Y-%m-%d") }}{% if p.deadline_source == "auto" and p.next_deadline %} · deadline read from the official page{% endif %}
 {% else %}Not checked yet{% endif %}{% if p.verified_at %} · verified by an admin {{ p.verified_at.strftime("%Y-%m-%d") }}{% endif %}</p>
-{% if user and p.id in track %}<form method="post" action="/save/program/{{ p.id }}/track" class="trackf"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="tr{{ p.id }}">Your progress</label>
+{% if user %}<form method="post" action="/save/program/{{ p.id }}/track" class="trackf"{{ " hidden" if p.id not in track }}><input type="hidden" name="csrf" value="{{ csrf }}"><label for="tr{{ p.id }}">Your progress</label>
 <select id="tr{{ p.id }}" name="status" onchange="this.form.requestSubmit()">{% for v, l in TRACK %}{% if v %}<option value="{{ v }}" {{ "selected" if v == track[p.id] or (not track[p.id] and v == "planning") }}>{{ l }}</option>{% endif %}{% endfor %}<option value="">Stop tracking</option></select><noscript><button class="sm">Save</button></noscript></form>{% endif %}
 {% if user and user.is_admin %}<form method="post" action="/admin/verify/program/{{ p.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Mark verified today (admin)</button></form>{% endif %}
 </article>{% endfor %}</div>
@@ -38,7 +38,7 @@ function go(){const qq=f.q.trim().toLowerCase();let n=0;
  $("#g-count").textContent={% if lang == "zh" %}`${n} 個計畫`{% else %}`${n} program${n==1?"":"s"}`{% endif %};$("#g-empty").hidden=n>0}
 let t;$("#g-q").addEventListener("input",e=>{clearTimeout(t);t=setTimeout(()=>{f.q=e.target.value;go()},120)});
 for(const [id,k] of [["g-for","for"],["g-st","st"],["g-el","el"],["g-field","field"]]){const el=$("#"+id);if(el)el.onchange=e=>{f[k]=e.target.value;go()}}
-$("#glist").addEventListener("submit",async e=>{const fm=e.target.closest(".savef");if(!fm)return;e.preventDefault();
- try{const r=await fetch(fm.action,{method:"POST",body:new FormData(fm),headers:{"x-fetch":"1"}});if(!r.ok)throw 0;location.reload()}catch(_){fm.submit()}});
+document.addEventListener("mm:saved",e=>{const c=e.detail.form.closest(".fprog");if(!c||!$("#glist").contains(c))return;
+ const tf=c.querySelector(".trackf");if(tf){tf.hidden=!e.detail.saved;if(e.detail.saved){const sl=tf.querySelector("select");if(sl&&!sl.value)sl.value="planning"}}go()});
 go()})();
 </script>{% endblock %}
