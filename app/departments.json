@@ -6,7 +6,8 @@
   "curr": "https://curricul.site.nthu.edu.tw/p/406-1208-290466,r7880.php",
   "cos": "https://cos.nthu.edu.tw/article-graduate.html",
   "qtam": "https://qtam.site.nthu.edu.tw/",
-  "ibp": "https://ibp.nthu.edu.tw/faq.html"
+  "ibp": "https://ibp.nthu.edu.tw/faq.html",
+  "newsletter": "https://newsletter.site.nthu.edu.tw/p/404-1590-263205.php?Lang=en"
  },
  "rules": {
   "existence": "A unit is included when an official NTHU list shows it as a degree-granting unit (教學單位 page or the course-offering list); centres and course-only codes are left out",
@@ -54,9 +55,9 @@
    "zh": "生命科學暨醫學院",
    "en": "College of Life Sciences and Medicine",
    "en_status": "official",
-   "en_source": "enpage",
+   "en_source": "newsletter",
    "kind": "college",
-   "note": "Course list writes 'College of Life Science and Medicine'; kept the English page form, which matches the college's bachelor program name"
+   "note": "Officially renamed College of Life Sciences and Medicine (NTHU newsletter); the course list still writes 'College of Life Science and Medicine'"
   },
   {
    "id": "eecs",
@@ -136,9 +137,10 @@
    "id": "univ",
    "zh": "全校不分院",
    "en": "University-wide programs",
-   "en_status": "official",
+   "en_status": "proposed",
    "en_source": "curr",
-   "kind": "cross_college"
+   "kind": "cross_college",
+   "note": "Group label is our wording; the course list shows only 全校不分院 with the Taiwan International Graduate Program under it"
   },
   {
    "id": "legacy",
