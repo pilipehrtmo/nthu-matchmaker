@@ -103,7 +103,7 @@
   });
   const restoreFolds = root => root.querySelectorAll(".foldbtn").forEach(b => {
     let v = null; try { v = localStorage.getItem(foldKey(b.dataset.fold)); } catch (err) {}
-    if (v === "1") setFold(b, true, true);
+    if (v === "1" || b.dataset.force) setFold(b, true, true);
   });
 
   // ---------- Save buttons on lists (competitions, funding): no page reload ----------
@@ -126,8 +126,90 @@
     finally { delete b.dataset.busy; }
   }, true);
 
+  // ---------- form helpers: live character counters, "Did you mean ...?" for skills and email ----------
+  // The server enforces every limit; these only give quicker feedback. Suggestions are offered, never applied by themselves.
+  const VD = () => { try { return JSON.parse(document.getElementById("vdata").textContent); } catch (e) { return null; } };
+  const fmt = (s, o) => s.replace(/\{(\w+)\}/g, (_, k) => o[k]);
+  const dist = (a, b) => {   // Damerau-Levenshtein, same as app/validate.py
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+    for (let j = 0; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] !== b[j - 1] ? 1 : 0));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+    return d[a.length][b.length];
+  };
+  const skillFix = (v, D) => {
+    const k = v.trim().toLowerCase(); if (!k) return "";
+    const canon = D.canon.map(c => c.toLowerCase()); if (canon.includes(k)) return "";
+    if (D.typos[k]) return D.typos[k];
+    if (k.length < 4) return "";
+    const allow = k.length < 6 ? 1 : 2; let best = "", bd = 99;
+    canon.forEach((c, i) => { const x = dist(k, c); if (x < bd || (x === bd && c < best.toLowerCase())) { bd = x; best = D.canon[i]; } });
+    return bd <= allow && Math.abs(best.length - k.length) <= allow ? best : "";
+  };
+  const emailFix = (v, D) => {
+    const m = v.trim().match(/^([^@\s]+)@([^@\s]+)$/); if (!m) return "";
+    const dom = m[2].toLowerCase(); let fix = D.domain_typos[dom] || "";
+    if (!fix && (D.known_domains.includes(dom) || /^[a-z0-9-]+\.nthu\.edu\.tw$/.test(dom))) return "";
+    if (!fix && !/\.(edu|ac|gov)(\.[a-z]{2})?$|\.edu\.tw$/.test(dom)) {
+      let bd = 99; D.domains.forEach(c => { const x = dist(dom, c); if (x < bd || (x === bd && c < fix)) { bd = x; fix = c; } });
+      if (!(bd > 0 && bd <= (dom.length < 8 ? 1 : 2))) fix = "";
+    }
+    return fix ? m[1] + "@" + fix : "";
+  };
+  const splitSkills = v => { const seen = new Set(); return v.split(/[,，、;；\n]/).map(t => t.replace(/\s+/g, " ").trim()).filter(t => t && !seen.has(t.toLowerCase()) && seen.add(t.toLowerCase())); };
+  const helpBox = (el, cls) => {   // one message area right after a field
+    let b = el.nextElementSibling; if (b && b.classList.contains(cls)) return b;
+    b = document.createElement("p"); b.className = cls + " muted fine"; b.setAttribute("aria-live", "polite"); el.after(b); return b;
+  };
+  function counter(el) {
+    const D = VD(); if (!D) return;
+    const max = +el.getAttribute("maxlength") || 0, min = +el.getAttribute("minlength") || 0, n = el.value.replace(/\r\n/g, "\n").trim().length;
+    const b = helpBox(el, "ccount");
+    b.textContent = fmt(D.t.count, { n, max }) + (min && n < min ? " · " + fmt(D.t.need, { min }) : "");
+    b.classList.toggle("bad", (min && n > 0 && n < min) || (max && n > max)); b.classList.toggle("near", !!max && n >= max * 0.9 && n <= max);
+  }
+  function skillHelp(el) {
+    const D = VD(); if (!D) return;
+    const items = splitSkills(el.value), b = helpBox(el, "skillhelp"); b.replaceChildren();
+    const long = items.find(t => t.length > D.max_skill_len);
+    if (long) { b.append(fmt(D.t.too_long, { x: long.slice(0, 40), max: D.max_skill_len })); b.classList.add("bad"); return; }
+    if (items.length > D.max_skills) { b.append(fmt(D.t.too_many, { max: D.max_skills, extra: items.length - D.max_skills })); b.classList.add("bad"); return; }
+    b.classList.remove("bad");
+    items.map(t => [t, skillFix(t, D)]).filter(([t, f]) => f && f.toLowerCase() !== t.toLowerCase()).slice(0, 3).forEach(([t, f]) => {
+      const s = document.createElement("span"); s.className = "sugg"; s.append(fmt(D.t.mean, { x: f }) + " ");
+      const u = document.createElement("button"); u.type = "button"; u.className = "linkbtn sm"; u.textContent = fmt(D.t.use, { x: f });
+      u.onclick = () => { el.value = splitSkills(el.value).map(x => x.toLowerCase() === t.toLowerCase() ? f : x).join(", "); el.dispatchEvent(new Event("input", { bubbles: true })); el.focus(); };
+      s.append(u); b.append(s);
+    });
+  }
+  function emailHelp(el) {
+    const D = VD(); if (!D) return;
+    const b = helpBox(el, "emailhelp"), fix = el.value && el.dataset.kept !== el.value ? emailFix(el.value, D) : "";
+    b.replaceChildren(); b.hidden = !fix; if (!fix) return;
+    b.append(fmt(D.t.mean, { x: fix }) + " ");
+    const use = document.createElement("button"); use.type = "button"; use.className = "linkbtn sm"; use.textContent = D.t.use_email;
+    use.onclick = () => { el.value = fix; b.hidden = true; el.focus(); };
+    const keep = document.createElement("button"); keep.type = "button"; keep.className = "linkbtn sm"; keep.textContent = D.t.keep;
+    keep.onclick = () => { el.dataset.kept = el.value; b.hidden = true; };
+    b.append(use, " · ", keep);
+  }
+  document.addEventListener("input", e => {
+    const el = e.target; if (!el.matches) return;
+    if (el.matches("[data-counter]")) counter(el);
+    if (el.matches("[data-skills]")) { clearTimeout(el._sk); el._sk = setTimeout(() => skillHelp(el), 250); }
+    if (el.matches("input[data-suggest-email]")) { const b = el.nextElementSibling; if (b && b.classList.contains("emailhelp")) b.hidden = true; }
+  });
+  document.addEventListener("focusout", e => {
+    const el = e.target; if (!el.matches) return;
+    if (el.matches("input[data-suggest-email]")) emailHelp(el);
+    if (el.matches("[data-skills]")) skillHelp(el);
+  });
+
   // ---------- set up each page: first load and every page swapped in ----------
   function setup(root) {
+    root.querySelectorAll("[data-counter]").forEach(counter);
     addEyes(root); restoreFolds(root);
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .12 });
     root.querySelectorAll(".card,.seatcard,.steps li,.chip,.reveal,.hero").forEach((el, i) => {

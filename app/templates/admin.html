@@ -14,7 +14,7 @@
 {% if r.target_user_id not in admin_ids %}<form method="post" action="/admin/ban/{{ r.target_user_id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban author</button></form>{% endif %}<form method="post" action="/admin/resolve/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Dismiss</button></form></div></div>
 {% else %}<p class="muted">No open reports.</p>{% endfor %}</section>
 
-<section class="sec foldsec" id="competitions"><div class="sec-h"><h2>Competitions <span class="count">{{ stats.review }} to review</span></h2><button type="button" class="foldbtn" aria-expanded="false" aria-controls="competitions-body" data-fold="competitions"><span class="fb-show">Show</span><span class="fb-hide">Hide</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div><div class="fold" id="competitions-body" inert><div class="fold-in">
+<section class="sec foldsec" id="competitions"><div class="sec-h"><h2>Competitions <span class="count">{{ stats.review }} to review</span></h2><button type="button" class="foldbtn" aria-expanded="false" aria-controls="competitions-body" data-fold="competitions"{{ ' data-force="1"' if cflash }}><span class="fb-show">Show</span><span class="fb-hide">Hide</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div><div class="fold" id="competitions-body" inert><div class="fold-in">{% if cflash %}<p class="{{ 'err' if cflash[0] == 'err' else 'box ok' }}" role="{{ 'alert' if cflash[0] == 'err' else 'status' }}">{{ cflash[1] }}</p>{% endif %}
 {% if review %}<div class="acts" style="margin-bottom:.8rem"><form method="post" action="/admin/approve_all/0"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Approve all ({{ review|length }})</button></form></div>
 <div class="tblwrap"><table class="tbl"><tr><th>Title</th><th>Deadline</th><th></th></tr>
 {% for c in review %}<tr><td><a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.title }}</a></td><td>{{ c.deadline }}</td>
@@ -22,9 +22,10 @@
 {% else %}<p class="muted">Nothing to review.</p>{% endif %}
 <details class="card" style="margin-top:1rem"><summary>Add a competition</summary>
 <form method="post" action="/admin/competition"><input type="hidden" name="csrf" value="{{ csrf }}">
-<div class="two"><div><label for="ct">Title</label><input id="ct" name="title" required></div><div><label for="cu">Link (https://...)</label><input id="cu" name="url" type="url" required></div></div>
+<div class="two"><div><label for="ct">Title</label><input id="ct" name="title" required minlength="3" maxlength="150"></div><div><label for="cu">Link (https://...)</label><input id="cu" name="url" type="url" pattern="https://.+" title="A secure link that starts with https://" required></div></div>
 <div class="two"><div><label for="cc">Category</label><select id="cc" name="category"><option value="Business">Business</option><option value="Design &amp; Arts">Design &amp; Arts</option><option value="Law &amp; Policy">Law &amp; Policy</option><option value="Science &amp; Health">Science &amp; Health</option><option value="Social Impact">Social Impact</option><option value="Tech &amp; Data">Tech &amp; Data</option><option value="Other">Other</option></select></div>
-<div><label for="cd">Deadline (text)</label><input id="cd" name="deadline" placeholder="e.g. 30 Nov 2026"></div></div>
+<div><label for="cd">Deadline</label><input id="cd" name="deadline" type="date" required></div></div>
+<label class="check"><input type="checkbox" name="ended" value="1"> This competition has already ended (add it as a past competition)</label>
 <label for="cx">Short description</label><input id="cx" name="description">
 <label class="check"><input type="checkbox" name="online" value="1"> Entered entirely online</label><p><button>Add competition</button></p></form></details></div></div></section>
 

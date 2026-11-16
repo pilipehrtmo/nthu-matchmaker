@@ -198,6 +198,15 @@ _FOUND = {"your email": "你的信箱", "your name": "你的姓名", "your title
 import itertools as _it
 for _n in range(1, 5):   # "your email, your name" ... every list the automatic check can write
     for _c in _it.combinations(list(_FOUND), _n): _ui.setdefault(", ".join(_c), "、".join(_FOUND[x] for x in _c))
+PATTERNS += [   # form checks (app/validate.py)
+    (r"^Each skill can be at most (\d+) characters \(“(.*)” is longer\)\.$", "每個技能最多 {0} 個字元（「{1}」太長了）。"),
+    (r"^Add at most (\d+) skills \(you have (\d+)\)\.$", "最多加入 {0} 個技能（你有 {1} 個）。"),
+    (r"^(Your bio|The description|Your note) needs at least (\d+) characters \(you have (\d+)\)\.$", "{0}至少需要 {1} 個字（目前 {2} 個）。"),
+    (r"^(Your bio|The description|Your note) can be at most (\d+) characters \(you have (\d+)\)\.$", "{0}最多 {1} 個字（目前 {2} 個）。"),
+    (r"^Add at least one skill to the “(.+)” seat\. If beginners are welcome, also tick “No prior experience required”\.$", "請為「{0}」職位加上至少一個技能。如果歡迎新手，也請勾選「不需相關經驗」。"),
+    (r"^“(.+)”: (.+)$", "「{0}」：{1}"),
+]
+_ui.setdefault("Your bio", "自我介紹"); _ui.setdefault("The description", "專案說明"); _ui.setdefault("Your note", "留言")
 PATTERNS = [(re.compile(a), b) for a, b in PATTERNS]
 def t(s, lang: str = "en"):
     if lang != "zh" or not s or not isinstance(s, str) or isinstance(s, Keep): return s

@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block body %}<div class="authwrap narrow"><h1>Forgot password</h1>
 {% if can_email %}<p class="muted">Enter your account's email and we will send you a link to set a new password. This also works if your account was made before the site had passwords.</p>
 {% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
-<form method="post" class="card" hx-boost="false"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="e">Email</label><input id="e" name="email" type="email" required autocomplete="email" autocapitalize="none" value="{{ email or '' }}" autofocus>
+<form method="post" class="card" hx-boost="false"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="e">Email</label><input id="e" name="email" type="email" required autocomplete="email" autocapitalize="none" value="{{ email or '' }}" autofocus data-suggest-email>
 <p class="formacts"><button>Send me a link</button><a href="/login">Back to log in</a></p></form>
 {% else %}<div class="card"><p style="margin-top:0">This site cannot send email yet, so password links come from an admin.</p>
 <p>Message the Matchmaker team (Team 22) with the email you signed up with. An admin will send you a one-time link to set your password.</p><p class="acts"><a class="btn" href="/login">Back to log in</a></p></div>{% endif %}</div>{% endblock %}

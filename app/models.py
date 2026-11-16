@@ -124,6 +124,7 @@ class Role(SQLModel, table=True):
     nice: str = ""            # nice to have, one per line
     years: int = 0            # minimum years of experience (0 = none asked)
     years_in: str = ""        # ... in what, e.g. "Rust"
+    beginner: Optional[bool] = False   # "No prior experience required": beginners are welcome (older rows: NULL = no)
 
 class Application(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

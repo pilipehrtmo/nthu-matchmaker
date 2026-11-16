@@ -1,35 +1,41 @@
-# Render Blueprint: New -> Blueprint -> pick this repo -> fill the 4 secret values -> Apply
+# Render Blueprint for NTHU Matchmaker.
+# New service: New -> Blueprint -> pick this repo -> fill in the values Render asks for -> Apply.
+# Values marked "sync: false" are set (and later changed) only in the Render dashboard, so a deploy never overwrites them.
+# Never write a secret in this file: it is in the public GitHub repository.
 services:
   - type: web
     name: nthu-matchmaker
     runtime: python
     plan: free
     region: virginia            # close to the Supabase database (us-east-1)
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt   # exact versions, tested on the Python version below
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
-    healthCheckPath: /privacy
+    healthCheckPath: /healthz   # tiny page: no database, no login, no cookie
     envVars:
-      - key: PYTHON_VERSION
+      - key: PYTHON_VERSION     # keep in step with .python-version and requirements.txt
         value: 3.11.9
       - key: PYTHONUNBUFFERED
         value: "1"
-      - key: SECRET_KEY
-        generateValue: true     # Render makes a random one
-      - key: BASE_URL
-        value: https://nthu-matchmaker.onrender.com
-      - key: ADMIN_EMAILS
-        value: nthumatchmaker@gmail.com
-      - key: MATCH_MODE
-        value: hybrid           # no embedding model on the free plan, so this falls back to skill-tag overlap
-      - key: SMTP_HOST
-        value: smtp.gmail.com
-      - key: SMTP_PORT
-        value: "587"
-      - key: DB_URL             # Supabase session pooler connection string
+      - key: SECRET_KEY         # signs the login cookie; Render makes a random one
+        generateValue: true
+      - key: DB_URL             # Supabase session pooler connection string (secret)
         sync: false
-      - key: SMTP_USER          # the Gmail address that sends login links
+      - key: BASE_URL           # https://nthu-matchmaker.onrender.com
         sync: false
-      - key: SMTP_FROM          # same Gmail address
+      - key: ADMIN_EMAILS       # comma-separated; these accounts become admins when they log in (currently the team account only)
         sync: false
-      - key: SMTP_PASS          # Gmail app password (16 letters)
+      - key: BREVO_API_KEY      # email over HTTPS (Render's free plan blocks SMTP) (secret)
         sync: false
+      - key: MAIL_FROM          # sender address verified in Brevo
+        sync: false
+      - key: CONTACT_EMAIL      # shown on the admin's public page for reports and complaints
+        sync: false
+      - key: MATCH_MODE         # tags (live) | hybrid | embeddings; anything but tags falls back to tags if the model can't load
+        sync: false
+# Optional settings the app understands (leave unset for the defaults):
+#   REQUIRE_EMAIL_VERIFY=auto (verify when email can be sent) | 1 | 0
+#   KEEP_AWAKE=1 (ping itself every 10 minutes while public) | 0
+#   STUDENT_EMAIL_RULE=any | nthu,   LOG_RETENTION_DAYS=180,   NTHU_PAGES
+#   Research file storage: SUPABASE_URL, SUPABASE_SERVICE_KEY (secret), STORAGE_BUCKET, STORAGE_CAP_MB
+#   Never on a public server: SHOW_LINK, DEMO_DATA (local demos only)
+# No longer used on Render: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM (Gmail SMTP; kept in the code for local use only).

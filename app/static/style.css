@@ -1143,3 +1143,12 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .fold.noanim,.fold.noanim>.fold-in{transition:none}
 @media (prefers-reduced-motion:reduce){.fold,.fold>.fold-in,.foldbtn svg{transition:none}}
 .trackf[hidden]{display:none}
+
+/* form helpers: character counters, skill and email suggestions */
+.ccount,.skillhelp,.emailhelp{margin:.25rem 0 .6rem;font-variant-numeric:tabular-nums}
+.ccount{text-align:right}.ccount.near{color:var(--warn-ink,#9a6b00)}.ccount.bad,.skillhelp.bad{color:var(--bad-ink)}
+.skillhelp .sugg{display:inline-flex;align-items:center;gap:.35rem;margin-right:.9rem}
+.skillhelp .linkbtn,.emailhelp .linkbtn{padding:0;min-height:0;font-weight:600}
+.emailhelp{background:var(--pri-soft);color:var(--pri-ink);border-radius:8px;padding:.45rem .7rem}
+.s-begw{margin:.45rem 0 .1rem}
+.beginner-pill{display:inline-block;background:color-mix(in srgb,var(--ok,#1f7a4d) 14%,transparent);color:var(--ok-ink,#1f6b45);border-radius:999px;padding:.12rem .6rem;font-size:.8rem;font-weight:600}

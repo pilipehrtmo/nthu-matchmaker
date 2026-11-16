@@ -15,6 +15,7 @@ from sqlmodel import Session, select, delete
 from .db import get_session, engine
 from .models import (User, Project, Role, Application, Remark, RemarkEvent, DocVersion, Milestone, Opening, OpeningApp,
                      FEEDBACK_CATEGORIES, FEEDBACK_PRIORITIES)
+from . import validate as V
 from .main import app, render, me, go, limited, days_left, tags, kind_of, templates
 from .links import LinkError
 
@@ -517,8 +518,9 @@ def opening_apply(oid: int, message: str = Form(""), user=Depends(me), s: Sessio
     if not o: raise HTTPException(404)
     if user.id == o.owner_id or user.role == "faculty": return go(f"/openings/{oid}")
     if not opening_state(s, o)["taking"]: return go(f"/openings/{oid}?n=closed")
-    message = message.strip()[:1000]
-    if len(message) < 10: return go(f"/openings/{oid}?n=short")
+    message = V.normalize_text(message)
+    if len(message) < V.NOTE_MIN: return go(f"/openings/{oid}?n=short")
+    if len(message) > V.NOTE_MAX: return go(f"/openings/{oid}?n=long")
     dup = s.exec(select(OpeningApp).where(OpeningApp.opening_id == oid, OpeningApp.user_id == user.id)).first()
     if dup and dup.status == "withdrawn": dup.status, dup.message, dup.at = "pending", message, datetime.utcnow(); s.add(dup); s.commit()
     elif not dup: s.add(OpeningApp(opening_id=oid, user_id=user.id, message=message)); s.commit()
@@ -531,8 +533,9 @@ def opening_apply(oid: int, message: str = Form(""), user=Depends(me), s: Sessio
 def opening_app_edit(aid: int, message: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     a = s.get(OpeningApp, aid)
     if not a: raise HTTPException(404)
-    message = message.strip()[:1000]
-    if user and a.user_id == user.id and a.status == "pending" and len(message) >= 10: a.message = message; s.add(a); s.commit()
+    message = V.normalize_text(message)
+    if not V.NOTE_MIN <= len(message) <= V.NOTE_MAX: return go(f"/openings/{a.opening_id}?n=" + ("short" if len(message) < V.NOTE_MIN else "long"))
+    if user and a.user_id == user.id and a.status == "pending": a.message = message; s.add(a); s.commit()
     return go(f"/openings/{a.opening_id}?n=edited")
 
 @app.post("/opening-apps/{aid}/{decision}")

@@ -2,7 +2,8 @@
 {% if notice == "sent" %}<p class="box ok" role="status">Application sent. You can follow it on your <a href="/activity">Activity</a> page.</p>
 {% elif notice == "edited" %}<p class="box ok" role="status">Application updated.</p>
 {% elif notice == "withdrawn" %}<p class="box" role="status">Application withdrawn. You can apply again while the position is open.</p>
-{% elif notice == "short" %}<p class="err" role="status">Write a short note to the professor (at least 10 characters).</p>
+{% elif notice == "short" %}<p class="err" role="alert">Your note is too short: write at least 20 characters about why you fit.</p>
+{% elif notice == "long" %}<p class="err" role="alert">Your note is too long: keep it to 1,000 characters at most.</p>
 {% elif notice == "full" %}<p class="err" role="status">All positions are already filled. Add a position first if you want to accept more students.</p>
 {% elif notice == "closed" %}<p class="err" role="status">This position is no longer taking applications.</p>{% endif %}
 <p class="muted fine" style="margin:0 0 .6rem"><a href="/research">← All research positions</a></p>
@@ -42,10 +43,10 @@
 {% elif mine and mine.status != "withdrawn" %}<h2>Your application</h2><span class="badge b-{{ mine.status }}">{{ {"closed": "Positions filled", "accepted": "Accepted", "pending": "Waiting for the professor"}.get(mine.status, mine.status|capitalize) }}</span>
 <p class="app-msg">{{ mine.message }}</p>
 {% if mine.status == "accepted" %}<p class="reveal">You're in. Contact the professor: <b>{{ prof.email }}</b>{% if prof.line or prof.instagram or prof.discord or prof.contact %}<br>{{ contact_list(prof) }}{% endif %}</p>{% endif %}
-{% if mine.status == "pending" %}<details class="sa-edit"><summary>Edit message</summary><form method="post" action="/opening-apps/{{ mine.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}"><textarea name="message" rows="4" minlength="10" maxlength="1000" aria-label="Your message">{{ mine.message }}</textarea><p><button class="sm">Save changes</button></p></form></details>
+{% if mine.status == "pending" %}<details class="sa-edit"><summary>Edit message</summary><form method="post" action="/opening-apps/{{ mine.id }}/edit"><input type="hidden" name="csrf" value="{{ csrf }}"><textarea name="message" rows="4" minlength="20" maxlength="1000" data-counter required aria-label="Your message">{{ mine.message }}</textarea><p><button class="sm">Save changes</button></p></form></details>
 <form method="post" action="/opening-apps/{{ mine.id }}/withdrawn" hx-confirm="Withdraw this application?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost sm no">Withdraw application</button></form>{% endif %}
 {% elif taking %}<h2>Apply</h2><form method="post" action="/openings/{{ o.id }}/apply"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="om">Note to the professor</label>
-<textarea id="om" name="message" rows="5" minlength="10" maxlength="1000" required placeholder="Your year and department, why this research interests you, and anything you've done that is related"></textarea>
+<textarea id="om" name="message" rows="5" minlength="20" maxlength="1000" data-counter required placeholder="Your year and department, why this research interests you, and anything you've done that is related"></textarea>
 <p class="muted fine">The professor sees your profile, skills and professional links. If you are accepted, they also see your email and contacts.</p><p><button>Send application</button></p></form>
 {% else %}<p class="muted">This position is not taking applications right now.</p>{% endif %}</section>{% endif %}
 </aside></div>

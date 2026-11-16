@@ -6,7 +6,7 @@
 <label>I am a…</label>
 <div class="kinds" role="radiogroup" aria-label="Account type"><label class="kind"><input type="radio" name="role" value="student" {{ "checked" if f.get("role", "student") != "faculty" }}><span>Student</span></label>
 <label class="kind"><input type="radio" name="role" value="faculty" {{ "checked" if f.get("role") == "faculty" }}><span>Professor or advisor</span></label></div>
-<label for="e" id="elabel">Email</label><input id="e" name="email" type="email" required autocapitalize="none" spellcheck="false" value="{{ f.get('email', '') }}" autocomplete="email">
+<label for="e" id="elabel">Email</label><input id="e" name="email" type="email" required autocapitalize="none" spellcheck="false" value="{{ f.get('email', '') }}" autocomplete="email" data-suggest-email>
 <p class="muted fine" id="ehint" hidden>Use your institutional email, such as name@cs.nthu.edu.tw. A @gapp.nthu.edu.tw address, or another university's address for a joint or visiting appointment, also works; an admin then confirms you by hand.</p>
 <div class="two"><div><label for="n">Full name</label><input id="n" name="name" autocomplete="name" required value="{{ f.get('name', '') }}"></div>
 <div class="r-student"><label for="s">Student ID</label><input id="s" name="student_id" inputmode="numeric" pattern="[0-9]{9}" minlength="9" maxlength="9" autocomplete="off" placeholder="e.g. 115006212" title="Exactly 9 digits, for example 115006212" aria-describedby="sidh" value="{{ f.get('sid', '') }}"><p class="muted fine" id="sidh">9 digits, as on your student card.</p></div>

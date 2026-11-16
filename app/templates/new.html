@@ -52,7 +52,7 @@
 <fieldset class="visopts"><legend>Who can see it</legend><label class="chk"><input type="radio" name="first_vis" value="team" checked> <span><b>Team and advisors</b></span></label>
 <label class="chk"><input type="radio" name="first_vis" value="private"> <span><b>Only me</b><small>A private draft; share it later</small></span></label></fieldset><p class="fsize muted fine" hidden></p></details>{% endif %}</div>
 
-<label for="d">What are you building?</label><textarea id="d" name="description" rows="5" maxlength="2000" placeholder="The idea, the goal, what you've done so far">{{ pr.description if pr else '' }}</textarea>
+<label for="d">What are you building?</label>{% set legacy_short = pr and pr.id and (pr.description or "")|length < 30 %}<textarea id="d" name="description" rows="5" minlength="{{ 0 if legacy_short else 30 }}" maxlength="2000" data-counter{{ "" if legacy_short else " required" }} placeholder="The idea, the goal, what you've done so far (at least 30 characters)">{{ pr.description if pr else '' }}</textarea>
 <label>Links <small class="muted">(optional: GitHub repo, Trello board, timeline, docs…)</small></label>
 <div id="links"></div><p><button type="button" class="ghost sm" id="addlink">+ Add a link</button></p>
 <p class="muted fine">Tick "Team only" for links only your accepted teammates should see, like a private repo invite or your task board.</p>
@@ -65,8 +65,9 @@
 <p class="muted fine" id="advhint">An advisor seat is for a professor or mentor. Once you accept them, they can leave remarks on your project. Research grants such as NSTC's need a professor as advisor.</p>
 <input type="hidden" name="roles_json" id="roles"><p class="formacts"><button>{{ "Save changes" if editing else "Publish project" }}</button>{% if editing %} <a class="ghost btn" href="/projects/{{ pr.id }}">Cancel</a>{% endif %}</p></form>
 <template id="seatT"><div class="seat-ed"><div class="seat-top"><span class="advtag" hidden>Advisor</span>
-<input class="s-name" placeholder="Role, e.g. Systems engineer" aria-label="Role" maxlength="60"><input class="s-skills" placeholder="Skills for matching, comma-separated" aria-label="Skills">
+<input class="s-name" placeholder="Role, e.g. Systems engineer" aria-label="Role" maxlength="60"><input class="s-skills" placeholder="Skills for matching, comma-separated" aria-label="Skills" data-skills autocomplete="off">
 <button type="button" class="ghost sm s-del" aria-label="Remove seat">✕</button></div>
+<label class="chk s-begw"><input type="checkbox" class="s-beg"><span>No prior experience required</span></label>
 <details class="s-more"><summary>Details: what they'll do, requirements, experience</summary>
 <label>What they'll do</label><textarea class="s-about" rows="2" maxlength="600" placeholder="e.g. Design the storage engine and write-ahead log"></textarea>
 <div class="two"><div><label>Requirements <small class="muted">(must have, one per line)</small></label><textarea class="s-must" rows="3" placeholder="Comfortable with Rust&#10;Has used Git"></textarea></div>
@@ -80,7 +81,7 @@
 function addSeat(x={}){const n=$("seatT").content.firstElementChild.cloneNode(true),q=c=>n.querySelector(c);
  n.dataset.id=x.id||"";n.dataset.adv=x.adv?"1":"";if(x.adv){n.classList.add("adv");q(".advtag").hidden=false;q(".s-skills").placeholder="Field or expertise, e.g. machine learning"}
  q(".s-name").value=x.name||"";q(".s-skills").value=(x.skills||"").replaceAll(",",", ");q(".s-about").value=x.about||"";q(".s-must").value=x.must||"";q(".s-nice").value=x.nice||"";
- q(".s-years").value=x.years||"";q(".s-yin").value=x.years_in||"";if(x.about||x.must||x.nice||x.years)q(".s-more").open=true;
+ q(".s-years").value=x.years||"";q(".s-yin").value=x.years_in||"";q(".s-beg").checked=!!x.beginner;if(x.adv)q(".s-begw").hidden=true;if(x.about||x.must||x.nice||x.years)q(".s-more").open=true;
  q(".s-del").onclick=()=>n.remove();rows.appendChild(n);return n}
 $("add").onclick=()=>addSeat().querySelector(".s-name").focus();$("addadv").onclick=()=>addSeat({name:"Advisor (professor)",adv:true});
 const seats={{ seats|tojson }};if(seats.length)seats.forEach(addSeat);else addSeat();
@@ -109,7 +110,7 @@ function syncKind(){const k=(document.querySelector("input[name=kind]:checked")|
  syncOther()}
 sel.addEventListener("change",()=>{syncOther();if(sel.value==="other")$("cn").focus()});
 document.querySelectorAll("input[name=kind]").forEach(r=>r.addEventListener("change",syncKind));syncKind();
-$("f").addEventListener("submit",e=>{const v=[...rows.children].map(n=>{const q=c=>n.querySelector(c).value;return{id:n.dataset.id||null,adv:!!n.dataset.adv,name:q(".s-name").trim(),skills:q(".s-skills"),about:q(".s-about"),must:q(".s-must"),nice:q(".s-nice"),years:q(".s-years"),years_in:q(".s-yin")}}).filter(x=>x.name);
+$("f").addEventListener("submit",e=>{const v=[...rows.children].map(n=>{const q=c=>n.querySelector(c).value;return{id:n.dataset.id||null,adv:!!n.dataset.adv,name:q(".s-name").trim(),skills:q(".s-skills"),about:q(".s-about"),must:q(".s-must"),nice:q(".s-nice"),years:q(".s-years"),years_in:q(".s-yin"),beginner:n.querySelector(".s-beg").checked}}).filter(x=>x.name);
  if(!v.length&&!{{ 'true' if filled else 'false' }}){e.preventDefault();e.stopImmediatePropagation();const m=$("seaterr");m.hidden=false;m.scrollIntoView({block:"center"});return}
  $("roles").value=JSON.stringify(v);
  $("linksin").value=JSON.stringify([...links.children].map(n=>({label:n.querySelector(".l-label").value,url:n.querySelector(".l-url").value.trim(),team:n.querySelector(".l-team").checked})).filter(x=>x.url))},true);

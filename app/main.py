@@ -21,6 +21,7 @@ from .scraper import run_scrapers
 from .seed import seed, seed_starter, seed_examples
 from .matching import match_pct, why, warm
 from .cv import parse_cv, CVError, MAX_BYTES
+from . import validate as V
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
 from . import guide
 from .photo import make_avatar, PhotoError, MAX_UPLOAD
@@ -249,7 +250,7 @@ def verify_required() -> bool:   # only ask people to verify when the server can
     return REQUIRE_VERIFY == "1" or (REQUIRE_VERIFY == "auto" and bool(BREVO_API_KEY))
 templates.env.globals["verify_required"] = verify_required
 templates.env.globals["CONTACT_EMAIL"] = CONTACT_EMAIL
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+templates.env.globals["vdata"] = V.client_data
 
 def make_link(s, u, kind, hours):
     t, h = new_token(); s.add(AuthToken(user_id=u.id, kind=kind, token_hash=h, expires=expires_in(hours))); s.commit()
@@ -320,8 +321,9 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
     w = wait_left(f"signup:{ip_of(req)}", 200, 3600)
     if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
-    if not EMAIL_RE.match(email): return back("Please enter a valid email address.")
-    if len(name) < 2: return back("Please enter your full name.")
+    if not V.email_ok(email): return back("Please enter a valid email address, for example name@gmail.com.")
+    np_ = V.name_problem(name)
+    if np_: return back(np_)
     if s.exec(select(User).where(func.lower(User.email) == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.")
     if role == "faculty":
         if not (nthu_email(email) or academic_email(email)):
@@ -472,22 +474,41 @@ def privacy(req: Request, user=Depends(me)): return render(req, "privacy.html", 
 def profile(req: Request, user=Depends(me)):
     return render(req, "profile.html", user) if user else go("/login")
 
+def _strip_old(v): return (v or "").strip().lstrip("@~").lower()
+
 @app.post("/profile")
 async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""), skills: str = Form(""),
                  contact: str = Form(""), faculty: str = Form(""), hours: int = Form(4), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     form = await req.form()
-    name = " ".join(name.split())[:60]
-    if len(name) < 2 or not re.search(r"\w", name): return render(req, "profile.html", user, error="Please enter your full name.")
+    name = " ".join(name.split())
+    bio = V.normalize_text(bio)
+    skill_list = V.split_skills(skills)
+    handles, errs = {}, []
+    if name != user.name: errs.append(V.name_problem(name))   # an older name that breaks today's rules can still be kept as it is
+    errs.append(V.length_problem(bio, 0, V.BIO_MAX, "Your bio"))
+    errs.append(V.skills_problem(skill_list))
+    for f in ("instagram", "line", "discord"):
+        clean, problem = V.handle_problem(f, str(form.get(f, "")))
+        handles[f] = clean
+        if problem and clean.lower() != _strip_old(getattr(user, f)): errs.append(problem)   # an older handle left unchanged is kept
     try: links = {f: clean_link(f, str(form.get(f, ""))) for f, *_ in PRO_LINKS}
-    except LinkError as e: return render(req, "profile.html", user, error=str(e))
-    for f in ("line", "instagram", "discord"): setattr(user, f, clean_handle(str(form.get(f, ""))))
+    except LinkError as e: errs.append(str(e)); links = {}
+    errs = [e for e in errs if e]
+    if errs:   # show the form again with what they typed (nothing is saved)
+        for f in ("instagram", "line", "discord"): setattr(user, f, str(form.get(f, "")).strip()[:100])
+        user.name, user.bio, user.skills = name, bio, ", ".join(skill_list)
+        user.contact, user.faculty = contact, faculty
+        for f in ("competitions", "past_projects", "awards"): setattr(user, f, str(form.get(f, "")))
+        s.expunge(user)
+        return render(req, "profile.html", user, error=errs[0], errors=errs)
+    for f, v in handles.items(): setattr(user, f, v)
     for f, v in links.items(): setattr(user, f, v)
     if name != user.name: user.handle = slugify(s, name, user.id)   # the web address follows the name
-    user.name, user.bio, user.contact = name, bio[:500], clean_contact(contact, 100)
+    user.name, user.bio, user.contact = name, bio, clean_contact(contact, 100)
     if not (user.role == "faculty" and user.faculty_status in ("verified", "suspended")): user.faculty = faculty.strip()[:40]   # a verified department changes only through an admin
     user.hours = max(1, min(hours, 60))
-    user.skills = ",".join(sorted(tags(skills)))
+    user.skills = ",".join(sorted({t.lower() for t in skill_list}))
     for f in ("competitions", "past_projects", "awards"):   # one item per line, at most 10 lines of 200 characters
         lines = [re.sub(r"\s+", " ", l).strip(" -•*")[:200] for l in str(form.get(f, "")).splitlines()]
         setattr(user, f, "\n".join([l for l in lines if l][:10]))
@@ -501,7 +522,10 @@ def profile_cv(file: UploadFile = File(...), user=Depends(me), s: Session = Depe
     data = file.file.read(MAX_BYTES + 1)
     known = set()
     for sk in s.exec(select(Role.skills)).all(): known |= tags(sk or "")
-    try: return parse_cv(file.filename or "", data, known)
+    try:
+        out = parse_cv(file.filename or "", data, known)
+        out["skills"] = [t for t in out.get("skills", []) if len(t) <= V.MAX_SKILL_LEN][:V.MAX_SKILLS]   # the profile accepts at most 20
+        return out
     except CVError as e: return JSONResponse({"error": str(e)}, status_code=400)
     finally: del data
 
@@ -685,7 +709,7 @@ def project_form(req, user, s, pr=None, seats=None, error="", **kw):
     return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), dup=kw.get("dup"), uploads_on=uploads_on(), kind=kind, kinds=PROJECT_KINDS, sel=sel,
                   today=datetime.utcnow().date().isoformat(), comps=comps, cgroups=sorted(groups.items(), key=lambda g: (g[0] == "Other", g[0])), clubs=clubs, days_left=days_left)
 
-SEAT_FIELDS = ("name", "skills", "about", "must", "nice", "years", "years_in")
+SEAT_FIELDS = ("name", "skills", "about", "must", "nice", "years", "years_in", "beginner")
 def _lines(v, n=8, w=160): return "\n".join([re.sub(r"\s+", " ", l).strip(" -•*")[:w] for l in str(v or "").splitlines() if l.strip()][:n])
 def clean_seat(d):
     try: years = max(0, min(int(d.get("years") or 0), 20))
@@ -693,7 +717,7 @@ def clean_seat(d):
     try: rid = int(d.get("id") or 0) or None
     except (TypeError, ValueError): rid = None
     return dict(id=rid, adv=bool(d.get("adv")), name=re.sub(r"\s+", " ", str(d.get("name", ""))).strip()[:60],
-                skills=",".join(t.strip() for t in str(d.get("skills", "")).split(",") if t.strip())[:200],
+                skills=",".join(V.split_skills(str(d.get("skills", "")))), beginner=bool(d.get("beginner")) and not d.get("adv"),
                 about=str(d.get("about", "")).strip()[:600], must=_lines(d.get("must")), nice=_lines(d.get("nice")),
                 years=years, years_in=re.sub(r"\s+", " ", str(d.get("years_in", ""))).strip()[:40] if years else "")
 
@@ -745,9 +769,23 @@ templates.env.globals.update(parse_tags=parse_tags, parse_links=parse_links, lin
 
 def seat_dict(r): return dict(id=r.id, adv=r.advisor, **{k: getattr(r, k) for k in SEAT_FIELDS})
 
-def read_project_form(form, pr=None):
+def seats_problem(seats, stored=None):
+    """Every open seat needs at least one skill (advisor seats are for professors and are exempt).
+    An older seat saved without skills may be kept as it is; it only needs skills once its skills are changed."""
+    stored = stored or {}
+    for x in seats:
+        items = V.split_skills(x["skills"])
+        if not x["adv"] and not items and not (x["id"] in stored and not stored[x["id"]].strip()):
+            return f"Add at least one skill to the “{x['name']}” seat. If beginners are welcome, also tick “No prior experience required”."
+        p = V.skills_problem(items)
+        if p: return f"“{x['name']}”: {p}"
+    return ""
+
+def read_project_form(form, pr=None, stored_seats=None):
     """Check the project form. Returns (fields, seat lines, error)."""
     f = {k: str(form.get(k, "")).strip() for k in ("title", "description", "competition_id", "hours", "deadline", "roles", "kind", "category", "stage")}
+    f["description"] = V.normalize_text(f["description"])
+    legacy_desc = bool(pr) and V.normalize_text(pr.description or "") == f["description"]   # an older short description can be kept unchanged
     import json
     pitch = {k: str(form.get(k, "")).replace("\r", "").strip()[:n] for k, n in PITCH_FIELDS}
     kind = f["kind"] if f["kind"] in PROJECT_KINDS else "Other"
@@ -756,15 +794,18 @@ def read_project_form(form, pr=None):
     except ValueError: hours = 0
     err = ""
     if len(f["title"]) < 3: err = "Give the project a title (at least 3 characters)."
+    elif not legacy_desc and V.length_problem(f["description"], V.DESC_MIN, V.DESC_MAX, "The description"): err = V.length_problem(f["description"], V.DESC_MIN, V.DESC_MAX, "The description")
+    elif len(f["description"]) > V.DESC_MAX: err = V.length_problem(f["description"], 0, V.DESC_MAX, "The description")
     elif not 1 <= hours <= 60: err = "Hours per week must be a number from 1 to 60."
     elif f["deadline"] and days_left(f["deadline"]) is None: err = "The join-by date is not a valid date."
     elif f["deadline"] and days_left(f["deadline"]) < 0 and not (pr and pr.deadline == f["deadline"]): err = "The join-by date is in the past. Pick a future date or leave it empty."
     elif len(seats) > 12: err = "A project can have at most 12 seats."
+    if not err: err = seats_problem(seats, stored_seats)
     other = kind == "Competition" and f["competition_id"] == "other"
     event = re.sub(r"\s+", " ", str(form.get("event_name", ""))).strip()[:120] if other or kind == "Club or event" else ""
     if not err and other and len(event) < 3: err = "You picked Other: type the competition's name."
     cats = guide.STARTUP_CATEGORIES if kind == "Startup" else guide.RESEARCH_FIELDS if kind == "Research" else []
-    out = dict(title=f["title"][:120], description=f["description"][:2000], kind=kind, hours_per_week=hours if 1 <= hours <= 60 else 4,
+    out = dict(title=f["title"][:120], description=f["description"], kind=kind, hours_per_week=hours if 1 <= hours <= 60 else 4,
                deadline=f["deadline"][:10], category=f["category"] if f["category"] in cats else "",
                stage=f["stage"] if kind == "Startup" and f["stage"] in [n for n, _ in guide.STARTUP_STAGES] else "",
                competition_id=int(f["competition_id"]) if f["competition_id"].isdigit() and kind == "Competition" else None, event_name=event)
@@ -820,8 +861,8 @@ async def save_project(req: Request, pid: int, user=Depends(me), s: Session = De
     pr = s.get(Project, pid)
     if not pr: raise HTTPException(404)
     if not user or user.id != pr.owner_id: return go(f"/projects/{pid}")
-    f, seats, err = read_project_form(await req.form(), pr)
     roles = s.exec(select(Role).where(Role.project_id == pid).order_by(Role.id)).all()
+    f, seats, err = read_project_form(await req.form(), pr, {r.id: r.skills or "" for r in roles})
     open_roles = [r for r in roles if not r.filled]
     if err:
         for k, v in f.items(): setattr(pr, k, v)
@@ -916,9 +957,12 @@ def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depe
     if pr.owner_id == user.id: return go(f"/projects/{pr.id}")
     if r.advisor and not user.is_faculty: return go(f"/projects/{pr.id}?n=facultyonly")
     dup = s.exec(select(Application).where(Application.role_id == rid, Application.user_id == user.id)).first()
-    if dup and dup.status == "withdrawn": dup.status, dup.message, dup.at = "pending", message.strip()[:500], datetime.utcnow(); s.commit()
-    elif not dup: s.add(Application(role_id=rid, user_id=user.id, message=message.strip()[:500])); s.commit()
-    else: return go(f"/projects/{pr.id}?n=sent")   # already applied: no duplicate application or notification
+    if dup and dup.status not in ("withdrawn",): return go(f"/projects/{pr.id}?n=sent")   # already applied: no duplicate application or notification
+    message = V.normalize_text(message)
+    if len(message) < V.NOTE_MIN: return go(f"/projects/{pr.id}?n=short#seat-{rid}")
+    if len(message) > V.NOTE_MAX: return go(f"/projects/{pr.id}?n=long#seat-{rid}")
+    if dup: dup.status, dup.message, dup.at = "pending", message, datetime.utcnow(); s.commit()
+    else: s.add(Application(role_id=rid, user_id=user.id, message=message)); s.commit()
     from .notify import notify
     notify(s, [pr.owner_id], "application", f"{user.name or user.handle} applied for the {r.name} seat on {pr.title}", f"/projects/{pr.id}#seats", pr.id, user.id)
     return go(f"/projects/{pr.id}?n=sent")
@@ -927,8 +971,11 @@ def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depe
 def edit_application(aid: int, message: str = Form(""), next: str = Form("/activity"), user=Depends(me), s: Session = Depends(get_session)):
     a = s.get(Application, aid)
     if not a: raise HTTPException(404)
-    if user and a.user_id == user.id and a.status == "pending": a.message = message.strip()[:500]; s.commit()
-    return go((next if next.startswith(("/activity", "/projects/")) else "/activity") + "?n=edited")
+    back = next if next.startswith(("/activity", "/projects/")) else "/activity"
+    message = V.normalize_text(message)
+    if not V.NOTE_MIN <= len(message) <= V.NOTE_MAX: return go(back + ("?n=short" if len(message) < V.NOTE_MIN else "?n=long"))
+    if user and a.user_id == user.id and a.status == "pending": a.message = message; s.commit()
+    return go(back + "?n=edited")
 
 @app.post("/applications/{aid}/{decision}")
 def decide(aid: int, decision: str, next: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
@@ -1124,7 +1171,7 @@ def extra_admin(s):
 @app.get("/admin")
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
-    return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None),
+    return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None), cflash=req.session.pop("cflash", None),
         profq=profverify.queue(s, req.query_params.get("profs", "open")), profs_all=req.query_params.get("profs") == "all",
         perr=req.query_params.get("perr", ""), names_by_id={u.id: u.name or u.handle for u in s.exec(select(User).where(User.is_admin == True)).all()}, programs=s.exec(select(Program).order_by(Program.sort)).all(),
         logs=s.exec(select(SignupLog).order_by(SignupLog.at.desc()).limit(100)).all(),
@@ -1148,13 +1195,21 @@ def add_source(url: str = Form(...), user=Depends(me), s: Session = Depends(get_
     return go("/admin")
 
 @app.post("/admin/competition")
-def add_competition(title: str = Form(...), url: str = Form(...), category: str = Form("Other"), deadline: str = Form(""),
+def add_competition(req: Request, title: str = Form(""), url: str = Form(""), category: str = Form("Other"), deadline: str = Form(""), ended: str = Form(""),
                     description: str = Form(""), online: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
-    if url.startswith("http") and not s.exec(select(Competition).where(Competition.url == url)).first():
-        s.add(Competition(title=title[:150], url=url, category=category, deadline=deadline[:60], description=description[:300],
-                          source="admin", needs_review=False, online=bool(online), online_checked=True)); s.commit()
-    return go("/admin")
+    from .fundscan import today_tw
+    title, url = " ".join(title.split()), url.strip()
+    when = V.parse_date(deadline)
+    err = ("Give the competition a title (at least 3 characters)." if len(title) < 3 else V.https_url_problem(url)
+           or ("Pick the deadline from the calendar." if not when else "")
+           or ("That deadline has already passed. Tick “This competition has already ended” to add it as a past competition." if when < today_tw() and not ended else "")
+           or ("“Already ended” is ticked, but the deadline is in the future." if ended and when >= today_tw() else "")
+           or ("This link is already on the competition list." if s.exec(select(Competition).where(Competition.url == url)).first() else ""))
+    if err: req.session["cflash"] = ["err", err]; return go("/admin#competitions")
+    s.add(Competition(title=title[:150], url=url, category=category, deadline=when.isoformat(), description=description.strip()[:300],
+                      source="admin", needs_review=False, online=bool(online), online_checked=True)); s.commit()
+    req.session["cflash"] = ["ok", "Competition added."]; return go("/admin#competitions")
 
 @app.post("/admin/program")
 async def save_program(req: Request, user=Depends(me), s: Session = Depends(get_session)):
