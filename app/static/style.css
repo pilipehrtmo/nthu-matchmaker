@@ -1156,4 +1156,19 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .deptpick select{width:100%;max-width:100%}
 .deptpick .dsub{margin-top:.5rem;padding-left:.75rem;border-left:3px solid var(--line,#ddd)}
 .deptpick .dlegacy{margin-top:.35rem}
+.deptpick select.vh{width:1px;min-width:0;max-width:1px;height:1px;padding:0}
+.deptpick{position:relative}
+.deptpick .dq{position:relative}
+.deptpick .dqi{padding-right:2.6rem;border:1.5px solid var(--line);border-radius:12px;cursor:text;
+  background:var(--card) no-repeat right .9rem center/1rem url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")}
+.deptpick .dqi:hover{border-color:var(--pri2)}
+.deptpick .dqi:focus-visible{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-soft)}
+.deptpick .dql{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);max-height:min(22rem,55vh);overflow-y:auto;overscroll-behavior:contain;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.3rem;box-shadow:0 12px 32px color-mix(in srgb,var(--shadow) 18%,transparent)}
+.deptpick .dqg{position:sticky;top:-.3rem;background:var(--card);padding:.45rem .6rem .25rem;font-size:.75rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)}
+.deptpick .dqo{padding:.5rem .65rem;border-radius:8px;cursor:pointer;line-height:1.35}
+.deptpick .dqo.on{background:var(--pri-soft);color:var(--pri-ink)}
+.deptpick .dqo[aria-selected=true]{font-weight:600}
+.deptpick .dqe{margin:.4rem .6rem;color:var(--mut);font-size:.9rem}
+@media (prefers-reduced-motion:no-preference){.deptpick .dql{animation:dqin .12s ease-out}@keyframes dqin{from{opacity:0;transform:translateY(-4px)}}}
 .deptq td{vertical-align:top}.deptq select{max-width:22rem;width:100%}

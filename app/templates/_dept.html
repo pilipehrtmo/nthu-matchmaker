@@ -2,9 +2,12 @@
 <label for="dsel">Department or major{% if optional %} <small class="muted">(optional)</small>{% endif %}</label>
 <select id="dsel" name="dept_sel" aria-describedby="dselh">
 <option value="">{{ "Keep it as it is" if legacy else "Choose your department…" }}</option>
-{% for g, opts in DEP.groups(lang) %}<optgroup label="{{ g }}">{% for v, l in opts %}<option value="{{ v }}" {{ "selected" if v == cur }}>{{ l }}</option>{% endfor %}</optgroup>
-{% endfor %}<optgroup label="{{ 'Not in the list' }}"><option value="other" {{ "selected" if cur == "other" }}>Other / not listed</option>{% if legacy or cur %}<option value="none">No department</option>{% endif %}</optgroup>
+{% for g, opts in DEP.groups(lang) %}<optgroup label="{{ g }}">{% for v, l in opts %}<option value="{{ v }}" data-s="{{ DEP.search_text(v) }}" {{ "selected" if v == cur }}>{{ l }}</option>{% endfor %}</optgroup>
+{% endfor %}<optgroup label="{{ 'Not in the list' }}"><option value="other" data-s="other not listed 其他 清單上沒有 exchange 交換" {{ "selected" if cur == "other" }}>Other / not listed</option>{% if legacy or cur %}<option value="none" data-s="no department none 無 不填">No department</option>{% endif %}</optgroup>
 </select>
+<div class="dq" hidden><input id="dq-{{ wid }}" class="dqi" type="text" data-opt role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="dql-{{ wid }}" aria-describedby="dselh" autocomplete="off" spellcheck="false" placeholder="Type to search, e.g. computer science, 資工, CS, IBP">
+<div class="dql" id="dql-{{ wid }}" role="listbox" hidden data-empty="No match. Choose Other / not listed and type it in."></div>
+<span class="vh" aria-live="polite" data-n></span><span hidden data-results>results</span></div>
 <p class="muted fine" id="dselh">Pick your department, or your college if you haven't chosen one yet. IBP students pick their track next.</p>
 <div class="dsub" data-for="thc-ibp" {{ "hidden" if cur != "thc-ibp" }}><label for="dtr">IBP track</label><select id="dtr" name="dept_track" data-opt>
 <option value="">Choose your track…</option>{% for v, l in DEP.tracks(lang) %}<option value="{{ v }}" {{ "selected" if v == track }}>{{ l }}</option>{% endfor %}</select></div>

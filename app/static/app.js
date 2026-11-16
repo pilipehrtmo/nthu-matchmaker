@@ -260,3 +260,82 @@ document.addEventListener("change", e => {
   const all = () => document.querySelectorAll("[data-deptpick] select[name=dept_sel]").forEach(sync);
   document.addEventListener("DOMContentLoaded", all); document.addEventListener("htmx:afterSettle", all); all();
 })();
+
+/* Department picker search: type to filter the long list, in English or Chinese, by course code (CS) or short
+   name (資工). The real <select> stays the form field, so everything else (IBP track, Other, CV fill) still works;
+   without JavaScript the plain dropdown is shown. Own-name matches come first, then matches on the college name. */
+(function () {
+  const norm = s => (s || "").toLowerCase().normalize("NFKC").replace(/[\s\-–·.,:()（）、&/]+/g, " ").trim();
+  function enhance(box) {
+    const sel = box.querySelector("select[name=dept_sel]"), wrap = box.querySelector(".dq");
+    if (!sel || !wrap || box.dataset.dq) return;
+    box.dataset.dq = "1";
+    const inp = wrap.querySelector(".dqi"), list = wrap.querySelector(".dql"), live = wrap.querySelector("[data-n]");
+    const word = (wrap.querySelector("[data-results]") || {}).textContent || "results";
+    const items = [];
+    sel.querySelectorAll("option").forEach(o => {
+      if (!o.value) return;
+      const g = o.parentElement.tagName === "OPTGROUP" ? o.parentElement.label : "";
+      items.push({ v: o.value, l: o.textContent, g, own: norm(o.textContent + " " + (o.dataset.s || "")), grp: norm(g) });
+    });
+    sel.classList.add("vh"); sel.tabIndex = -1; sel.setAttribute("aria-hidden", "true"); wrap.hidden = false;
+    const lab = box.querySelector("label[for=dsel]"); if (lab) lab.htmlFor = inp.id;
+    let shown = [], act = -1;
+    const showCur = () => { const o = sel.selectedOptions[0]; inp.value = o && o.value ? o.textContent : ""; };
+    function render(q) {
+      const t = norm(q).split(" ").filter(Boolean);
+      if (!t.length) shown = items.slice();
+      else {
+        const a = [], c = [], b = [];   // departments named by the search, then "college only" options, then college-name matches
+        items.forEach(it => {
+          if (t.every(w => it.own.includes(w))) (it.v.startsWith("c:") ? c : a).push(it);
+          else if (t.every(w => it.own.includes(w) || it.grp.includes(w))) b.push(it);
+        });
+        shown = a.concat(c, b);
+        const other = items.find(x => x.v === "other");
+        if (other && !shown.includes(other)) shown.push(other);   // "Other / not listed" is always one tap away
+      }
+      list.textContent = "";
+      const frag = document.createDocumentFragment();
+      if (t.length && shown.length === 1 && shown[0].v === "other") {
+        const e = document.createElement("p"); e.className = "dqe"; e.textContent = list.dataset.empty; frag.appendChild(e);
+      }
+      let lastG = null;
+      shown.forEach((it, i) => {
+        if (it.g !== lastG) { lastG = it.g; const h = document.createElement("div"); h.className = "dqg"; h.setAttribute("role", "presentation"); h.textContent = it.g; frag.appendChild(h); }
+        const d = document.createElement("div"); d.className = "dqo"; d.id = inp.id + "-o" + i; d.setAttribute("role", "option"); d.dataset.i = i; d.textContent = it.l;
+        d.setAttribute("aria-selected", it.v === sel.value ? "true" : "false"); frag.appendChild(d);
+      });
+      list.appendChild(frag);
+      live.textContent = t.length ? shown.length + " " + word : "";
+      move(t.length ? 0 : Math.max(0, shown.findIndex(x => x.v === sel.value)), !t.length);
+    }
+    function move(i, center) {
+      const opts = list.querySelectorAll(".dqo"); opts.forEach(o => o.classList.remove("on"));
+      if (!opts.length) { act = -1; inp.removeAttribute("aria-activedescendant"); return; }
+      act = (i + opts.length) % opts.length; const o = opts[act]; o.classList.add("on");
+      inp.setAttribute("aria-activedescendant", o.id);
+      if (center) list.scrollTop = Math.max(0, o.offsetTop - list.clientHeight / 2); else o.scrollIntoView({ block: "nearest" });
+    }
+    function open(q) { list.hidden = false; inp.setAttribute("aria-expanded", "true"); render(q); }
+    function close() { list.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.removeAttribute("aria-activedescendant"); live.textContent = ""; showCur(); }
+    function pick(i) { const it = shown[i]; if (!it) return; sel.value = it.v; sel.dispatchEvent(new Event("change", { bubbles: true })); close(); }
+    inp.addEventListener("focus", () => { inp.select(); open(""); });
+    inp.addEventListener("click", () => { if (list.hidden) { inp.select(); open(""); } });   // typing then replaces the shown name
+    inp.addEventListener("input", () => open(inp.value));
+    inp.addEventListener("keydown", e => {
+      if (e.key === "ArrowDown") { e.preventDefault(); if (list.hidden) open(""); else move(act + 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); if (!list.hidden) move(act - 1); }
+      else if (e.key === "Enter") { if (!list.hidden && act >= 0) { e.preventDefault(); pick(act); } }
+      else if (e.key === "Escape") { if (!list.hidden) { e.preventDefault(); close(); } }
+      else if (e.key === "Tab") { if (!list.hidden) close(); }
+    });
+    list.addEventListener("mousedown", e => e.preventDefault());   // keep the focus in the box while choosing
+    list.addEventListener("click", e => { const o = e.target.closest(".dqo"); if (o) pick(+o.dataset.i); });
+    inp.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== inp && !list.hidden) close(); }, 0));
+    sel.addEventListener("change", showCur);   // CV fill and the server's choice update the box too
+    showCur();
+  }
+  const all = () => document.querySelectorAll("[data-deptpick]").forEach(enhance);
+  document.addEventListener("DOMContentLoaded", all); document.addEventListener("htmx:afterSettle", all); all();
+})();

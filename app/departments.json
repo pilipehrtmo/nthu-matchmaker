@@ -15,7 +15,8 @@
   "en_status": "official = copied from an official NTHU source (obvious typos fixed, each noted); proposed = our wording, shown as such",
   "college_only": "every college has a 'department not chosen yet' option",
   "other": "'Other / not listed' keeps the typed text and creates a pending admin review item, never a department",
-  "phased_out": "active=false: kept for legacy mapping, hidden from the new-user dropdown"
+  "phased_out": "active=false: kept for legacy mapping, hidden from the new-user dropdown",
+  "code": "code = the unit's course code on the Division of Curriculum list (used for search)"
  },
  "colleges": [
   {
@@ -165,7 +166,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "MATH"
   },
   {
    "id": "sci-phys",
@@ -180,7 +182,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "PHYS"
   },
   {
    "id": "sci-chem",
@@ -195,7 +198,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "CHEM"
   },
   {
    "id": "sci-stat",
@@ -213,7 +217,8 @@
    ],
    "en_other_official": [
     "Institute of Statistics (English page, older name)"
-   ]
+   ],
+   "code": "STAT"
   },
   {
    "id": "sci-astr",
@@ -228,7 +233,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "ASTR"
   },
   {
    "id": "sci-bs",
@@ -243,7 +249,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "SCI"
   },
   {
    "id": "als",
@@ -261,7 +268,8 @@
     "curr"
    ],
    "note": "One record, two colleges: the Chinese list places it under both 理學院 and 原子科學院; the course list only under 理學院",
-   "review": "multi_college"
+   "review": "multi_college",
+   "code": "SLS"
   },
   {
    "id": "sci-cms",
@@ -276,7 +284,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "ICMS"
   },
   {
    "id": "sci-qtam",
@@ -309,7 +318,8 @@
    ],
    "en_other_official": [
     "Chemical Engineering (English page)"
-   ]
+   ],
+   "code": "CHE"
   },
   {
    "id": "eng-pme",
@@ -327,7 +337,8 @@
    ],
    "en_other_official": [
     "Power Mechanical Engineering (English page)"
-   ]
+   ],
+   "code": "PME"
   },
   {
    "id": "eng-mse",
@@ -345,7 +356,8 @@
    ],
    "en_other_official": [
     "Materials Science Engineering (English page)"
-   ]
+   ],
+   "code": "MS"
   },
   {
    "id": "eng-ieem",
@@ -360,7 +372,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "IEEM"
   },
   {
    "id": "eng-ieem-ex",
@@ -376,7 +389,8 @@
     "units",
     "curr"
    ],
-   "note": "The course list gives only the department's name for this program; 'In-service Master's Program' is our wording"
+   "note": "The course list gives only the department's name for this program; 'In-service Master's Program' is our wording",
+   "code": "IEM"
   },
   {
    "id": "eng-nems",
@@ -394,7 +408,8 @@
    ],
    "en_other_official": [
     "Nanoengineering and Microsystems (English page)"
-   ]
+   ],
+   "code": "NEMS"
   },
   {
    "id": "eng-bme",
@@ -412,7 +427,8 @@
    ],
    "en_other_official": [
     "Biomedical Engineering (English page)"
-   ]
+   ],
+   "code": "BME"
   },
   {
    "id": "eng-bs",
@@ -427,7 +443,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "IPE"
   },
   {
    "id": "eng-pfmi",
@@ -442,7 +459,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "PFMI"
   },
   {
    "id": "eng-space",
@@ -457,7 +475,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "IOSE"
   },
   {
    "id": "eng-iimt",
@@ -471,7 +490,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "IIMT"
   },
   {
    "id": "nuc-ess",
@@ -486,7 +506,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "ESS"
   },
   {
    "id": "nuc-bmes",
@@ -501,7 +522,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "BMES"
   },
   {
    "id": "nuc-nes",
@@ -516,7 +538,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "NES"
   },
   {
    "id": "nuc-aes",
@@ -531,7 +554,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "AES"
   },
   {
    "id": "nuc-bs",
@@ -546,7 +570,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "IPNS"
   },
   {
    "id": "nuc-est",
@@ -561,7 +586,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "EST"
   },
   {
    "id": "hss-cl",
@@ -576,7 +602,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "CL"
   },
   {
    "id": "hss-fl",
@@ -591,7 +618,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "FL"
   },
   {
    "id": "hss-hist",
@@ -606,7 +634,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "HIS"
   },
   {
    "id": "hss-ling",
@@ -621,7 +650,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LING"
   },
   {
    "id": "hss-anth",
@@ -636,7 +666,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "ANTH"
   },
   {
    "id": "hss-soc",
@@ -651,7 +682,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "SOC"
   },
   {
    "id": "hss-phil",
@@ -666,7 +698,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "PHIL"
   },
   {
    "id": "hss-twl",
@@ -681,7 +714,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "TL"
   },
   {
    "id": "hss-tws",
@@ -699,7 +733,8 @@
    ],
    "en_other_official": [
     "Graduate Program on Taiwan Studies (English page)"
-   ]
+   ],
+   "code": "GPTS"
   },
   {
    "id": "hss-bs",
@@ -714,7 +749,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "HSS"
   },
   {
    "id": "hss-iacs",
@@ -729,7 +765,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "IACS"
   },
   {
    "id": "hss-sino",
@@ -744,7 +781,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "SL"
   },
   {
    "id": "hss-clc",
@@ -762,7 +800,8 @@
    ],
    "en_other_official": [
     "Master's Program in Chinese Language and Culture (English page)"
-   ]
+   ],
+   "code": "MCLC"
   },
   {
    "id": "hss-eamw",
@@ -776,7 +815,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "EAMW"
   },
   {
    "id": "lsm-ls",
@@ -791,7 +831,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LS"
   },
   {
    "id": "lsm-ms",
@@ -806,7 +847,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "DMS"
   },
   {
    "id": "lsm-mcb",
@@ -821,7 +863,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LSMC"
   },
   {
    "id": "lsm-mm",
@@ -836,7 +879,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LSMM"
   },
   {
    "id": "lsm-bsb",
@@ -851,7 +895,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LSBS"
   },
   {
    "id": "lsm-bt",
@@ -866,7 +911,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LSBT"
   },
   {
    "id": "lsm-sn",
@@ -881,7 +927,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LSSN"
   },
   {
    "id": "lsm-bs",
@@ -896,7 +943,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LMIP"
   },
   {
    "id": "lsm-in",
@@ -914,7 +962,8 @@
    ],
    "en_other_official": [
     "International Ph.D. program in Interdisciplinary neuroscience (English page)"
-   ]
+   ],
+   "code": "LSIN"
   },
   {
    "id": "lsm-pbm",
@@ -929,7 +978,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "THSM"
   },
   {
    "id": "lsm-pm",
@@ -947,7 +997,8 @@
    ],
    "en_other_official": [
     "Precision Medicine Ph.D. Program (English page)"
-   ]
+   ],
+   "code": "PMED"
   },
   {
    "id": "lsm-mi",
@@ -962,7 +1013,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "MPMI"
   },
   {
    "id": "lsm-bti",
@@ -977,7 +1029,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LSBI"
   },
   {
    "id": "eecs-cs",
@@ -992,7 +1045,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "CS"
   },
   {
    "id": "eecs-ee",
@@ -1007,7 +1061,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "EE"
   },
   {
    "id": "eecs-com",
@@ -1022,7 +1077,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "COM"
   },
   {
    "id": "eecs-ele",
@@ -1037,7 +1093,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "ENE"
   },
   {
    "id": "eecs-isa",
@@ -1052,7 +1109,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "ISA"
   },
   {
    "id": "eecs-pho",
@@ -1067,7 +1125,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "IPT"
   },
   {
    "id": "eecs-sec",
@@ -1083,7 +1142,8 @@
     "units",
     "curr"
    ],
-   "note": "Course list repeats a word ('Institute of Institute of …'); fixed"
+   "note": "Course list repeats a word ('Institute of Institute of …'); fixed",
+   "code": "IIS"
   },
   {
    "id": "eecs-bs",
@@ -1101,7 +1161,8 @@
    ],
    "en_other_official": [
     "Interdisciplinary Program of Electrical Engineering and Computer Science (English page)"
-   ]
+   ],
+   "code": "EECS"
   },
   {
    "id": "eecs-phd",
@@ -1119,7 +1180,8 @@
    ],
    "en_other_official": [
     "International Ph.D. program in Photonics (English page)"
-   ]
+   ],
+   "code": "UPPP"
   },
   {
    "id": "eecs-isic",
@@ -1133,7 +1195,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "ISIC"
   },
   {
    "id": "eecs-rddm",
@@ -1147,7 +1210,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "RDDM"
   },
   {
    "id": "eecs-rdic",
@@ -1161,7 +1225,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "RDIC"
   },
   {
    "id": "eecs-rdpe",
@@ -1176,7 +1241,8 @@
    "listed_on": [
     "curr"
    ],
-   "note": "Course list writes the Chinese name as 產業研發碩士電力電子"
+   "note": "Course list writes the Chinese name as 產業研發碩士電力電子",
+   "code": "RDPE"
   },
   {
    "id": "eecs-snhc",
@@ -1190,7 +1256,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "SNHC"
   },
   {
    "id": "tm-qf",
@@ -1205,7 +1272,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "QF"
   },
   {
    "id": "tm-econ",
@@ -1220,7 +1288,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "ECON"
   },
   {
    "id": "tm-itm",
@@ -1235,7 +1304,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "TM"
   },
   {
    "id": "tm-mba",
@@ -1253,7 +1323,8 @@
    ],
    "en_other_official": [
     "MBA (English page)"
-   ]
+   ],
+   "code": "MBA"
   },
   {
    "id": "tm-law",
@@ -1268,7 +1339,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "LST"
   },
   {
    "id": "tm-emba",
@@ -1286,7 +1358,8 @@
    ],
    "en_other_official": [
     "EMBA (English page)"
-   ]
+   ],
+   "code": "EMBA"
   },
   {
    "id": "tm-bs",
@@ -1301,7 +1374,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "IPMT"
   },
   {
    "id": "tm-imba",
@@ -1319,7 +1393,8 @@
    ],
    "en_other_official": [
     "IMBA (English page)"
-   ]
+   ],
+   "code": "IMBA"
   },
   {
    "id": "tm-ss",
@@ -1334,7 +1409,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "ISS"
   },
   {
    "id": "tm-mfb",
@@ -1352,7 +1428,8 @@
    ],
    "en_other_official": [
     "MFB (English page)"
-   ]
+   ],
+   "code": "MFB"
   },
   {
    "id": "tm-mpm",
@@ -1370,7 +1447,8 @@
    ],
    "en_other_official": [
     "MPM (English page)"
-   ]
+   ],
+   "code": "MPM"
   },
   {
    "id": "tm-demba",
@@ -1386,7 +1464,8 @@
     "units",
     "curr"
    ],
-   "note": "Course list calls it EMBA雙聯學位學程"
+   "note": "Course list calls it EMBA雙聯學位學程",
+   "code": "EMD"
   },
   {
    "id": "tm-hba",
@@ -1401,7 +1480,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "HBA"
   },
   {
    "id": "tm-emm",
@@ -1415,7 +1495,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "EMM"
   },
   {
    "id": "tm-ems",
@@ -1433,7 +1514,8 @@
    ],
    "en_other_official": [
     "EMBA Shenzhen (English page)"
-   ]
+   ],
+   "code": "EMS"
   },
   {
    "id": "edu-elt",
@@ -1448,7 +1530,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KEL"
   },
   {
    "id": "edu-ece",
@@ -1463,7 +1546,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KEE"
   },
   {
    "id": "edu-se",
@@ -1478,7 +1562,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KSPE"
   },
   {
    "id": "edu-epc",
@@ -1493,7 +1578,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KPC"
   },
   {
    "id": "edu-kin",
@@ -1508,7 +1594,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KSS"
   },
   {
    "id": "edu-lst",
@@ -1523,7 +1610,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KLST"
   },
   {
    "id": "edu-mse",
@@ -1538,7 +1626,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KMS"
   },
   {
    "id": "edu-twl",
@@ -1553,7 +1642,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KTLT"
   },
   {
    "id": "edu-ei",
@@ -1568,7 +1658,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KENI"
   },
   {
    "id": "edu-ecr",
@@ -1583,7 +1674,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KEC"
   },
   {
    "id": "edu-ecse",
@@ -1598,7 +1690,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KCSN"
   },
   {
    "id": "edu-bs",
@@ -1613,7 +1706,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KIPE"
   },
   {
    "id": "edu-wal",
@@ -1628,7 +1722,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KWEN"
   },
   {
    "id": "edu-steam",
@@ -1643,7 +1738,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KSEN"
   },
   {
    "id": "edu-sgp",
@@ -1659,7 +1755,8 @@
     "units",
     "curr"
    ],
-   "note": "Course list calls it 新加坡心諮碩班境外專班"
+   "note": "Course list calls it 新加坡心諮碩班境外專班",
+   "code": "KSN"
   },
   {
    "id": "edu-phd",
@@ -1674,7 +1771,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "KES"
   },
   {
    "id": "edu-ecr-ex",
@@ -1689,7 +1787,8 @@
    "listed_on": [
     "curr"
    ],
-   "note": "Course list cuts the name off after 'Department of Environme'; completed with the department's name"
+   "note": "Course list cuts the name off after 'Department of Environme'; completed with the department's name",
+   "code": "KECN"
   },
   {
    "id": "edu-ece-ex",
@@ -1703,7 +1802,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "KEEN"
   },
   {
    "id": "edu-elt-ex",
@@ -1717,7 +1817,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "KELN"
   },
   {
    "id": "edu-mse-ex",
@@ -1731,7 +1832,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "KMSN"
   },
   {
    "id": "edu-epc-ex",
@@ -1745,7 +1847,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "KPCN"
   },
   {
    "id": "edu-kin-ex",
@@ -1759,7 +1862,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "KSSN"
   },
   {
    "id": "arts-mus",
@@ -1774,7 +1878,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "JMU"
   },
   {
    "id": "arts-ad",
@@ -1789,7 +1894,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "JAD"
   },
   {
    "id": "arts-bs",
@@ -1804,7 +1910,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "JITA"
   },
   {
    "id": "arts-ita",
@@ -1819,7 +1926,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "JANT"
   },
   {
    "id": "arts-ad-ex",
@@ -1833,7 +1941,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "JADN"
   },
   {
    "id": "arts-mus-ex",
@@ -1847,7 +1956,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "JMUN"
   },
   {
    "id": "arts-phd",
@@ -1861,7 +1971,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "JPIA"
   },
   {
    "id": "tsep-ma",
@@ -1875,7 +1986,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "TSE"
   },
   {
    "id": "tsep-phd",
@@ -1889,7 +2001,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "TSED"
   },
   {
    "id": "sus-st",
@@ -1904,7 +2017,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "STMP"
   },
   {
    "id": "sus-isdc",
@@ -1920,7 +2034,8 @@
     "curr",
     "cos"
    ],
-   "note": "Established; first intake in academic year 115 (2026). Not on the Chinese 教學單位 page yet. Its Chinese name says 經營 (management), but both the course list and the college's own site use 'Sustainable Development' in English"
+   "note": "Established; first intake in academic year 115 (2026). Not on the Chinese 教學單位 page yet. Its Chinese name says 經營 (management), but both the course list and the college's own site use 'Sustainable Development' in English",
+   "code": "ISDC"
   },
   {
    "id": "thc-bs",
@@ -1938,7 +2053,8 @@
    ],
    "en_other_official": [
     "Tsing Hua Interdisciplinary Program (English page)"
-   ]
+   ],
+   "code": "IPTH"
   },
   {
    "id": "thc-ibp",
@@ -1994,7 +2110,8 @@
      "en_status": "official",
      "en_source": "ibp"
     }
-   ]
+   ],
+   "code": "IBP"
   },
   {
    "id": "oaa-iphd",
@@ -2012,7 +2129,8 @@
    ],
    "en_other_official": [
     "International Intercollegiate PhD Program (English page)"
-   ]
+   ],
+   "code": "IPHD"
   },
   {
    "id": "oaa-ims",
@@ -2030,7 +2148,8 @@
    ],
    "en_other_official": [
     "International Intercollegiate MS Program (English page)"
-   ]
+   ],
+   "code": "IMS"
   },
   {
    "id": "oaa-smem",
@@ -2045,7 +2164,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "EMIM"
   },
   {
    "id": "oaa-sbm",
@@ -2060,7 +2180,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "BAI"
   },
   {
    "id": "oaa-rs",
@@ -2075,7 +2196,8 @@
    "listed_on": [
     "units",
     "curr"
-   ]
+   ],
+   "code": "RADM"
   },
   {
    "id": "univ-tigp",
@@ -2089,7 +2211,8 @@
    "active": true,
    "listed_on": [
     "curr"
-   ]
+   ],
+   "code": "TIGP"
   },
   {
    "id": "old-as",

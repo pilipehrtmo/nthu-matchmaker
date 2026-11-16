@@ -85,6 +85,31 @@ def groups(lang: str = "en", admin: bool = False):
     return out
 
 
+# Short names students actually type (search only; never shown as names): 資工, 電機, ...
+ALIASES = {"eecs-cs": "資工 資工系 cs", "eecs-ee": "電機 電機系 ee", "eecs-bs": "電資院學士班 電資班", "eng-che": "化工 化工系",
+           "eng-pme": "動機 動機系", "eng-mse": "材料 材料系 材料科學", "eng-ieem": "工工 工工系", "nuc-ess": "工科 工科系",
+           "nuc-bmes": "醫環 醫環系", "tm-econ": "經濟 經濟系", "tm-qf": "計財 計財系 finance", "lsm-ls": "生科 生科系",
+           "lsm-ms": "醫科 醫科系", "lsm-pbm": "學士後醫 醫學系 medicine", "hss-cl": "中文 中文系", "hss-fl": "外語 外語系 外文 english literature",
+           "sci-math": "數學 math", "sci-phys": "物理", "sci-chem": "化學", "sci-stat": "統計 統計所 data science",
+           "edu-ei": "英教 英教系", "edu-kin": "運科 運科系 sports", "edu-elt": "教科 教科系", "edu-epc": "教心 教心系",
+           "edu-se": "特教 特教系", "edu-ece": "幼教 幼教系", "arts-ad": "藝設 藝設系 art design", "arts-mus": "音樂 音樂系",
+           "thc-ibp": "ibp 國際學士班 international bachelor", "thc-bs": "清華學院學士班 不分系 undeclared"}
+
+
+def search_text(value: str) -> str:
+    """The option's own search words: both languages, other official forms, course code, common short names and,
+    for IBP, every track. College names are matched separately (and ranked lower) by the page script."""
+    if value.startswith("c:"):
+        c = COLLEGES.get(value[2:]) or {}
+        return " ".join([c.get("zh", ""), c.get("en", ""), NOT_CHOSEN["en"], NOT_CHOSEN["zh"], "college 學院"])
+    u = UNITS.get(value)
+    if not u: return ""
+    words = [u["zh"], u["en"], u.get("code", ""), ALIASES.get(value, "")]
+    words += [re.sub(r"\s*\(English page.*\)$", "", x) for x in u.get("en_other_official", [])]
+    for t in u.get("tracks", []): words += [t["zh"], t["en"]]
+    return " ".join(w for w in words if w)
+
+
 def tracks(lang: str = "en"): return [(t, _name(x, lang)) for t, x in TRACKS.items()]
 
 
