@@ -97,3 +97,11 @@ def test_endorsement_labels_are_positive_and_bilingual():
     assert tag_label("s:python") == "python"
     bad = ("bad", "poor", "lazy", "late", "rude", "unreliable")
     assert not any(b in en.lower() for _, en, _ in QUALITIES for b in bad)
+
+
+def test_degree_labels():
+    from app import departments as DEP
+    u = NS(degree="master", dept_id="eecs-cs", dept_track="", faculty="")
+    assert DEP.study(u) == "Master's · " + DEP.label("eecs-cs") and DEP.study(u, "zh").startswith("碩士班 · ")
+    assert DEP.study(NS(degree="", dept_id="", dept_track="", faculty="Physics")) == "Physics"
+    assert DEP.degree_label("bogus") == "" and set(DEP.DEGREES) == {"bachelor", "master", "phd"}

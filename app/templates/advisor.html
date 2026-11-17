@@ -47,7 +47,7 @@
 <a class="dbopen" href="/projects/{{ x.p.id }}#supervision">Open →</a></div>{% endfor %}</div>
 {% else %}<p class="muted dbempty">You don't supervise a project yet. Students add an advisor seat to their project and you apply for it, or you can <a href="/">browse projects that need an advisor</a>.</p>{% endif %}</section>
 <section class="dbcard" id="students"><div class="dbcard-h"><h2>My students</h2><small class="muted">{{ ns.rows|length }} on the projects you supervise</small></div>
-{% if ns.rows %}<ul class="dbstud">{% for u, p in ns.rows %}<li><a href="/u/{{ u.handle }}">{{ pic(u, "av sm") }}<span class="dbrow-m"><b>{{ u|dn }}</b><small>{{ u|dept or "NTHU" }} · {{ p.title }}{% if u.id == p.owner_id %} · lead{% endif %}</small></span></a></li>{% endfor %}</ul>
+{% if ns.rows %}<ul class="dbstud">{% for u, p in ns.rows %}<li><a href="/u/{{ u.handle }}">{{ pic(u, "av sm") }}<span class="dbrow-m"><b>{{ u|dn }}</b><small>{{ u|study or "NTHU" }} · {{ p.title }}{% if u.id == p.owner_id %} · lead{% endif %}</small></span></a></li>{% endfor %}</ul>
 {% else %}<p class="muted dbempty">No students yet. They appear here once a team accepts you as their advisor.</p>{% endif %}</section>
 </div>
 

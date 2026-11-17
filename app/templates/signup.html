@@ -14,6 +14,7 @@
 <div class="r-faculty" id="tiow" hidden><label for="tio">Your title</label><input id="tio" name="title_other" maxlength="60" value="{{ f.get('title_other', '') }}" placeholder="e.g. Project Assistant Professor"></div>
 <div class="r-faculty" hidden><label for="dp" id="dplabel">Department</label><input id="dp" name="dept" list="colleges" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science" autocomplete="organization-title">
 <datalist id="colleges">{% for g, opts in DEP.groups(lang) %}{% for v, l in opts %}{% if not v.startswith("c:") %}<option value="{{ l }}">{% endif %}{% endfor %}{% endfor %}</datalist></div>
+<div class="r-student"><label for="dg">Degree</label><select id="dg" name="degree"><option value="">Choose…</option>{% for k, d in DEP.DEGREES.items() %}<option value="{{ k }}" {{ "selected" if f.get("degree") == k }}>{{ d.zh if lang == "zh" else d.en }}</option>{% endfor %}</select></div>
 <div class="r-student">{{ dept_picker(cur=f.get("dept_sel", ""), track=f.get("dept_track", ""), other=f.get("dept_other", ""), wid="dpw") }}
 <p class="muted fine">Shown on your profile and used to filter projects by department. You can change it later.</p></div>
 <div class="r-faculty" hidden>

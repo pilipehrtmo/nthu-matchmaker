@@ -11,7 +11,7 @@
 {% if user %}<a class="nbell {{ 'on' if path == '/notifications' }}" href="/notifications" aria-label="{{ 'Notifications, ' ~ bell ~ ' unread' if bell else 'Notifications' }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>{% if bell %}<span class="nbadge">{{ bell if bell < 100 else "99+" }}</span>{% endif %}</a>
 <a class="npost" href="/projects/new">+ Post a project</a>
 <details class="nme"><summary aria-label="Your account menu">{{ pic(user, "nav-i") }}<span class="nname">{{ user|dn }}</span><span class="chev" aria-hidden="true">▾</span></summary>
-<div class="nmenu"><b>{{ user|dn }}</b><small>{{ user|dept or "NTHU" }}{% if user.is_faculty %} · {{ user.title or "Faculty" }}{% elif user.verified %} · verified{% endif %}</small>
+<div class="nmenu"><b>{{ user|dn }}</b><small>{{ user|study or "NTHU" }}{% if user.is_faculty %} · {{ user.title or "Faculty" }}{% elif user.verified %} · verified{% endif %}</small>
 <a href="/profile">Your profile</a><a href="/notifications">Notifications</a><a href="/u/{{ user.handle }}">See your public page</a>{% if user.is_faculty %}<a href="/advisor">Advisor dashboard</a>{% elif user.role == "faculty" %}<a href="/verification">Professor verification</a>{% endif %}<a href="/activity">Activity</a>{% if newbie %}<a href="/help">How it works</a><button type="button" class="nmenu-b" data-tour="replay">Replay the tutorial</button>{% endif %}{% if user.is_admin %}<a href="/admin">Admin</a>{% endif %}
 {% set here = (request.url.path ~ ('?' ~ request.url.query if request.url.query else ''))|urlencode %}
 <div class="nlangs" role="group" aria-label="Language / 語言"><span class="nlangs-h">{{ keep("Language / 語言") }}</span>

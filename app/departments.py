@@ -110,6 +110,19 @@ def search_text(value: str) -> str:
     return " ".join(w for w in words if w)
 
 
+DEGREES = {"bachelor": {"en": "Bachelor's", "zh": "學士班"}, "master": {"en": "Master's", "zh": "碩士班"}, "phd": {"en": "PhD", "zh": "博士班"}}
+
+
+def degree_label(code: str, lang: str = "en") -> str:
+    d = DEGREES.get(code or "")
+    return _name(d, lang) if d else ""
+
+
+def study(u, lang: str = "en") -> str:
+    """Degree and department together, e.g. "Master's · Computer Science". Either part may be missing."""
+    return " · ".join(x for x in (degree_label(getattr(u, "degree", "") or "", lang), display(u, lang)) if x)
+
+
 def tracks(lang: str = "en"): return [(t, _name(x, lang)) for t, x in TRACKS.items()]
 
 

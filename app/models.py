@@ -16,6 +16,7 @@ class User(SQLModel, table=True):
     dept_track: str = ""     # IBP track, only with dept_id "thc-ibp"
     dept_status: str = ""    # "" / ok / review / other / kept
     dept_src: str = ""       # user / admin / migration
+    degree: str = ""         # students: "" (not set yet), bachelor, master or phd (departments.DEGREES)
     hours: int = 4
     verified: bool = False
     bio: str = ""

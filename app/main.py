@@ -255,6 +255,9 @@ from . import departments as DEP
 @pass_context
 def dept_filter(ctx, u): return DEP.display(u, ctx.get("lang", "en")) if u else ""   # linked department in the reader's language, else the text as typed
 templates.env.filters["dept"] = dept_filter
+@pass_context
+def study_filter(ctx, u): return DEP.study(u, ctx.get("lang", "en")) if u else ""   # "Master's · Computer Science"
+templates.env.filters["study"] = study_filter
 templates.env.globals.update(DEP=DEP)
 
 set_dept, relink_text = DEP.set_dept, DEP.relink_text
@@ -321,11 +324,11 @@ def signup_page(req: Request, user=Depends(me)):
 @app.post("/signup")
 def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), password: str = Form(""),
            password2: str = Form(""), role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), title_other: str = Form(""),
-           evidence: str = Form(""), dept_sel: str = Form(""), dept_track: str = Form(""), dept_other: str = Form(""), s: Session = Depends(get_session)):
+           evidence: str = Form(""), dept_sel: str = Form(""), dept_track: str = Form(""), dept_other: str = Form(""), degree: str = Form(""), s: Session = Depends(get_session)):
     email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = re.sub(r"\s+", "", student_id)
     role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
     back = lambda err: render(req, "signup.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence,
-                                                                                 dept_sel=dept_sel, dept_track=dept_track, dept_other=dept_other))
+                                                                                 dept_sel=dept_sel, dept_track=dept_track, dept_other=dept_other, degree=degree))
     # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
     w = wait_left(f"signup:{ip_of(req)}", 200, 3600)
     if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
@@ -349,6 +352,7 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
         if s.exec(select(User).where(func.upper(func.trim(User.student_id)) == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.")
         dept_fields, derr = DEP.choose(dept_sel, dept_track, dept_other)
         if derr: return back(derr)
+        if degree not in DEP.DEGREES: return back("Choose your degree: Bachelor's, Master's or PhD.")
     err = password_problem(password, email, name)
     if err: return back(err)
     if password != password2: return back("The two passwords are not the same.")
@@ -360,7 +364,9 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
         u.title = title if title in TITLES else re.sub(r"\s+", " ", title_other).strip()[:60]
         u.faculty_evidence = evidence.replace("\r", "").strip()[:1000]
         relink_text(u, dept)
-    elif dept_fields: set_dept(u, dept_fields)   # department from the list (or Other, which waits for an admin)
+    else:
+        u.degree = degree
+        if dept_fields: set_dept(u, dept_fields)   # department from the list (or Other, which waits for an admin)
     s.add(u); s.add(SignupLog(email=email, ip="-", allowed=True))
     try: s.commit()
     except IntegrityError:   # two sign-ups with the same email or student ID at the same moment: the database keeps only one
@@ -513,6 +519,8 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     if user.role != "faculty":
         dept_fields, derr = DEP.choose(dept_sel, dept_track, dept_other)
         errs.append(derr)
+    degree = str(form.get("degree", "")).strip()
+    if user.role != "faculty" and degree and degree not in DEP.DEGREES: errs.append("Choose your degree: Bachelor's, Master's or PhD.")
     errs = [e for e in errs if e]
     if errs:   # show the form again with what they typed (nothing is saved)
         for f in ("instagram", "line", "discord"): setattr(user, f, str(form.get(f, "")).strip()[:100])
@@ -520,6 +528,7 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
         user.interests, user.roles_wanted = ", ".join(interest_list), ", ".join(role_list)
         user.contact = contact
         if user.role == "faculty": user.faculty = faculty
+        elif degree in DEP.DEGREES: user.degree = degree
         for f in ("competitions", "past_projects", "awards"): setattr(user, f, str(form.get(f, "")))
         s.expunge(user)
         return render(req, "profile.html", user, error=errs[0], errors=errs, dform=dict(sel=dept_sel, track=dept_track, other=dept_other))
@@ -529,7 +538,9 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     user.name, user.bio, user.contact = name, bio, clean_contact(contact, 100)
     if user.role == "faculty":
         if user.faculty_status not in ("verified", "suspended"): relink_text(user, faculty.strip()[:60])   # a verified department changes only through an admin
-    elif dept_fields: set_dept(user, dept_fields)   # nothing chosen = the department stays as it is
+    else:
+        if dept_fields: set_dept(user, dept_fields)   # nothing chosen = the department stays as it is
+        if degree in DEP.DEGREES: user.degree = degree   # nothing chosen = stays as it is
     user.hours = max(1, min(hours, 60))
     user.skills = ",".join(sorted({t.lower() for t in skill_list}))
     user.interests = ",".join(dict.fromkeys(t.lower() for t in interest_list))   # keeps their order, no duplicates
@@ -708,7 +719,7 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         start = dict(skills=bool(user.skills.strip()), act=applied or posted, joined=joined)
         if all(start.values()): start = None
     fyhint = me_.missing() if user and not user.is_faculty and not user.is_admin else []
-    return render(req, "board.html", user, start=start, fyhint=fyhint, comp_fy=comp_fy, depts=sorted({DEP.display(r["owner"], pick_lang(req)) for r in rows if r["owner"] and DEP.display(r["owner"], pick_lang(req))}), rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
+    return render(req, "board.html", user, start=start, fyhint=fyhint, comp_fy=comp_fy, depts=sorted({DEP.display(r["owner"], pick_lang(req)) for r in rows if r["owner"] and DEP.display(r["owner"], pick_lang(req))}), degs=[k for k in DEP.DEGREES if any(r["owner"] and r["owner"].degree == k for r in rows)], rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
 
 RESEARCH_PLAN = [("objectives", 800), ("methodology", 800), ("outcomes", 600)]
 PITCH_FIELDS = [("tagline", 140), ("problem", 600), ("audience", 400), ("solution", 600), ("progress", 600), ("needs", 300), ("metrics", 200)]

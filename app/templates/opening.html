@@ -24,7 +24,7 @@
 {% if is_owner or (user and user.is_admin and apps) %}<section class="card" id="applicants"><h2>Applicants {% if apps %}<span class="count">{{ apps|length }}</span>{% endif %}</h2>
 {% if not apps %}<p class="muted">No applications yet.</p>{% endif %}
 <div class="apps">{% for a, u in apps %}<div class="app">{{ pic(u, "av") }}<div class="app-main">
-<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{% if u|dept %} <small class="muted">{{ u|dept }}</small>{% endif %}</span>
+<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{% if u|study %} <small class="muted">{{ u|study }}</small>{% endif %}</span>
 <span class="badge b-{{ a.status }}">{{ {"closed": "Positions filled", "withdrawn": "Withdrawn"}.get(a.status, a.status|capitalize) }}</span></div>
 {% set sk = u.skills.split(",") if u.skills else [] %}{% if sk %}<div>{% for t in sk if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in o.skills.lower().split(',') }}">{{ keep(t.strip()) }}</span>{% endfor %}</div>{% endif %}
 {{ pro_links(u, compact=True) }}

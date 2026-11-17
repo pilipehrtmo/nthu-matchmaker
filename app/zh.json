@@ -1771,6 +1771,10 @@
     "Why": "原因",
     "Link to": "連結到",
     "Person": "使用者",
-    "Choose…": "請選擇…"
+    "Choose…": "請選擇…",
+    "Degree": "學位",
+    "Lead's degree": "負責人的學位",
+    "Any degree": "任何學位",
+    "Choose your degree: Bachelor's, Master's or PhD.": "請選擇你的學位：學士、碩士或博士。"
   }
 }

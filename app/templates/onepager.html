@@ -59,7 +59,7 @@ hr{border:0;border-top:1px solid #e2d9ee;margin:4.5mm 0 3.5mm}
 <hr>
 <div class="box"><h2>Team</h2><div class="team">
 <div class="p">{{ pic(owner, "av") }}<div><b>{{ owner|dn }}</b><small>Founder{% if owner|dept %} · {{ owner|dept }}{% endif %}</small></div></div>
-{% for u, seat in members %}<div class="p">{{ pic(u, "av") }}<div><b>{{ u|dn }}</b><small>{{ seat }}{% if u|dept %} · {{ u|dept }}{% endif %}</small></div></div>{% endfor %}
+{% for u, seat in members %}<div class="p">{{ pic(u, "av") }}<div><b>{{ u|dn }}</b><small>{{ seat }}{% if u|study %} · {{ u|study }}{% endif %}</small></div></div>{% endfor %}
 {% for u, seat in advisors %}<div class="p">{{ pic(u, "av") }}<div><b>{{ u|dn }}</b><small>Advisor{% if u.title %} · {{ u.title }}{% endif %}{% if u|dept %} · {{ u|dept }}{% endif %}</small></div></div>{% endfor %}
 {% for r in open[:6 - (1 + members|length + advisors|length) if (1 + members|length + advisors|length) < 6 else 0] %}<div class="p"><span class="av open">+</span><div><b>Open seat</b><small>{{ r.name }}{% if r.skills %} ({{ r.skills.replace(",", ", ") }}){% endif %}</small></div></div>{% endfor %}
 </div>

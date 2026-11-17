@@ -17,13 +17,13 @@
 <label class="fsel"><span>Category</span><select id="f-cat"><option value="">Any</option></select></label>
 <label class="fsel"><span>Tag</span><select id="f-ptag"><option value="">Any tag</option></select></label>
 <label class="fsel"><span>Role needed</span><select id="f-role"><option value="">Any role</option></select></label>
-{% if depts %}<label class="fsel"><span>Lead's department</span><select id="f-dept"><option value="">Any department</option>{% for d in depts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></label>{% endif %}
+{% if depts %}<label class="fsel"><span>Lead's department</span><select id="f-dept"><option value="">Any department</option>{% for d in depts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select></label>{% endif %}{% if degs %}<label class="fsel"><span>Lead's degree</span><select id="f-deg"><option value="">Any degree</option>{% for k in degs %}<option value="{{ k }}">{{ DEP.degree_label(k, lang) }}</option>{% endfor %}</select></label>{% endif %}
 <label class="fsel"><span>Hours per week</span><select id="f-hours"><option value="">Any</option><option value="0-3">Up to 3</option><option value="4-6">4 to 6</option><option value="7-10">7 to 10</option><option value="11-99">More than 10</option></select></label>
 </div>
 <div class="tagrow" id="f-tags" aria-label="Skills"></div>{% if fyhint %}<p class="fyhint muted fine">To get “For you” picks, add your skills, interests and the roles you want on <a href="/profile#interests">your profile</a>.</p>{% endif %}</div></details></div>
 <div class="projects" id="plist">{% for r in rows %}{% set filled = r.total - r.roles|length %}<article class="card link pcard {{ 'k-comp' if kind_of(r.p) == 'Competition' }}"
  data-kind="{{ kind_of(r.p) }}" data-cat="{{ r.p.category or (comp_cat.get(r.p.competition_id, '') if r.p.competition_id else '') }}" data-days="{{ r.days if r.days is not none else 99999 }}"
- data-new="{{ r.p.created.timestamp()|int }}" data-score="{{ r.score or 0 }}" data-open="{{ r.roles|length }}" data-dept="{{ r.owner|dept if r.owner else '' }}" data-hours="{{ r.p.hours_per_week or 0 }}" data-fy="{{ 1 if r.fy else 0 }}" data-xc="{{ 1 if r.other else 0 }}"
+ data-new="{{ r.p.created.timestamp()|int }}" data-score="{{ r.score or 0 }}" data-open="{{ r.roles|length }}" data-dept="{{ r.owner|dept if r.owner else '' }}" data-deg="{{ r.owner.degree if r.owner else '' }}" data-hours="{{ r.p.hours_per_week or 0 }}" data-fy="{{ 1 if r.fy else 0 }}" data-xc="{{ 1 if r.other else 0 }}"
  data-roles="{{ r.roles|map(attribute='name')|map('lower')|map('trim')|join('|') }}" data-skills="{{ r.roles|map(attribute='skills')|join(',')|lower }}"
  data-ptags="{{ parse_tags(r.p.tags)|map(attribute=0)|join('|') }}" data-text="{{ (r.p.tags|replace(':', ' ')|replace(',', ' ')) ~ ' ' ~ (r.p.title ~ ' ' ~ r.p.description ~ ' ' ~ r.p.category ~ ' ' ~ (r.roles|map(attribute='name')|join(' ')) ~ ' ' ~ (r.roles|map(attribute='skills')|join(' ')) ~ ' ' ~ (r.owner|dn))|lower }}">
 <div class="ctop"><span class="ctl">{% if r.fy %}<span class="fytag" tabindex="0" aria-describedby="fyw{{ r.p.id }}">For you<span class="fywhy" role="tooltip" id="fyw{{ r.p.id }}">{% for w in r.fy_why %}<span>{{ keep(w) }}</span>{% endfor %}</span></span>{% endif %}<span class="kindb">{{ kind_of(r.p) }}{% if r.p.category %} · {{ r.p.category }}{% endif %}</span></span>{% if user and r.score is not none %}<span class="match"><b>{{ r.score }}%</b> match</span>{% endif %}</div>
@@ -38,7 +38,7 @@
 <script>
 (()=>{const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const list=$("#plist"),cards=$$("#plist .pcard"),P=new URLSearchParams(location.search);
-const st={show:P.get("show")||"",dept:P.get("dept")||"",hours:P.get("hours")||"",ptag:P.get("ptag")||"",k:P.get("kind")||"",sort:P.get("sort")||($("#f-sort option[value=match]")?"match":"deadline"),cat:P.get("cat2")||"",role:P.get("role")||"",tags:(P.get("tags")||"").split(",").filter(Boolean),q:P.get("q")||"",c:P.get("cat")||""};
+const st={show:P.get("show")||"",dept:P.get("dept")||"",deg:P.get("deg")||"",hours:P.get("hours")||"",ptag:P.get("ptag")||"",k:P.get("kind")||"",sort:P.get("sort")||($("#f-sort option[value=match]")?"match":"deadline"),cat:P.get("cat2")||"",role:P.get("role")||"",tags:(P.get("tags")||"").split(",").filter(Boolean),q:P.get("q")||"",c:P.get("cat")||""};
 const q=$(".search input"),form=$(".search");q.value=st.q;
 const count=(arr)=>{const m=new Map();arr.forEach(v=>v&&m.set(v,(m.get(v)||0)+1));return[...m].sort((a,b)=>(a[0]==="Other")-(b[0]==="Other")||b[1]-a[1]||a[0].localeCompare(b[0]))};   // "Other" always last
 // fill the menus from the projects on the page
@@ -53,27 +53,27 @@ const tagbox=$("#f-tags");tags.forEach(([t])=>{const b=document.createElement("b
 if(!tags.length)tagbox.hidden=true;
 function apply(){const qq=st.q.trim().toLowerCase();let shown=0;
  for(const c of cards){const d=c.dataset,sk=d.skills.split(",").map(t=>t.trim());
-  const ok=(!st.k||d.kind===st.k)&&(!st.cat||d.cat===st.cat)&&(!st.role||d.roles.split("|").includes(st.role))&&(!st.ptag||d.ptags.split("|").includes(st.ptag))&&(!st.dept||d.dept===st.dept)&&(!st.show||(st.show==="fy"?d.fy==="1":st.show==="xc"?d.xc==="1":st.show==="soon"?(+d.days>=0&&+d.days<=14):(Date.now()/1000-(+d.new))<=7*86400))&&(!st.hours||(()=>{const [a,b]=st.hours.split("-").map(Number),h=+d.hours;return h>=a&&h<=b})())&&st.tags.every(t=>sk.includes(t))&&(!qq||qq.split(/\s+/).every(w=>d.text.includes(w)));
+  const ok=(!st.k||d.kind===st.k)&&(!st.cat||d.cat===st.cat)&&(!st.role||d.roles.split("|").includes(st.role))&&(!st.ptag||d.ptags.split("|").includes(st.ptag))&&(!st.dept||d.dept===st.dept)&&(!st.deg||d.deg===st.deg)&&(!st.show||(st.show==="fy"?d.fy==="1":st.show==="xc"?d.xc==="1":st.show==="soon"?(+d.days>=0&&+d.days<=14):(Date.now()/1000-(+d.new))<=7*86400))&&(!st.hours||(()=>{const [a,b]=st.hours.split("-").map(Number),h=+d.hours;return h>=a&&h<=b})())&&st.tags.every(t=>sk.includes(t))&&(!qq||qq.split(/\s+/).every(w=>d.text.includes(w)));
   c.hidden=!ok;shown+=ok}
  const key={match:c=>-(+c.dataset.fy)*1000-(+c.dataset.score),deadline:c=>+c.dataset.days,new:c=>-(+c.dataset.new),open:c=>-(+c.dataset.open)}[st.sort]||(c=>0);
  cards.slice().sort((a,b)=>key(a)-key(b)||(+b.dataset.new)-(+a.dataset.new)).forEach(c=>list.appendChild(c));
  $$("#kinds .chip").forEach(b=>{b.classList.toggle("on",b.dataset.k===st.k);b.setAttribute("aria-selected",b.dataset.k===st.k)});
  $$("#f-tags .tagchip").forEach(b=>b.classList.toggle("on",st.tags.includes(b.dataset.t)));
  $("#f-sort").value=st.sort;$("#f-show").value=st.show;$("#f-ptag").value=st.ptag;$("#f-cat").value=st.cat;$("#f-role").value=st.role;
- const filtered=st.show||st.k||st.cat||st.ptag||st.role||st.dept||st.hours||st.tags.length||qq;$("#f-clear").hidden=!filtered;$("#fdot").hidden=!(st.show||st.cat||st.ptag||st.role||st.dept||st.hours||st.tags.length);
- if($("#f-dept"))$("#f-dept").value=st.dept;$("#f-hours").value=st.hours;
+ const filtered=st.show||st.k||st.cat||st.ptag||st.role||st.dept||st.deg||st.hours||st.tags.length||qq;$("#f-clear").hidden=!filtered;$("#fdot").hidden=!(st.show||st.cat||st.ptag||st.role||st.dept||st.deg||st.hours||st.tags.length);
+ if($("#f-dept"))$("#f-dept").value=st.dept;if($("#f-deg"))$("#f-deg").value=st.deg;$("#f-hours").value=st.hours;
  $("#f-count").textContent={% if lang == "zh" %}filtered?`顯示 ${shown}／${cards.length} 個專案`:`${cards.length} 個專案`{% else %}filtered?`Showing ${shown} of ${cards.length}`:`${cards.length} project${cards.length==1?"":"s"}`{% endif %};
  $("#f-empty").hidden=shown>0;
  // keep the address in step so the view can be shared or reloaded
- const u=new URLSearchParams();if(st.show)u.set("show",st.show);if(st.k)u.set("kind",st.k);if(st.q)u.set("q",st.q);if(st.cat)u.set("cat2",st.cat);if(st.role)u.set("role",st.role);if(st.ptag)u.set("ptag",st.ptag);if(st.dept)u.set("dept",st.dept);if(st.hours)u.set("hours",st.hours);if(st.tags.length)u.set("tags",st.tags.join(","));if(st.c)u.set("cat",st.c);
+ const u=new URLSearchParams();if(st.show)u.set("show",st.show);if(st.k)u.set("kind",st.k);if(st.q)u.set("q",st.q);if(st.cat)u.set("cat2",st.cat);if(st.role)u.set("role",st.role);if(st.ptag)u.set("ptag",st.ptag);if(st.dept)u.set("dept",st.dept);if(st.deg)u.set("deg",st.deg);if(st.hours)u.set("hours",st.hours);if(st.tags.length)u.set("tags",st.tags.join(","));if(st.c)u.set("cat",st.c);
  if(st.sort!==($("#f-sort option[value=match]")?"match":"deadline"))u.set("sort",st.sort);
  history.replaceState(null,"",location.pathname+(u.toString()?"?"+u:""))}
 $("#kinds").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b){st.k=b.dataset.k;apply()}});
 
 tagbox.addEventListener("click",e=>{const b=e.target.closest(".tagchip");if(!b)return;const t=b.dataset.t;st.tags=st.tags.includes(t)?st.tags.filter(x=>x!==t):[...st.tags,t];apply()});
 $("#f-sort").onchange=e=>{st.sort=e.target.value;apply()};$("#f-show").onchange=e=>{st.show=e.target.value;apply()};$("#f-cat").onchange=e=>{st.cat=e.target.value;apply()};$("#f-role").onchange=e=>{st.role=e.target.value;apply()};$("#f-ptag").onchange=e=>{st.ptag=e.target.value;apply()};
-if($("#f-dept"))$("#f-dept").onchange=e=>{st.dept=e.target.value;apply()};$("#f-hours").onchange=e=>{st.hours=e.target.value;apply()};
-const clear=()=>{Object.assign(st,{show:"",k:"",cat:"",ptag:"",role:"",dept:"",hours:"",tags:[],q:""});q.value="";apply()};$("#f-clear").onclick=clear;$("#f-reset").onclick=clear;
+if($("#f-dept"))$("#f-dept").onchange=e=>{st.dept=e.target.value;apply()};if($("#f-deg"))$("#f-deg").onchange=e=>{st.deg=e.target.value;apply()};$("#f-hours").onchange=e=>{st.hours=e.target.value;apply()};
+const clear=()=>{Object.assign(st,{show:"",k:"",cat:"",ptag:"",role:"",dept:"",deg:"",hours:"",tags:[],q:""});q.value="";apply()};$("#f-clear").onclick=clear;$("#f-reset").onclick=clear;
 let tmr;q.addEventListener("input",()=>{clearTimeout(tmr);tmr=setTimeout(()=>{st.q=q.value;apply()},120)});
 form.addEventListener("submit",e=>{e.preventDefault();st.q=q.value;apply();list.scrollIntoView({behavior:"smooth",block:"start"})});
 apply();const fp=$("#fpanel");document.addEventListener("click",e=>{if(fp.open&&!fp.contains(e.target))fp.open=false});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&fp.open){fp.open=false;fp.querySelector("summary").focus()}})})();
