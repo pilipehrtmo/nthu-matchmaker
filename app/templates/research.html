@@ -7,7 +7,7 @@
 <section class="dsec" id="positions"><h2>Open research positions {% if openings %}<span class="count">{{ openings|length }}</span>{% endif %}</h2>
 {% if openings %}<div class="ocards">{% for x in openings %}{% set o = x.o %}<a class="card ocard" href="/openings/{{ o.id }}" data-text="{{ (o.title ~ ' ' ~ o.description ~ ' ' ~ o.skills ~ ' ' ~ x.prof.name ~ ' ' ~ (x.prof|dept) ~ ' ' ~ x.prof.research ~ ' ' ~ x.prof.lab_name)|lower }}">
 <span class="oc-prof">{{ pic(x.prof, "av sm") }}<span><b>{{ x.prof|dn }}</b><small class="muted">{{ x.prof.title or "Professor" }}{% if x.prof|dept %} · {{ x.prof|dept }}{% endif %}</small></span></span>
-<b class="oc-title">{{ o.title }}</b>
+{% if x.fy %}<span class="fytag">For you<span class="fywhy" role="tooltip" id="ofy{{ o.id }}">{% for w in x.fy_why %}<span>{{ keep(w) }}</span>{% endfor %}</span></span>{% endif %}<b class="oc-title">{{ o.title }}</b>
 <span class="oc-desc">{{ o.description|truncate(150, True, "…") }}</span>
 {% if o.skills %}<span class="oc-skills">{% for t in o.skills.split(",") if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in mytags }}">{{ keep(t.strip()) }}</span>{% endfor %}</span>{% endif %}
 <span class="oc-foot"><span>{{ o.hours }} h/week · {{ o.positions - x.accepted }} spot{{ "s" if o.positions - x.accepted != 1 }} left</span><span>{% if x.days is none %}Open until filled{% elif x.days == 0 %}Apply today{% else %}Apply within {{ x.days }} days{% endif %}</span></span>

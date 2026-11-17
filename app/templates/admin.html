@@ -5,7 +5,7 @@
 <div class="stat"><b>{{ stats.unverified }}</b><span>To verify</span></div>
 <div class="stat"><b>{{ stats.reports }}</b><span>Open reports</span></div>
 <div class="stat"><b>{{ stats.review }}</b><span>Competitions to review</span></div></div>
-<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#faculty">Professor verification{% if profq and not profs_all %} ({{ profq|length }}){% endif %}</a><a class="chip" href="#depts">Departments to check{% if deptq %} ({{ deptq|length }}){% endif %}</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
+<div class="chips"><a class="chip" href="#reports">Reports</a><a class="chip" href="#competitions">Competitions</a><a class="chip" href="#faculty">Professor verification{% if profq and not profs_all %} ({{ profq|length }}){% endif %}</a><a class="chip" href="#depts">Departments to check{% if deptq %} ({{ deptq|length }}){% endif %}</a><a class="chip" href="#track">Track record{% if trackq.disputes %} ({{ trackq.disputes|length }}){% endif %}</a><a class="chip" href="#programs">Funding programs</a><a class="chip" href="#users">Users</a><a class="chip" href="#scraper">Scraper</a><a class="chip" href="#log">Signup log</a></div>
 
 <section class="sec" id="reports"><h2>Reports <span class="count">{{ stats.reports }}</span></h2>
 {% for r in reports %}<div class="card" style="margin:.6rem 0"><div class="meta"><span class="pill">{{ r.kind }}</span><span>Reason: {{ r.reason }}</span></div>
@@ -68,6 +68,21 @@
 {% for g, opts in DEP.groups(lang, admin=True) %}<optgroup label="{{ g }}">{% for v, l in opts %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</optgroup>{% endfor %}</select>
 <button class="sm" name="action" value="link">Link</button><button class="sm ghost" name="action" value="keep">Leave as typed</button></form></td></tr>{% endfor %}</table></div>
 {% else %}<p class="muted">Nothing to check.</p>{% endif %}</section>
+
+<section class="sec" id="track"><h2>Track record <span class="count">{{ trackq.disputes|length }}</span></h2>
+<p class="muted">Completed projects appear on profiles only after the lead and the member both confirm. Here you decide disagreements, and can mark a completion “Admin-verified” after checking its evidence (links, demo, results). Reopen a project that was not really finished: nothing from it stays on anyone's record.</p>
+<h3>Disagreements</h3>
+{% if trackq.disputes %}<div class="tw"><table class="deptq"><tr><th>Person</th><th>Project</th><th>The lead recorded</th><th>They say</th><th>Decision</th></tr>
+{% for x in trackq.disputes %}{% set c = x.c %}<tr><td><b><a href="/u/{{ x.user.handle }}">{{ x.user|dn }}</a></b></td><td><a href="/projects/{{ x.pr.id }}#complete">{{ x.pr.title }}</a></td>
+<td>{% if c.lead_status == "not_included" %}Did not take part{% else %}{{ c.role_name }}{% if c.note %}: {{ c.note }}{% endif %}{% endif %}</td><td>{{ c.member_note }}</td>
+<td><div class="acts"><form method="post" action="/admin/contribution/{{ c.id }}/count"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Count it</button></form>
+<form method="post" action="/admin/contribution/{{ c.id }}/dont_count"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Don't count</button></form></div></td></tr>{% endfor %}</table></div>
+{% else %}<p class="muted">No disagreements.</p>{% endif %}
+<h3>Completed projects, not verified yet</h3>
+{% if trackq.completed %}<ul class="vlist">{% for x in trackq.completed %}<li><a href="/projects/{{ x.pr.id }}"><b>{{ x.pr.title }}</b></a> <span class="muted fine">· led by {{ x.owner|dn }} · {{ x.pr.completed_at.strftime("%Y-%m-%d") if x.pr.completed_at else "" }} · confirmed: {% for c, u in x.rows %}{{ u|dn }} ({{ c.role_name }}){{ ", " if not loop.last }}{% endfor %}</span>
+<div class="acts"><form method="post" action="/admin/completion/{{ x.pr.id }}/verify"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Verify</button></form>
+<form method="post" action="/admin/completion/{{ x.pr.id }}/reopen" hx-confirm="Reopen this project? Its completion, confirmations and endorsements are removed from everyone's record."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Reopen</button></form></div></li>{% endfor %}</ul>
+{% else %}<p class="muted">Nothing waiting.</p>{% endif %}</section>
 
 <section class="sec" id="programs"><h2>Funding programs</h2>
 <p class="muted">Shown on /funding and in each startup or research project's readiness check. When a call is announced, set its deadline (YYYY-MM-DD) so the countdown appears.</p>

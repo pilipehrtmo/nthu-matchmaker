@@ -1,14 +1,14 @@
-<section class="compsec" id="comps"><div class="compsec-h"><div><h2>Competitions &amp; grants</h2>
+{% set comp_fy = comp_fy|default({}) %}<section class="compsec" id="comps"><div class="compsec-h"><div><h2>Competitions &amp; grants</h2>
 <p class="muted">Contests for every faculty, not just engineering. Pick one and start a team for it.</p></div>
 <label class="csearch"><span class="vh">Search competitions</span><input id="c-q" type="search" placeholder="Search competitions" autocomplete="off"></label></div>
 <div class="chips" id="ccats"><button type="button" class="chip {{ 'on' if not cat }}" data-c="">All <span class="ccount" data-n=""></span></button>
 <button type="button" class="chip chip-online {{ 'on' if cat == 'Online' }}" data-c="Online"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>Online <span class="ccount" data-n="Online"></span></button>
 {% for c in cats %}<button type="button" class="chip {{ 'on' if cat == c }}" data-c="{{ c }}">{{ c }} <span class="ccount" data-n="{{ c }}"></span></button>{% endfor %}</div>
-<div class="crow"><label class="cfsel"><span>Show</span><select id="c-st"><option value="active">Open and upcoming</option><option value="closing">Closing soon</option><option value="unknown">Date not confirmed</option><option value="past">Past events</option>{% if user %}<option value="saved">Saved</option>{% endif %}</select></label>
+<div class="crow"><label class="cfsel"><span>Show</span><select id="c-st">{% if comp_fy %}<option value="fy">For you</option>{% endif %}<option value="active">Open and upcoming</option><option value="closing">Closing soon</option><option value="unknown">Date not confirmed</option><option value="past">Past events</option>{% if user %}<option value="saved">Saved</option>{% endif %}</select></label>
 <label class="cfsel"><span>Sort</span><select id="c-sort"><option value="rec">Recommended</option><option value="deadline">Deadline</option><option value="new">Recently added</option></select></label>
 <span class="muted fine" id="c-count" aria-live="polite"></span></div>
-<div class="grid" id="clist">{% for c in comps %}{% set cs = comp_status(c) %}<article class="card comp st-c-{{ cs[0] }}" data-cat="{{ c.category }}" data-online="{{ 1 if c.online else 0 }}" data-st="{{ cs[0] }}" data-days="{{ cs[2] if cs[2] is not none else 99999 }}" data-id="{{ c.id }}" data-saved="{{ 1 if c.id in saved_c else 0 }}" data-text="{{ (c.title ~ ' ' ~ c.description ~ ' ' ~ c.category ~ (' online' if c.online else ''))|lower }}">
-<div class="comp-top"><span class="ctags"><span class="pill cat">{{ c.category }}</span>{% if c.online %}<span class="pill online">Online</span>{% endif %}<span class="badge cst cst-{{ cs[0] }}">{{ cs[1] }}{% if cs[0] == "closing" %} · {{ cs[2] }}d{% endif %}</span></span>
+<div class="grid" id="clist">{% for c in comps %}{% set cs = comp_status(c) %}<article class="card comp st-c-{{ cs[0] }}" data-cat="{{ c.category }}" data-online="{{ 1 if c.online else 0 }}" data-st="{{ cs[0] }}" data-days="{{ cs[2] if cs[2] is not none else 99999 }}" data-id="{{ c.id }}" data-fy="{{ 1 if c.id in comp_fy else 0 }}" data-saved="{{ 1 if c.id in saved_c else 0 }}" data-text="{{ (c.title ~ ' ' ~ c.description ~ ' ' ~ c.category ~ (' online' if c.online else ''))|lower }}">
+<div class="comp-top"><span class="ctags">{% if c.id in comp_fy %}<span class="fytag" tabindex="0" aria-describedby="cfy{{ c.id }}">For you<span class="fywhy" role="tooltip" id="cfy{{ c.id }}">{% for w in comp_fy[c.id] %}<span>{{ keep(w) }}</span>{% endfor %}</span></span>{% endif %}<span class="pill cat">{{ c.category }}</span>{% if c.online %}<span class="pill online">Online</span>{% endif %}<span class="badge cst cst-{{ cs[0] }}">{{ cs[1] }}{% if cs[0] == "closing" %} · {{ cs[2] }}d{% endif %}</span></span>
 {% if user %}<form method="post" action="/save/competition/{{ c.id }}" class="savef"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/"><button class="savebtn" aria-pressed="{{ 'true' if c.id in saved_c else 'false' }}" aria-label="Save {{ c.title }}" title="Save"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button></form>{% endif %}</div>
 <h3><a href="/competitions/{{ c.id }}">{{ c.title }}</a></h3>
 {% if c.description %}<p>{{ c.description }}</p>{% endif %}
@@ -23,10 +23,10 @@ $("#ccats").addEventListener("click",e=>{const b=e.target.closest(".chip");if(b)
 const clist=$("#clist"),ccards=$$("#clist .comp"),cs={c:new URLSearchParams(location.search).get("cat")||"",q:"",st:"active",sort:"rec",more:false},PREVIEW=8,cq=$("#c-q"),cmore=$("#c-more");
 const inCat=(c,k)=>!k||(k==="Online"?c.dataset.online==="1":c.dataset.cat===k);   // "Online" cuts across the other categories
 function compMatch(c,withCat){const d=c.dataset,qq=cs.q.trim().toLowerCase();
- const stOk=cs.st==="active"?(d.st==="open"||d.st==="closing"||d.st==="unknown"):cs.st==="saved"?d.saved==="1":d.st===cs.st;
+ const stOk=cs.st==="active"?(d.st==="open"||d.st==="closing"||d.st==="unknown"):cs.st==="saved"?d.saved==="1":cs.st==="fy"?d.fy==="1":d.st===cs.st;
  return stOk&&(!withCat||inCat(c,cs.c))&&(!qq||qq.split(/\s+/).every(w=>d.text.includes(w)))}
 function compApply(){const rank={closing:0,open:1,unknown:2,past:3};
- const key={rec:c=>rank[c.dataset.st]*100000+(+c.dataset.days),deadline:c=>(c.dataset.st==="unknown"?1e9:0)+Math.abs(+c.dataset.days),new:c=>-(+c.dataset.id)}[cs.sort];
+ const key={rec:c=>(1-(+c.dataset.fy))*1e7+rank[c.dataset.st]*100000+(+c.dataset.days),deadline:c=>(c.dataset.st==="unknown"?1e9:0)+Math.abs(+c.dataset.days),new:c=>-(+c.dataset.id)}[cs.sort];
  ccards.slice().sort((a,b)=>key(a)-key(b)).forEach(c=>clist.appendChild(c));
  let n=0;$$("#clist .comp").forEach(c=>{const ok=compMatch(c,true);c.hidden=!ok||(!cs.more&&n>=PREVIEW);n+=ok});
  $$("#ccats .chip").forEach(b=>{b.classList.toggle("on",b.dataset.c===cs.c);b.setAttribute("aria-pressed",b.dataset.c===cs.c)});

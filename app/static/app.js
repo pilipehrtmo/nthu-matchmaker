@@ -339,3 +339,19 @@ document.addEventListener("change", e => {
   const all = () => document.querySelectorAll("[data-deptpick]").forEach(enhance);
   document.addEventListener("DOMContentLoaded", all); document.addEventListener("htmx:afterSettle", all); all();
 })();
+
+/* "For you" tag: tap or click to show why (phones have no hover); the card link underneath is not followed. */
+(function () {
+  const closeAll = except => document.querySelectorAll(".fytag.open").forEach(t => { if (t !== except) { t.classList.remove("open"); t.setAttribute("aria-expanded", "false"); } });
+  document.addEventListener("click", e => {
+    const t = e.target.closest && e.target.closest(".fytag");
+    if (!t) { closeAll(null); return; }
+    e.preventDefault(); e.stopPropagation();
+    const on = !t.classList.contains("open"); closeAll(t);
+    t.classList.toggle("open", on); t.setAttribute("aria-expanded", on ? "true" : "false");
+  }, true);
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeAll(null);
+    if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("fytag")) { e.preventDefault(); e.target.click(); }
+  });
+})();

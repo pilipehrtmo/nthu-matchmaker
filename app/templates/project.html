@@ -6,12 +6,22 @@
 {% elif notice == "facultyonly" %}<p class="box" role="status">Only verified NTHU professors can apply for an advisor seat.</p>
 {% elif notice == "withdrawn" %}<p class="box" role="status">Application withdrawn. You can apply again while the seat is open.</p>
 {% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>
-{% elif notice == "removed" %}<p class="box" role="status">Removed from the seat. The seat is open again.</p>{% endif %}
+{% elif notice == "removed" %}<p class="box" role="status">Removed from the seat. The seat is open again.</p>
+{% elif notice == "completed" %}<p class="box ok" role="status">Marked completed. Your teammates are asked to confirm their part.</p>
+{% elif notice == "reopened" %}<p class="box" role="status">Completion undone. The project is back to “Not recruiting”.</p>
+{% elif notice in ("already", "locked") %}<p class="err" role="status">This can't be changed any more: a teammate has already confirmed, or an admin has reviewed it.</p>
+{% elif notice == "noteam" %}<p class="err" role="alert">A project can be marked completed once at least one person has joined it.</p>
+{% elif notice == "confirmed" %}<p class="box ok" role="status">Thanks, your part is confirmed and now shows on your profile.</p>
+{% elif notice == "disputed" %}<p class="box" role="status">Sent. An admin will look at it; nothing is added to your profile until then.</p>
+{% elif notice == "reason" %}<p class="err" role="alert">Explain what is not right in 10 to 300 characters.</p>
+{% elif notice == "endorsed" %}<p class="box ok" role="status">Endorsement saved. Thank you.</p>
+{% elif notice == "noendorse" %}<p class="box" role="status">Choose at least one strength to endorse.</p>
+{% elif notice == "nodelete" %}<p class="err" role="alert">A completed project is part of the team's record, so it can't be deleted. Ask an admin if it must be removed.</p>{% endif %}
 {% if err %}<p class="err" role="alert">{{ err }}</p>{% endif %}
 <section class="card head"><div class="phead"><h1>{{ pr.title }}</h1>{% if user and not is_owner %}<form method="post" action="/save/project/{{ pr.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/projects/{{ pr.id }}"><button class="ghost sm" aria-pressed="{{ 'true' if saved else 'false' }}">{{ "Saved ✓" if saved else "Save" }}</button></form>{% endif %}</div>
 <div class="meta"><span class="pill kindpill">{{ k }}</span>{% if pr.category %}<span class="pill">{{ pr.category }}</span>{% endif %}{% if pr.stage %}<span class="pill">Stage: {{ pr.stage }}</span>{% endif %}
 <span class="byline">{{ pic(owner, "av xs") }}<span>by <a href="/u/{{ owner.handle }}">{{ owner|dn }}</a></span>{% if owner.verified %}<span class="pill ok">✔ verified</span>{% endif %}</span><span class="phours">{{ pr.hours_per_week }} h/week</span>
-{% if pr.status == "closed" %}<span class="pill warn">Not recruiting</span>
+{% if pr.status == "completed" %}<span class="pill done">Completed</span>{% elif pr.status == "closed" %}<span class="pill warn">Not recruiting</span>
 {% elif days is not none %}<span class="pill pjoin {{ 'warn' if days <= 7 }}">{{ "Join-by date passed" if days < 0 else ("Last day to join" if days == 0 else (days ~ " days left to join")) }}</span>{% endif %}
 {% if comp %}<span>for <a href="{{ comp.url }}" target="_blank" rel="noopener">{{ comp.title }}</a></span>{% elif pr.event_name %}<span>{{ "for" if k == "Competition" else "with" }} <b>{{ pr.event_name }}</b></span>{% endif %}</div>
 {% if k == "Startup" and pr.tagline %}<p class="ptagline">{{ pr.tagline }}</p>{% endif %}
@@ -22,7 +32,7 @@
 {% if not insider and plinks|selectattr("team")|list %}<p class="muted fine">{{ plinks|selectattr("team")|list|length }} more link{{ "s" if plinks|selectattr("team")|list|length != 1 }} for team members only.</p>{% endif %}
 {% if user and (is_owner or user.is_admin) %}<div class="acts ownacts">
 {% if is_owner %}<a class="btn ghost sm" href="/projects/{{ pr.id }}/edit">Edit project and seats</a>{% if k == "Startup" %}<a class="btn ghost sm" href="/projects/{{ pr.id }}/onepager" target="_blank" rel="noopener">One-pager (PDF)</a>{% endif %}
-<form method="post" action="/projects/{{ pr.id }}/status"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ 'closed' if pr.status == 'open' else 'open' }}"><button class="ghost sm">{{ "Stop recruiting" if pr.status == "open" else "Start recruiting again" }}</button></form>{% endif %}
+{% if pr.status != "completed" %}<form method="post" action="/projects/{{ pr.id }}/status"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ 'closed' if pr.status == 'open' else 'open' }}"><button class="ghost sm">{{ "Stop recruiting" if pr.status == "open" else "Start recruiting again" }}</button></form>{% endif %}{% endif %}
 <form method="post" action="/projects/{{ pr.id }}/delete" hx-confirm="Delete this project and its applications?"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="no sm">Delete project</button></form></div>
 {% if is_owner and days is not none and days < 0 and pr.status == "open" %}<p class="muted" style="margin:.6rem 0 0">The join-by date has passed, so this project is hidden from the home page. Edit it to set a new date.</p>{% endif %}{% endif %}</section>
 {% if reveal %}<div class="reveal">You're in the team. Contact the lead: {{ contact_list(owner) }}</div>{% endif %}
@@ -62,6 +72,7 @@
 {% if is_owner and a.status == "accepted" %}<p class="app-contact">Contact: {{ contact_list(u) }}</p>
 {% if u.id != user.id %}<form method="post" action="/applications/{{ a.id }}/removed" hx-confirm="Remove {{ u|dn }} from this seat? They lose access to the team's feedback and documents, and the seat opens again."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Remove from the {{ "advisor seat" if x.r.advisor else "team" }}</button></form>{% endif %}{% endif %}</div></div>{% endfor %}</div>{% endif %}
 </article>{% endfor %}</div></section>
+{% include "_complete.html" %}
 {% if docsec %}{% include "_docs.html" %}{% endif %}
 {% if user %}<section class="card ptalk" id="discuss"><div class="sup-head"><h2>Discussions about this project</h2><a class="btn ghost sm" href="/discuss/new?project={{ pr.id }}">Start a discussion</a></div>
 {% if talks %}<ul class="doclist">{% for t in talks %}<li><a href="/discuss/{{ t.id }}"><span class="dl-m"><b>{{ t.title }}</b><small>{{ t.topic }} · {{ t.created|ago }}</small></span></a></li>{% endfor %}</ul>

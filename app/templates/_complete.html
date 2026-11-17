@@ -1,0 +1,40 @@
+{% set cp = comp_panel %}{% set inside = user and (user.is_admin or cp.mine) %}
+{% if cp.can_complete or pr.status == "completed" %}<section class="card complete" id="complete">
+{% if cp.can_complete %}<h2>Project completion</h2>
+<p class="muted">When the work is done, mark it completed. Each teammate then confirms their part, and only confirmed parts appear on profiles. You can undo it until someone confirms.</p>
+<details class="cform"><summary class="btn ghost sm">Mark this project completed…</summary>
+<form method="post" action="/projects/{{ pr.id }}/complete" hx-confirm="Mark this project as completed? It stops recruiting and your teammates are asked to confirm.">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<label for="ln-lead">What you did as the lead <small class="muted">(optional)</small></label><input id="ln-lead" name="lead_note" maxlength="200" placeholder="e.g. planned the sprints and built the backend">
+<p class="fine muted">Your team. Untick anyone who did not take part; they can disagree, and an admin decides.</p>
+<ul class="cteam">{% for x in cp.team %}<li><div class="cwho">{{ pic(x.user, "av xs") }}<b>{{ x.user|dn }}</b><span class="muted">{{ x.role.name }}</span>{% if x.removed %}<span class="pill">Removed earlier</span>{% endif %}</div>
+{% if x.removed %}<p class="fine muted">Listed as not included. They can say they did contribute.</p>{% else %}
+<label class="ccheck"><input type="checkbox" name="in_{{ x.app.id }}" value="1" checked> Took part</label>
+<label class="vh" for="nt{{ x.app.id }}">What this person did</label><input id="nt{{ x.app.id }}" name="note_{{ x.app.id }}" maxlength="200" placeholder="What they did, e.g. designed the app screens">{% endif %}</li>{% endfor %}</ul>
+<button>Mark completed</button></form></details>
+{% else %}<h2>Completed project{% if pr.completed_at %} <small class="muted">· {{ pr.completed_at.strftime("%Y-%m-%d") }}</small>{% endif %}</h2>
+<ul class="crows">{% for x in cp.rows if inside or x.counted %}{% set c = x.c %}<li>
+<div class="cwho">{{ pic(x.user, "av xs") }}<a href="/u/{{ x.user.handle }}"><b>{{ x.user|dn }}</b></a><span class="muted">{{ c.role_name }}</span>
+{% if x.counted %}<span class="vlabel {{ 'v-admin' if c.admin_status == 'verified' else 'v-lead' }}">{{ "Admin-verified" if c.admin_status == "verified" else ("Confirmed by the team" if c.is_lead else "Confirmed by lead and member") }}</span>
+{% elif c.is_lead %}<span class="vlabel v-wait">Counts once a teammate confirms</span>
+{% elif c.member_status == "disputed" and not c.admin_status %}<span class="vlabel v-wait">With an admin</span>
+{% elif c.lead_status == "not_included" %}<span class="vlabel v-off">Not included</span>
+{% else %}<span class="vlabel v-wait">Waiting for confirmation</span>{% endif %}</div>
+{% if c.note %}<p class="cnote">{{ c.note }}</p>{% endif %}
+{% if c.member_status == "disputed" and user and (user.is_admin or user.id == c.user_id or user.id == pr.owner_id) %}<p class="fine muted">Their note: {{ c.member_note }}</p>{% endif %}</li>{% endfor %}</ul>
+{% set m = cp.mine %}{% if m and not m.is_lead and m.member_status == "pending" and not m.admin_status %}<div class="cask">
+{% if m.lead_status == "confirmed" %}<p><b>Is this right?</b> The lead recorded you as <b>{{ m.role_name }}</b>{% if m.note %}: “{{ m.note }}”{% endif %}. Confirm it to add this project to your profile.</p>
+<div class="acts"><form method="post" action="/contributions/{{ m.id }}/confirm"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Confirm my part</button></form></div>
+<details><summary class="linkbtn">Something is not right</summary>{% else %}<p><b>The lead recorded you as not taking part.</b> If you did contribute, tell us; an admin will check.</p><details open><summary class="vh">Disagree</summary>{% endif %}
+<form method="post" action="/contributions/{{ m.id }}/dispute"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="dr">What is not right?</label><textarea id="dr" name="reason" rows="2" minlength="10" maxlength="300" required placeholder="e.g. I built the login and the database, not only the design"></textarea><button class="ghost sm">Send to an admin</button></form></details></div>{% endif %}
+{% if cp.can_cancel %}<form method="post" action="/projects/{{ pr.id }}/complete/cancel" hx-confirm="Undo the completion? The project goes back to Not recruiting."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn sm">Undo completion</button></form>{% endif %}
+{% if cp.endorse %}<div class="endorse"><h3>Endorse your teammates <small class="muted">(optional)</small></h3>
+<p class="fine muted">Vouch for up to 3 strengths per person. Only positive, only teammates, and never a score.</p>
+{% for e in cp.endorse %}<form method="post" action="/projects/{{ pr.id }}/endorse" class="eform" data-left="{{ e.left }}"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="to" value="{{ e.user.id }}">
+<p class="cwho">{{ pic(e.user, "av xs") }}<b>{{ e.user|dn }}</b>{% if e.done %}<span class="muted fine">You endorsed: {% for t in e.done %}{{ endorse_label(t, lang) }}{{ ", " if not loop.last }}{% endfor %}</span>{% endif %}</p>
+{% if e.left > 0 %}<fieldset class="etags"><legend class="vh">Strengths to endorse</legend>
+{% for q, en, zh in cp.qualities %}{% set t = "q:" ~ q %}{% if t not in e.done %}<label class="etag"><input type="checkbox" name="tag" value="{{ t }}"><span>{{ zh if lang == "zh" else en }}</span></label>{% endif %}{% endfor %}
+{% for k in e.skills %}{% set t = "s:" ~ k %}{% if t not in e.done %}<label class="etag sk"><input type="checkbox" name="tag" value="{{ t }}"><span>{{ keep(k) }}</span></label>{% endif %}{% endfor %}</fieldset>
+<button class="ghost sm">Endorse {{ e.user|dn }}</button>{% endif %}</form>{% endfor %}</div>{% endif %}
+{% endif %}</section>{% endif %}
+<script>document.querySelectorAll(".eform").forEach(f=>{const b=f.querySelectorAll("input[name=tag]"),left=+({% raw %}f.dataset.left{% endraw %}||3);const sync=()=>{const n=[...b].filter(x=>x.checked).length;b.forEach(x=>{x.disabled=!x.checked&&n>=left})};f.addEventListener("change",sync);sync()})</script>

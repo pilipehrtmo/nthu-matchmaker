@@ -206,6 +206,12 @@ PATTERNS += [   # form checks (app/validate.py)
     (r"^Add at least one skill to the “(.+)” seat\. If beginners are welcome, also tick “No prior experience required”\.$", "請為「{0}」職位加上至少一個技能。如果歡迎新手，也請勾選「不需相關經驗」。"),
     (r"^“(.+)”: (.+)$", "「{0}」：{1}"),
 ]
+PATTERNS += [   # For you and track record (app/foryou.py, app/reputation.py)
+    (r"^Each item in (Interests|Roles you want) can be at most (\d+) characters \(“(.*)” is longer\)\.$", "「{0}」的每一項最多 {1} 個字元（「{2}」太長了）。"),
+    (r"^Add at most (\d+) items to (Interests|Roles you want) \(you have (\d+)\)\.$", "「{1}」最多 {0} 項（你有 {2} 項）。"),
+    (r"^(.+) was marked completed\. Please confirm your part\.$", "「{0}」已標記為完成，請確認你的部分。"),
+    (r"^(.+) disagrees with the completion record of (.+)\. An admin will review it\.$", "{0} 對「{1}」的完成紀錄有異議，管理員會審核。"),
+]
 _ui.setdefault("Your bio", "自我介紹"); _ui.setdefault("The description", "專案說明"); _ui.setdefault("Your note", "留言")
 PATTERNS = [(re.compile(a), b) for a, b in PATTERNS]
 def t(s, lang: str = "en"):
