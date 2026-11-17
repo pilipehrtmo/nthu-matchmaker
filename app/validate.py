@@ -42,6 +42,14 @@ def skills_problem(items: list[str], limit: int = MAX_SKILLS) -> str:
     if len(items) > limit: return f"Add at most {limit} skills (you have {len(items)})."
     return ""
 
+MAX_INTERESTS, MAX_ROLES, MAX_TAG_LEN = 10, 5, 40
+def list_problem(items: list[str], limit: int, what: str) -> str:
+    """Interests or roles wanted: at most `limit` items of MAX_TAG_LEN characters."""
+    long = [t for t in items if len(t) > MAX_TAG_LEN]
+    if long: return f"Each item in {what} can be at most {MAX_TAG_LEN} characters (“{long[0][:40]}” is longer)."
+    if len(items) > limit: return f"Add at most {limit} items to {what} (you have {len(items)})."
+    return ""
+
 # Canonical spellings we can suggest. Custom skills are always allowed; this list only powers "Did you mean ...?".
 CANON = ["Python", "JavaScript", "TypeScript", "HTML", "CSS", "Java", "C", "C++", "C#", "Go", "Rust", "Kotlin", "Swift", "PHP", "Ruby", "R", "MATLAB",
          "SQL", "PostgreSQL", "MySQL", "MongoDB", "React", "Vue", "Angular", "Node.js", "Django", "Flask", "FastAPI", "Flutter", "React Native",

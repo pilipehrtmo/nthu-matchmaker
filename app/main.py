@@ -500,6 +500,9 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     if name != user.name: errs.append(V.name_problem(name))   # an older name that breaks today's rules can still be kept as it is
     errs.append(V.length_problem(bio, 0, V.BIO_MAX, "Your bio"))
     errs.append(V.skills_problem(skill_list))
+    interest_list, role_list = V.split_skills(str(form.get("interests", ""))), V.split_skills(str(form.get("roles_wanted", "")))
+    errs.append(V.list_problem(interest_list, V.MAX_INTERESTS, "Interests"))
+    errs.append(V.list_problem(role_list, V.MAX_ROLES, "Roles you want"))
     for f in ("instagram", "line", "discord"):
         clean, problem = V.handle_problem(f, str(form.get(f, "")))
         handles[f] = clean
@@ -514,6 +517,7 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     if errs:   # show the form again with what they typed (nothing is saved)
         for f in ("instagram", "line", "discord"): setattr(user, f, str(form.get(f, "")).strip()[:100])
         user.name, user.bio, user.skills = name, bio, ", ".join(skill_list)
+        user.interests, user.roles_wanted = ", ".join(interest_list), ", ".join(role_list)
         user.contact = contact
         if user.role == "faculty": user.faculty = faculty
         for f in ("competitions", "past_projects", "awards"): setattr(user, f, str(form.get(f, "")))
@@ -528,6 +532,8 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     elif dept_fields: set_dept(user, dept_fields)   # nothing chosen = the department stays as it is
     user.hours = max(1, min(hours, 60))
     user.skills = ",".join(sorted({t.lower() for t in skill_list}))
+    user.interests = ",".join(dict.fromkeys(t.lower() for t in interest_list))   # keeps their order, no duplicates
+    user.roles_wanted = ",".join(dict.fromkeys(t.lower() for t in role_list))
     for f in ("competitions", "past_projects", "awards"):   # one item per line, at most 10 lines of 200 characters
         lines = [re.sub(r"\s+", " ", l).strip(" -•*")[:200] for l in str(form.get(f, "")).splitlines()]
         setattr(user, f, "\n".join([l for l in lines if l][:10]))
@@ -643,7 +649,8 @@ def public_profile(req: Request, handle: str, reported: str = "", user=Depends(m
         for o in s.exec(select(Opening).where(Opening.owner_id == p.id, Opening.status == "open").order_by(Opening.created.desc())).all():
             st = opening_state(s, o)
             if st["taking"]: openings.append(dict(o=o, **st))
-    return render(req, "public.html", user, p=p, skills=sorted(tags(p.skills)), reported=bool(reported), projects=projects, openings=openings,
+    from .reputation import record
+    return render(req, "public.html", user, p=p, track=record(s, p) if not p.is_admin else None, interests=[t for t in p.interests.split(",") if t.strip()], roles_wanted=[t for t in p.roles_wanted.split(",") if t.strip()], skills=sorted(tags(p.skills)), reported=bool(reported), projects=projects, openings=openings,
                   research=[t.strip() for t in p.research.split(",") if t.strip()])
 
 # ---------- board ----------
@@ -655,6 +662,12 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
     roles_of = defaultdict(list)   # 3 queries for the whole page instead of 2 per project
     for r in s.exec(select(Role).where(Role.project_id.in_(ids))): roles_of[r.project_id].append(r)
     owners = {u.id: u for u in s.exec(select(User).where(User.id.in_({p.owner_id for p in projs} or {-1})))}
+    from . import foryou as FY
+    lang = pick_lang(req); me_ = FY.Me(user)
+    touched = set()   # projects this person already applied to or joined: never recommended back
+    if user:
+        touched = set(s.exec(select(Role.project_id).join(Application, Application.role_id == Role.id)
+                             .where(Application.user_id == user.id, Application.status != "withdrawn")).all())
     for pr in projs:
         allr = roles_of[pr.id]
         roles = [r for r in allr if not r.filled]
@@ -668,10 +681,11 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
             scored = [(match_pct(user, r, pr, owner), r) for r in roles if not r.advisor or user.is_faculty]
             if scored:
                 best, br = max(scored, key=lambda x: x[0]); reason = f"{br.name}: {why(user, br, best)}"
-        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, total=len(allr), days=days, reason=reason))
-    rows.sort(key=lambda r: -(r["score"] or 0))
-    # Recommended: only from real overlap between this person's skills and a seat's skills (no score shown without data)
-    recs = [r for r in rows if r["score"] and r["score"] >= 40 and r["reason"] and "Shares:" in r["reason"]][:3] if user and user.skills.strip() else []
+        fy, fy_why, other = False, [], ""
+        if user and user.id != pr.owner_id and pr.id not in touched:
+            fy, fy_why, other = FY.project(me_, pr, [r for r in roles if not r.advisor or user.is_faculty], owner, lang)
+        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, total=len(allr), days=days, reason=reason, fy=fy, fy_why=fy_why, other=other))
+    rows.sort(key=lambda r: (not r["fy"], -(r["score"] or 0)))   # "For you" first, then the match score
     soon = {}   # nearest program deadline within 30 days, per project kind
     for prog in s.exec(select(Program).where(Program.active == True)).all():
         d = days_left(prog.next_deadline)
@@ -681,6 +695,10 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
     from .opps import comp_status, saved_ids
     rank = {"closing": 0, "open": 1, "unknown": 2, "past": 3}
     comps = sorted(allc[:300], key=lambda c: (rank[comp_status(c)[0]], comp_status(c)[2] if comp_status(c)[2] is not None else 9999, -c.id))
+    comp_fy = {}
+    for c in comps:
+        st = comp_status(c); ok, why_c = FY.competition(me_, c, st[0], st[2], lang)
+        if ok: comp_fy[c.id] = why_c
     start = None   # "Getting started" steps for a new student, worked out from what they have really done
     if user and not user.is_faculty:
         applied = s.exec(select(Application.id).where(Application.user_id == user.id, Application.status != "withdrawn")).first() is not None
@@ -689,7 +707,8 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
                         .where(Application.status == "accepted", (Application.user_id == user.id) | (Project.owner_id == user.id))).first() is not None
         start = dict(skills=bool(user.skills.strip()), act=applied or posted, joined=joined)
         if all(start.values()): start = None
-    return render(req, "board.html", user, start=start, recs=recs, depts=sorted({DEP.display(r["owner"], pick_lang(req)) for r in rows if r["owner"] and DEP.display(r["owner"], pick_lang(req))}), rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
+    fyhint = me_.missing() if user and not user.is_faculty and not user.is_admin else []
+    return render(req, "board.html", user, start=start, fyhint=fyhint, comp_fy=comp_fy, depts=sorted({DEP.display(r["owner"], pick_lang(req)) for r in rows if r["owner"] and DEP.display(r["owner"], pick_lang(req))}), rows=rows, comps=comps, saved_c=saved_ids(s, user, "competition"), comp_cat={c.id: c.category for c in allc}, q=q, cat=cat, cats=cats, kind=kind, kinds=PROJECT_KINDS, soon=soon)
 
 RESEARCH_PLAN = [("objectives", 800), ("methodology", 800), ("outcomes", 600)]
 PITCH_FIELDS = [("tagline", 140), ("problem", 600), ("audience", 400), ("solution", 600), ("progress", 600), ("needs", 300), ("metrics", 200)]
@@ -906,7 +925,7 @@ async def save_project(req: Request, pid: int, user=Depends(me), s: Session = De
 @app.post("/projects/{pid}/status")
 def project_status(pid: int, status: str = Form(...), user=Depends(me), s: Session = Depends(get_session)):
     pr = s.get(Project, pid)
-    if pr and user and user.id == pr.owner_id and status in ("open", "closed"): pr.status = status; s.commit()
+    if pr and user and user.id == pr.owner_id and pr.status != "completed" and status in ("open", "closed"): pr.status = status; s.commit()
     return go(f"/projects/{pid}")
 
 @app.get("/projects/{pid}")
@@ -936,7 +955,8 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     if docsec and not docsec["rows"] and not docsec["can_upload"]: docsec = None
     from .opps import saved_ids
     talks = s.exec(select(Post).where(Post.project_id == pid, Post.hidden == False).order_by(Post.created.desc()).limit(5)).all() if user else []
-    return render(req, "project.html", user, talks=talks, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
+    from .reputation import panel
+    return render(req, "project.html", user, comp_panel=panel(s, pr, user), talks=talks, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
 
 @app.get("/projects/{pid}/onepager")
@@ -958,7 +978,10 @@ def onepager(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_
 @app.post("/projects/{pid}/delete")
 def delete_project(pid: int, user=Depends(me), s: Session = Depends(get_session)):
     pr = s.get(Project, pid)
+    if user and pr and pr.status == "completed" and not user.is_admin: return go(f"/projects/{pid}?n=nodelete#complete")   # its record belongs to the whole team
     if user and pr and (pr.owner_id == user.id or user.is_admin):
+        from .models import Contribution, Endorsement
+        s.exec(delete(Endorsement).where(Endorsement.project_id == pid)); s.exec(delete(Contribution).where(Contribution.project_id == pid))
         for r in s.exec(select(Role).where(Role.project_id == pid)).all():
             for a in s.exec(select(Application).where(Application.role_id == r.id)).all(): s.delete(a)
             s.delete(r)
@@ -1005,7 +1028,7 @@ def decide(aid: int, decision: str, next: str = Form(""), user=Depends(me), s: S
     if decision == "withdrawn" and a.user_id == user.id and a.status == "pending":
         a.status = "withdrawn"; s.commit()
         return go("/activity?n=withdrawn" if next == "/activity" else f"/projects/{pr.id}?n=withdrawn")
-    if user.id == pr.owner_id and a.status == "accepted" and decision == "removed" and a.user_id != user.id:   # the lead removes a member or advisor
+    if user.id == pr.owner_id and a.status == "accepted" and decision == "removed" and a.user_id != user.id and pr.status != "completed":   # the lead removes a member or advisor
         a.status = "removed"; r.filled = False; s.commit()
         from .notify import notify
         notify(s, [a.user_id], "removed", f"You were removed from the {r.name} seat of {pr.title}", f"/projects/{pr.id}", pr.id, user.id)
@@ -1214,7 +1237,8 @@ def admin_dept(req: Request, uid: int, choice: str = Form(""), action: str = For
 @app.get("/admin")
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
-    return render(req, "admin.html", user, users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None), cflash=req.session.pop("cflash", None),
+    from .reputation import admin_queue
+    return render(req, "admin.html", user, trackq=admin_queue(s), users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None), cflash=req.session.pop("cflash", None),
         profq=profverify.queue(s, req.query_params.get("profs", "open")), profs_all=req.query_params.get("profs") == "all",
         deptq=s.exec(select(User).where(User.dept_status.in_(DEP.REVIEW_STATES)).order_by(User.id)).all(), dflash=req.session.pop("dflash", None),
         perr=req.query_params.get("perr", ""), names_by_id={u.id: u.name or u.handle for u in s.exec(select(User).where(User.is_admin == True)).all()}, programs=s.exec(select(Program).order_by(Program.sort)).all(),
@@ -1318,4 +1342,4 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
     s.commit(); return go("/admin")
 
 from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)
-from . import notify, docs, opps, profverify, tour, onboard, whatsnew   # notifications, research documents, competitions and saved items (after advisor: they use its rules)
+from . import notify, docs, opps, profverify, tour, onboard, whatsnew, reputation   # notifications, research documents, competitions and saved items (after advisor: they use its rules)

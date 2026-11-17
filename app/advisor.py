@@ -423,7 +423,15 @@ def research(req: Request, user=Depends(me), s: Session = Depends(get_session)):
         if o.owner_id in pmap and st["taking"]:
             openings.append(dict(o=o, prof=pmap[o.owner_id], **st)); counts[o.owner_id] += 1
     mine = tags(user.skills) if user else set()
-    for x in openings: x["fit"] = sorted(mine & tags(x["o"].skills))
+    from . import foryou as FY
+    from .i18n import pick_lang
+    me_, lang = FY.Me(user), pick_lang(req)
+    applied = set(s.exec(select(OpeningApp.opening_id).where(OpeningApp.user_id == user.id, OpeningApp.status != "withdrawn")).all()) if user else set()
+    for x in openings:
+        x["fit"] = sorted(mine & tags(x["o"].skills))
+        ok = user and x["o"].owner_id != user.id and x["o"].id not in applied
+        x["fy"], x["fy_why"], x["other"] = FY.opening(me_, x["o"], x["prof"], lang) if ok else (False, [], "")
+    openings.sort(key=lambda x: not x["fy"])   # "For you" first; otherwise newest first, as before
     return render(req, "research.html", user, openings=openings, profs=profs, counts=counts, mytags=mine)
 
 def read_opening(form):

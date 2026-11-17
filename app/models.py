@@ -20,6 +20,8 @@ class User(SQLModel, table=True):
     verified: bool = False
     bio: str = ""
     skills: str = ""      # comma-separated lowercase tags
+    interests: str = ""   # comma-separated topics they care about (e.g. machine learning, startups); used for "For you"
+    roles_wanted: str = ""   # comma-separated roles they want on a team (e.g. frontend developer, designer)
     contact: str = ""     # "other" contact (email, phone...); private, shown only after an accepted application
     line: str = ""        # private contacts, same rule as above
     instagram: str = ""
@@ -114,8 +116,9 @@ class Project(SQLModel, table=True):
     links: str = ""       # JSON list of {label, url, team}: repo, Trello, timeline...; team=True means only the team sees it
     hours_per_week: int = 4
     deadline: str = ""
-    status: str = "open"
+    status: str = "open"      # open / closed / completed (the lead marked it done; see Contribution)
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[NaiveDatetime] = None
 
 class Role(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -373,4 +376,32 @@ class SavedItem(SQLModel, table=True):       # a bookmark: a competition or proj
     kind: str                 # competition / project / program
     item_id: int
     status: str = ""          # application tracking for opportunities: "" / planning / applied / accepted / not_selected
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+
+class Contribution(SQLModel, table=True):   # one person's part in a completed project: written by the lead, confirmed by the person
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_contribution_project_user"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    role_name: str = ""        # the seat they held ("Project lead" for the lead)
+    skills: str = ""           # the seat's skills when the project was completed
+    note: str = ""             # the lead's short description of what they did
+    is_lead: bool = False
+    lead_status: str = "confirmed"   # confirmed / not_included (the lead says they did not take part)
+    member_status: str = "pending"   # pending / confirmed / disputed (the person's answer)
+    member_note: str = ""      # why they disagree
+    admin_status: str = ""     # "" / verified (an admin checked the evidence) / upheld_member / upheld_lead (a dispute decided)
+    joined_at: Optional[NaiveDatetime] = None
+    decided_by: int = 0
+    decided_at: Optional[NaiveDatetime] = None
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+class Endorsement(SQLModel, table=True):   # a teammate vouches for one strength after a completed project; never negative, never a score
+    __table_args__ = (UniqueConstraint("project_id", "from_id", "to_id", "tag", name="uq_endorsement"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    from_id: int = Field(foreign_key="user.id", index=True)
+    to_id: int = Field(foreign_key="user.id", index=True)
+    tag: str                   # "q:reliable" (a fixed quality) or "s:python" (a skill from their seat)
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
