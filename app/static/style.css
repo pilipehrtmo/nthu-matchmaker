@@ -1230,3 +1230,6 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .pwant dt{font-size:.8rem;color:var(--mut);font-weight:600}.pwant dd{margin:0;display:flex;flex-wrap:wrap;gap:.3rem}
 .xp h3 .vlabel{margin-left:.3rem}
 .vlist li{display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:12px;padding:.55rem .75rem}
+.trk-hr{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+.foldbtn.sm{min-height:2.1rem;padding:.3rem .8rem;font-size:.85rem}
+.track .trk-stats{margin-bottom:0}.track .fold.open>.fold-in{padding-top:.4rem}
