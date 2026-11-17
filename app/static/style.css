@@ -1233,3 +1233,5 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .trk-hr{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
 .foldbtn.sm{min-height:2.1rem;padding:.3rem .8rem;font-size:.85rem}
 .track .trk-stats{margin-bottom:0}.track .fold.open>.fold-in{padding-top:.4rem}
+.trk-top a{color:var(--ink);text-decoration:none;text-underline-offset:.2em;text-decoration-thickness:1.5px}
+.trk-top a:hover,.trk-top a:focus-visible{text-decoration:underline;color:var(--pri-ink)}
